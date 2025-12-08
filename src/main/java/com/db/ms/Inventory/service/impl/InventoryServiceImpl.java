@@ -1,17 +1,18 @@
-package com.db.ms.Inventory.service.impl;
+package com.db.ms.inventory.service.impl;
 
-import com.db.ms.Inventory.dto.*;
-import com.db.ms.Inventory.entity.Inventory;
-import com.db.ms.Inventory.exceptions.InsufficientStockException;
-import com.db.ms.Inventory.exceptions.InvalidInventoryOperationException;
-import com.db.ms.Inventory.exceptions.InventoryAlreadyExistsException;
-import com.db.ms.Inventory.exceptions.InventoryNotFoundException;
-import com.db.ms.Inventory.repository.InventoryRepository;
-import com.db.ms.Inventory.service.InventoryService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.entity.Inventory;
+import com.db.ms.inventory.exceptions.InsufficientStockException;
+import com.db.ms.inventory.exceptions.InvalidInventoryOperationException;
+import com.db.ms.inventory.exceptions.InventoryAlreadyExistsException;
+import com.db.ms.inventory.exceptions.InventoryNotFoundException;
+import com.db.ms.inventory.repository.InventoryRepository;
+import com.db.ms.inventory.service.InventoryService;
 
 import java.util.List;
 import java.util.stream.Collectors;

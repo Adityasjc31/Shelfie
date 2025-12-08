@@ -1,9 +1,10 @@
-package com.db.ms.Inventory.repository;
+package com.db.ms.inventory.repository;
 
-import com.db.ms.Inventory.entity.Inventory;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
+
+import com.db.ms.inventory.entity.Inventory;
 
 import java.time.LocalDateTime;
 import java.util.*;

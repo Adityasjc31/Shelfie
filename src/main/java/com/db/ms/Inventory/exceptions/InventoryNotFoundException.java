@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.exceptions;
+package com.db.ms.inventory.exceptions;
 
 /**
  * Exception thrown when an inventory record is not found.
