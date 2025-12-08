@@ -27,9 +27,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Unit tests for InventoryController.
  * Uses MockMvc for testing REST endpoints with JUnit 5 and Mockito.
  * 
- * @author Bookstore Development Team
+ * @author Shelfie
  * @version 1.0
- * @since 2024-12-07
+ * @since 2024-12-08
  */
 @WebMvcTest(InventoryController.class)
 public class InventoryControllerTest {
