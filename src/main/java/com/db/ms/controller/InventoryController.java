@@ -1,13 +1,13 @@
 package com.db.ms.controller;
 
-
-import com.db.ms.dto.*;
-import com.db.ms.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import com.db.ms.dto.*;
+import com.db.ms.service.InventoryService;
 
 import jakarta.validation.Valid;
 import java.util.List;
