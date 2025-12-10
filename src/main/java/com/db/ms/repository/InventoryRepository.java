@@ -1,97 +1,34 @@
 package com.db.ms.repository;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Repository;
-
 import com.db.ms.model.Inventory;
 
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
+import org.springframework.stereotype.Repository;
 
 /**
- * Repository class for Inventory entity using in-memory data structures.
- * Uses ConcurrentHashMap for thread-safe operations.
+ * Repository interface for Inventory entity.
+ * Defines methods for CRUD operations and custom queries on inventory records.
  *
  * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */
 @Repository
-@Slf4j
-public class InventoryRepository {
-
-    // In-memory storage using ConcurrentHashMap for thread safety
-    private final Map<Long, Inventory> inventoryStore = new ConcurrentHashMap<>();
-
-    // Index for quick lookup by bookId
-    private final Map<Long, Long> bookIdToInventoryIdIndex = new ConcurrentHashMap<>();
-
-    // Auto-increment ID generator
-    private final AtomicLong idGenerator = new AtomicLong(1);
-
+public interface InventoryRepository {
     /**
      * Initializes repository with sample data for testing.
      * This method is called after the bean is constructed.
      */
     @PostConstruct
-    public void initializeSampleData() {
-        log.info("Initializing repository with sample inventory data");
-
-        // Sample inventory data
-        createSampleInventory(101L, 50, 10);
-        createSampleInventory(102L, 75, 15);
-        createSampleInventory(103L, 5, 10);   // Low stock
-        createSampleInventory(104L, 0, 10);   // Out of stock
-        createSampleInventory(105L, 100, 20);
-        createSampleInventory(106L, 8, 10);   // Low stock
-        createSampleInventory(107L, 150, 25);
-        createSampleInventory(108L, 30, 10);
-        createSampleInventory(109L, 0, 15);   // Out of stock
-        createSampleInventory(110L, 200, 30);
-
-        log.info("Sample data initialized: {} inventory records", inventoryStore.size());
-    }
-
-    /**
-     * Helper method to create sample inventory.
-     */
-    private void createSampleInventory(Long bookId, Integer quantity, Integer threshold) {
-        Inventory inventory = Inventory.builder()
-                .inventoryId(idGenerator.getAndIncrement())
-                .bookId(bookId)
-                .quantity(quantity)
-                .lowStockThreshold(threshold)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        inventoryStore.put(inventory.getInventoryId(), inventory);
-        bookIdToInventoryIdIndex.put(bookId, inventory.getInventoryId());
-    }
-
+    public void initializeSampleData();
+    
     /**
      * Saves inventory record (create or update).
      *
      * @param inventory the inventory to save
      * @return the saved inventory
      */
-    public Inventory save(Inventory inventory) {
-        if (inventory.getInventoryId() == null) {
-            // New inventory - generate ID
-            inventory.setInventoryId(idGenerator.getAndIncrement());
-            inventory.setCreatedAt(LocalDateTime.now());
-        }
-        inventory.setUpdatedAt(LocalDateTime.now());
-
-        inventoryStore.put(inventory.getInventoryId(), inventory);
-        bookIdToInventoryIdIndex.put(inventory.getBookId(), inventory.getInventoryId());
-
-        log.debug("Saved inventory: {}", inventory);
-        return inventory;
-    }
+    public Inventory save(Inventory inventory);
 
     /**
      * Finds inventory by ID.
@@ -99,23 +36,14 @@ public class InventoryRepository {
      * @param inventoryId the inventory ID
      * @return Optional containing the inventory if found
      */
-    public Optional<Inventory> findById(Long inventoryId) {
-        return Optional.ofNullable(inventoryStore.get(inventoryId));
-    }
-
+    public Optional<Inventory> findById(Long inventoryId);
     /**
      * Finds inventory by book ID.
      *
      * @param bookId the book ID
      * @return Optional containing the inventory if found
      */
-    public Optional<Inventory> findByBookId(Long bookId) {
-        Long inventoryId = bookIdToInventoryIdIndex.get(bookId);
-        if (inventoryId == null) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(inventoryStore.get(inventoryId));
-    }
+    public Optional<Inventory> findByBookId(Long bookId) ;
 
     /**
      * Checks if inventory exists for a book ID.
@@ -123,9 +51,7 @@ public class InventoryRepository {
      * @param bookId the book ID
      * @return true if exists, false otherwise
      */
-    public boolean existsByBookId(Long bookId) {
-        return bookIdToInventoryIdIndex.containsKey(bookId);
-    }
+    public boolean existsByBookId(Long bookId) ;
 
     /**
      * Checks if inventory exists by ID.
@@ -133,82 +59,53 @@ public class InventoryRepository {
      * @param inventoryId the inventory ID
      * @return true if exists, false otherwise
      */
-    public boolean existsById(Long inventoryId) {
-        return inventoryStore.containsKey(inventoryId);
-    }
+    public boolean existsById(Long inventoryId);
 
     /**
      * Finds all inventory records.
      *
      * @return List of all inventories
      */
-    public List<Inventory> findAll() {
-        return new ArrayList<>(inventoryStore.values());
-    }
+    public List<Inventory> findAll();
 
     /**
      * Finds all inventory records with low stock.
      *
      * @return List of low stock inventories
      */
-    public List<Inventory> findLowStockItems() {
-        return inventoryStore.values().stream()
-                .filter(Inventory::isLowStock)
-                .collect(Collectors.toList());
-    }
+    public List<Inventory> findLowStockItems();
 
     /**
      * Finds all out-of-stock inventory records.
      *
      * @return List of out-of-stock inventories
      */
-    public List<Inventory> findOutOfStockItems() {
-        return inventoryStore.values().stream()
-                .filter(Inventory::isOutOfStock)
-                .collect(Collectors.toList());
-    }
+    public List<Inventory> findOutOfStockItems();
 
     /**
      * Finds all in-stock inventory records.
      *
      * @return List of in-stock inventories
      */
-    public List<Inventory> findInStockItems() {
-        return inventoryStore.values().stream()
-                .filter(inventory -> inventory.getQuantity() > 0)
-                .collect(Collectors.toList());
-    }
+    public List<Inventory> findInStockItems();
 
     /**
      * Deletes inventory by ID.
      *
      * @param inventoryId the inventory ID
      */
-    public void deleteById(Long inventoryId) {
-        Inventory inventory = inventoryStore.get(inventoryId);
-        if (inventory != null) {
-            bookIdToInventoryIdIndex.remove(inventory.getBookId());
-            inventoryStore.remove(inventoryId);
-            log.debug("Deleted inventory with ID: {}", inventoryId);
-        }
-    }
+    public void deleteById(Long inventoryId);
 
     /**
      * Deletes all inventory records.
      * Useful for testing.
      */
-    public void deleteAll() {
-        inventoryStore.clear();
-        bookIdToInventoryIdIndex.clear();
-        log.debug("Deleted all inventory records");
-    }
+    public void deleteAll();
 
     /**
      * Counts total inventory records.
      *
      * @return count of inventories
      */
-    public long count() {
-        return inventoryStore.size();
-    }
+    public long count();
 }
