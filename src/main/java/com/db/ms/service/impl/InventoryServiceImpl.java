@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * Handles all business logic for inventory management operations.
  * Follows Single Responsibility Principle (SRP) and Dependency Inversion Principle (DIP).
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */

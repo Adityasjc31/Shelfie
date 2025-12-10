@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 /**
  * Data Transfer Object for creating new inventory records.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */

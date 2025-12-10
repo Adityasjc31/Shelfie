@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
  * Data Transfer Object for adjusting inventory quantity.
  * Supports both increment and decrement operations.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */

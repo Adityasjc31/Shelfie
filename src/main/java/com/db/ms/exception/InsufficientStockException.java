@@ -2,7 +2,7 @@ package com.db.ms.exception;
 /**
  * Exception thrown when insufficient stock is available for an operation.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */

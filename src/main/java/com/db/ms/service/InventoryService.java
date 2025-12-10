@@ -13,7 +13,7 @@ import com.db.ms.exception.InventoryNotFoundException;
  * Service interface defining business logic operations for Inventory Management.
  * Follows the Interface Segregation Principle (ISP) from SOLID principles.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-078
  */
