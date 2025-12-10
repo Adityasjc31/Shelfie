@@ -1,6 +1,6 @@
-package com.db.ms.shelfie.entity;
+package com.db.ms.entity;
 
-import com.db.ms.shelfie.enums.OrderEnum;
+import com.db.ms.enums.OrderEnum;
 import lombok.*;
 
 import java.time.LocalDateTime;

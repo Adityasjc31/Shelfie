@@ -1,4 +1,4 @@
-package com.db.ms.shelfie.exception;
+package com.db.ms.exception;
 
 
 public class OrderException extends Exception{

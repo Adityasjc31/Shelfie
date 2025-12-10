@@ -1,4 +1,4 @@
-package com.db.ms.shelfie.enums;
+package com.db.ms.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
