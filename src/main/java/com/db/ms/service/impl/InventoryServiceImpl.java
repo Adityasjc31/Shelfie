@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.db.ms.dto.*;
-import com.db.ms.entity.Inventory;
+import com.db.ms.model.Inventory;
 import com.db.ms.exception.InsufficientStockException;
 import com.db.ms.exception.InvalidInventoryOperationException;
 import com.db.ms.exception.InventoryAlreadyExistsException;
