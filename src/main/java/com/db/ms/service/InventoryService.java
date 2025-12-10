@@ -1,3 +1,4 @@
+<<<<<<< HEAD:src/main/java/com/db/ms/service/InventoryService.java
 package com.db.ms.service;
 
 import com.db.ms.dto.*;
@@ -5,8 +6,17 @@ import com.db.ms.exception.InsufficientStockException;
 import com.db.ms.exception.InvalidInventoryOperationException;
 import com.db.ms.exception.InventoryAlreadyExistsException;
 import com.db.ms.exception.InventoryNotFoundException;
+=======
+package com.db.ms.inventory.service;
+>>>>>>> 6979c75f791df3a9533e62ae5df45fc130808a3a:src/main/java/com/db/ms/Inventory/service/InventoryService.java
 
 import java.util.List;
+
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.exceptions.InsufficientStockException;
+import com.db.ms.inventory.exceptions.InvalidInventoryOperationException;
+import com.db.ms.inventory.exceptions.InventoryAlreadyExistsException;
+import com.db.ms.inventory.exceptions.InventoryNotFoundException;
 
 
 /**

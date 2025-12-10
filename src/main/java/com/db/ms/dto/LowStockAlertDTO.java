@@ -1,4 +1,8 @@
+<<<<<<< HEAD:src/main/java/com/db/ms/dto/LowStockAlertDTO.java
 package com.db.ms.dto;
+=======
+package com.db.ms.inventory.dto;
+>>>>>>> 6979c75f791df3a9533e62ae5df45fc130808a3a:src/main/java/com/db/ms/Inventory/dto/LowStockAlertDTO.java
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

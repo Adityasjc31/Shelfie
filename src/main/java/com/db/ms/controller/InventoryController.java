@@ -1,13 +1,21 @@
+<<<<<<< HEAD:src/main/java/com/db/ms/controller/InventoryController.java
 package com.db.ms.controller;
 
 import com.db.ms.dto.*;
 import com.db.ms.dto.*;
 import com.db.ms.service.InventoryService;
+=======
+package com.db.ms.inventory.controller;
+
+>>>>>>> 6979c75f791df3a9533e62ae5df45fc130808a3a:src/main/java/com/db/ms/Inventory/controller/InventoryController.java
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.service.InventoryService;
 
 import jakarta.validation.Valid;
 import java.util.List;

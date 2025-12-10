@@ -1,9 +1,16 @@
+<<<<<<< HEAD:src/main/java/com/db/ms/repository/InventoryRepository.java
 package com.db.ms.repository;
 
 import com.db.ms.entity.Inventory;
+=======
+package com.db.ms.inventory.repository;
+
+>>>>>>> 6979c75f791df3a9533e62ae5df45fc130808a3a:src/main/java/com/db/ms/Inventory/repository/InventoryRepository.java
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
+
+import com.db.ms.inventory.entity.Inventory;
 
 import java.time.LocalDateTime;
 import java.util.*;

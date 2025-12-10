@@ -1,4 +1,8 @@
+<<<<<<< HEAD:src/main/java/com/db/ms/entity/Inventory.java
 package com.db.ms.entity;
+=======
+package com.db.ms.inventory.entity;
+>>>>>>> 6979c75f791df3a9533e62ae5df45fc130808a3a:src/main/java/com/db/ms/Inventory/entity/Inventory.java
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
