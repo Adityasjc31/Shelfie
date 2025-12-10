@@ -1,7 +1,8 @@
-package com.db.ms.Inventory.controller;
+package com.db.ms.controller;
 
-import com.db.ms.Inventory.dto.*;
-import com.db.ms.Inventory.service.InventoryService;
+
+import com.db.ms.dto.*;
+import com.db.ms.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
