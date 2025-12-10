@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.service;
+package com.db.ms.service;
 
 import com.db.ms.Inventory.dto.*;
 import com.db.ms.Inventory.exceptions.InsufficientStockException;

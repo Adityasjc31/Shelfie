@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.service.impl;
+package com.db.ms.service.impl;
 
 import com.db.ms.Inventory.dto.*;
 import com.db.ms.Inventory.entity.Inventory;
