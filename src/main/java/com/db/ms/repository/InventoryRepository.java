@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 /**
  * Repository class for Inventory entity using in-memory data structures.
  * Uses ConcurrentHashMap for thread-safe operations.
- * Can be easily replaced with JPA repository interface later.
  *
  * @author Aditya Srivastava
  * @version 1.0
