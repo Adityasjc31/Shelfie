@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.exceptions;
+package com.db.ms.exception;
 
 
 import lombok.AllArgsConstructor;

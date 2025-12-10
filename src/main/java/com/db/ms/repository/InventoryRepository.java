@@ -1,6 +1,6 @@
-package com.db.ms.Inventory.repository;
+package com.db.ms.repository;
 
-import com.db.ms.Inventory.entity.Inventory;
+import com.db.ms.entity.Inventory;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
