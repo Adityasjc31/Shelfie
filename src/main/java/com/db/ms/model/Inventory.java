@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * Entity class representing Inventory.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-07
  */

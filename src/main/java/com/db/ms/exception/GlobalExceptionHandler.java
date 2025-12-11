@@ -18,7 +18,7 @@ import java.util.Map;
  * Global exception handler for the Inventory Management module.
  * Centralizes exception handling across all controllers.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */

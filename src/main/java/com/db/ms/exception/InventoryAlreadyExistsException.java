@@ -2,7 +2,7 @@ package com.db.ms.exception;
 /**
  * Exception thrown when attempting to create duplicate inventory record.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */

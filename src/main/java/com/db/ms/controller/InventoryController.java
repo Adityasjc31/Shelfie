@@ -16,7 +16,7 @@ import java.util.List;
  * REST Controller for Inventory Management operations.
  * Exposes endpoints for managing book inventory, stock levels, and alerts.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-07
  */

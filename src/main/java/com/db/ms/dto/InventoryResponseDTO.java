@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * Data Transfer Object for Inventory responses.
  * Used to send inventory data to clients.
  *
- * @author Shelfie
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-08
  */
