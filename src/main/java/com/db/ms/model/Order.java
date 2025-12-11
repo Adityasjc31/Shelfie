@@ -1,4 +1,4 @@
-package com.db.ms.entity;
+package com.db.ms.model;
 
 import com.db.ms.enums.OrderEnum;
 import lombok.*;

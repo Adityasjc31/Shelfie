@@ -1,11 +1,12 @@
-package com.db.ms.service;
+package com.db.ms.service.Impl;
 
 import com.db.ms.dto.responsedto.OrderResponseDTO;
 import com.db.ms.dto.requestdto.PlaceOrderRequestDTO;
 import com.db.ms.dto.requestdto.UpdateOrderRequestDTO;
 import com.db.ms.enums.OrderEnum;
-import com.db.ms.entity.Order;
+import com.db.ms.model.Order;
 import com.db.ms.repository.OrderRepository;
+import com.db.ms.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

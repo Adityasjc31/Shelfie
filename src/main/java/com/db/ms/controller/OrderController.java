@@ -5,7 +5,8 @@ import com.db.ms.dto.responsedto.OrderResponseDTO;
 import com.db.ms.dto.requestdto.PlaceOrderRequestDTO;
 import com.db.ms.dto.requestdto.UpdateOrderRequestDTO;
 import com.db.ms.enums.OrderEnum;
-import com.db.ms.service.OrderServiceImpl;
+import com.db.ms.service.OrderService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +20,10 @@ import java.util.List;
 public class OrderController {
 
 
-    private final OrderServiceImpl orderService;
+    private final OrderService orderService;
 
     @Autowired
-    public OrderController(OrderServiceImpl orderService) {
+    public OrderController(OrderService orderService) {
         this.orderService = orderService;
     }
 

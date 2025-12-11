@@ -1,8 +1,9 @@
-package com.db.ms.repository;
+package com.db.ms.repository.Impl;
 
 
 import com.db.ms.enums.OrderEnum;
-import com.db.ms.entity.Order;
+import com.db.ms.model.Order;
+import com.db.ms.repository.OrderRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;

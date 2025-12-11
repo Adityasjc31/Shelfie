@@ -1,7 +1,7 @@
 package com.db.ms.repository;
 
 import com.db.ms.enums.OrderEnum;
-import com.db.ms.entity.Order;
+import com.db.ms.model.Order;
 
 import java.util.List;
 import java.util.Optional;
