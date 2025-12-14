@@ -3,22 +3,14 @@ package com.db.ms.dto.requestdto;
 
 
 /**
- * Request DTO: Add Book
- * - Uses wrappers to allow null checks in service.
+ * Request DTO: Partial update of Book
  */
-
-
-public class AddBookRequestDTO {
-    private Long bookId;               // optional; if null or <=0, server assigns
+public class UpdateBookRequestDTO {
     private String bookTitle;
     private String bookAuthorId;
     private String bookCategoryId;     // e.g., "CAT-FIC"
-    private Double bookPrice;          // non-negative
-    private Long bookStockQuantity;    // non-negative
-
-    public Long getBookId() {
-        return bookId;
-    }
+    private Double bookPrice;          // non-negative if provided
+    private Long bookStockQuantity;    // non-negative if provided
 
     public String getBookTitle() {
         return bookTitle;
