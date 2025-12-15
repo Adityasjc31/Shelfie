@@ -3,6 +3,7 @@
 // ============================================================================
 package com.db.ms.service.impl;
 
+<<<<<<< HEAD
 import com.db.ms.user.dto.request.UserLoginDTO;
 import com.db.ms.user.dto.request.UserRegistrationDTO;
 import com.db.ms.user.dto.request.UserUpdateDTO;
@@ -12,6 +13,15 @@ import com.db.ms.user.model.UserRole;
 import com.db.ms.user.exception.*;
 import com.db.ms.user.repository.impl.UserRepository;
 import com.db.ms.user.service.impl.UserServiceImpl;
+=======
+import com.db.ms.user.dto.*;
+import com.db.ms.user.exception.*;
+import com.db.ms.user.model.User;
+import com.db.ms.user.model.UserRole;
+import com.db.ms.user.repository.impl.UserRepository;
+import com.db.ms.user.service.impl.UserServiceImpl;
+
+>>>>>>> faac8ce (rebasing and removing the delete commit)
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
