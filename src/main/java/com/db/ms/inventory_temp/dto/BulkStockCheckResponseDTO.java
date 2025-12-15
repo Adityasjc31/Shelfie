@@ -1,4 +1,4 @@
-package com.db.ms.inventory.dto;
+package com.db.ms.inventory_temp.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

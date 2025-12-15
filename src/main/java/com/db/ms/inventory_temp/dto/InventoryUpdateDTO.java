@@ -1,4 +1,4 @@
-package com.db.ms.inventory.dto;
+package com.db.ms.inventory_temp.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

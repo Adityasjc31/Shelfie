@@ -1,10 +1,10 @@
-package com.db.ms.inventory.repository;
+package com.db.ms.inventory_temp.repository;
 import jakarta.annotation.PostConstruct;
 
 import java.util.*;
 import org.springframework.stereotype.Repository;
 
-import com.db.ms.inventory.model.Inventory;
+import com.db.ms.inventory_temp.model.Inventory;
 
 /**
  * Repository interface for Inventory entity.
