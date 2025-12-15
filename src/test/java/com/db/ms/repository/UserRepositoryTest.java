@@ -3,13 +3,13 @@
 // ============================================================================
 package com.db.ms.repository;
 
-import com.db.ms.user.model.User;
-import com.db.ms.user.model.UserRole;
-import com.db.ms.user.repository.impl.UserRepository;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import com.book.management.user.model.User;
+import com.book.management.user.model.UserRole;
+import com.book.management.user.repository.impl.UserRepository;
 
 import java.util.List;
 import java.util.Optional;

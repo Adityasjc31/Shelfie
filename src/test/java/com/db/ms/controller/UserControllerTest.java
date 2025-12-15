@@ -3,11 +3,6 @@
 // ============================================================================
 package com.db.ms.controller;
 
-import com.db.ms.user.controller.UserController;
-import com.db.ms.user.dto.*;
-import com.db.ms.user.model.UserRole;
-import com.db.ms.user.service.UserService;
-
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +12,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import com.book.management.user.controller.UserController;
+import com.book.management.user.dto.*;
+import com.book.management.user.model.UserRole;
+import com.book.management.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
