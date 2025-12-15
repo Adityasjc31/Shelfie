@@ -9,13 +9,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.db.ms.review_rating.controller.ReviewController;
-import com.db.ms.review_rating.dto.BookRatingStatsDTO;
-import com.db.ms.review_rating.dto.ReviewCreateDTO;
-import com.db.ms.review_rating.dto.ReviewResponseDTO;
-import com.db.ms.review_rating.dto.ReviewUpdateDTO;
-import com.db.ms.review_rating.model.Review.ReviewStatus;
-import com.db.ms.review_rating.service.ReviewService;
+import com.book.management.review_rating.controller.ReviewController;
+import com.book.management.review_rating.dto.BookRatingStatsDTO;
+import com.book.management.review_rating.dto.ReviewCreateDTO;
+import com.book.management.review_rating.dto.ReviewResponseDTO;
+import com.book.management.review_rating.dto.ReviewUpdateDTO;
+import com.book.management.review_rating.model.Review.ReviewStatus;
+import com.book.management.review_rating.service.ReviewService;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;

@@ -7,17 +7,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.db.ms.review_rating.dto.ReviewCreateDTO;
-import com.db.ms.review_rating.dto.ReviewResponseDTO;
-import com.db.ms.review_rating.dto.ReviewUpdateDTO;
-import com.db.ms.review_rating.exception.DuplicateReviewException;
-import com.db.ms.review_rating.exception.InvalidModerationException;
-import com.db.ms.review_rating.exception.ReviewNotFoundException;
-import com.db.ms.review_rating.exception.UnauthorizedReviewAccessException;
-import com.db.ms.review_rating.model.Review;
-import com.db.ms.review_rating.model.Review.ReviewStatus;
-import com.db.ms.review_rating.repository.ReviewRepository;
-import com.db.ms.review_rating.service.impl.ReviewServiceImpl;
+import com.book.management.review_rating.dto.ReviewCreateDTO;
+import com.book.management.review_rating.dto.ReviewResponseDTO;
+import com.book.management.review_rating.dto.ReviewUpdateDTO;
+import com.book.management.review_rating.exception.DuplicateReviewException;
+import com.book.management.review_rating.exception.InvalidModerationException;
+import com.book.management.review_rating.exception.ReviewNotFoundException;
+import com.book.management.review_rating.exception.UnauthorizedReviewAccessException;
+import com.book.management.review_rating.model.Review;
+import com.book.management.review_rating.model.Review.ReviewStatus;
+import com.book.management.review_rating.repository.ReviewRepository;
+import com.book.management.review_rating.service.impl.ReviewServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;

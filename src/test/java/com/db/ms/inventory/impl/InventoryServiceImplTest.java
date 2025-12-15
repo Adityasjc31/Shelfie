@@ -6,11 +6,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.db.ms.inventory.dto.*;
-import com.db.ms.inventory.exception.*;
-import com.db.ms.inventory.model.Inventory;
-import com.db.ms.inventory.repository.InventoryRepository;
-import com.db.ms.inventory.service.impl.InventoryServiceImpl;
+import com.book.management.inventory.dto.*;
+import com.book.management.inventory.exception.*;
+import com.book.management.inventory.model.Inventory;
+import com.book.management.inventory.repository.InventoryRepository;
+import com.book.management.inventory.service.impl.InventoryServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
