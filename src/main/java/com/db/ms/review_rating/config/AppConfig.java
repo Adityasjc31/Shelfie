@@ -1,0 +1,10 @@
+package com.db.ms.review_rating.config;
+
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+@Configuration
+public class AppConfig {
+
+}
