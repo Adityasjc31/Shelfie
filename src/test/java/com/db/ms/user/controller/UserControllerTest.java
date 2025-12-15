@@ -4,19 +4,10 @@
 package com.db.ms.user.controller;
 
 import com.db.ms.user.controller.UserController;
-<<<<<<< HEAD
-import com.db.ms.user.dto.request.UserLoginDTO;
-import com.db.ms.user.dto.request.UserRegistrationDTO;
-import com.db.ms.user.dto.request.UserUpdateDTO;
-import com.db.ms.user.dto.response.UserResponseDTO;
-import com.db.ms.user.model.UserRole;
-import com.db.ms.user.service.UserService;
-=======
 import com.db.ms.user.dto.*;
 import com.db.ms.user.model.UserRole;
 import com.db.ms.user.service.UserService;
 
->>>>>>> faac8ce (rebasing and removing the delete commit)
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
