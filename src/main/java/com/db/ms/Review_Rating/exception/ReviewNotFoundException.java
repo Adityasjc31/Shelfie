@@ -1,4 +1,4 @@
-package com.db.ms.Review_Rating.exception;
+package com.db.ms.review_rating.exception;
 
 /**
  * Exception thrown when a review is not found.

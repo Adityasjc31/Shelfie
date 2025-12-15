@@ -1,11 +1,13 @@
-package com.db.ms.Review_Rating.dto;
+package com.db.ms.review_rating.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Builder;
+
+import com.db.ms.review_rating.model.Review.ReviewStatus;
+
 import jakarta.validation.constraints.NotNull;
-import com.db.ms.Review_Rating.model.Review.ReviewStatus;
 
 /**
  * Data Transfer Object for moderating reviews.

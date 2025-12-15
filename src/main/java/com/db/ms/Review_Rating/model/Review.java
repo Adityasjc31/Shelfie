@@ -1,4 +1,4 @@
-package com.db.ms.Review_Rating.model;
+package com.db.ms.review_rating.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

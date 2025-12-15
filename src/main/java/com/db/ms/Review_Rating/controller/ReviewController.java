@@ -1,13 +1,14 @@
-package com.db.ms.Review_Rating.controller;
+package com.db.ms.review_rating.controller;
 
-import com.db.ms.Review_Rating.dto.*;
-import com.db.ms.Review_Rating.model.Review.ReviewStatus;
-import com.db.ms.Review_Rating.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import com.db.ms.review_rating.dto.*;
+import com.db.ms.review_rating.model.Review.ReviewStatus;
+import com.db.ms.review_rating.service.ReviewService;
 
 import jakarta.validation.Valid;
 import java.util.List;
