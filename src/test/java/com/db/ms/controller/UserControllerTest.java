@@ -3,9 +3,13 @@
 // ============================================================================
 package com.db.ms.controller;
 
-import com.db.ms.dto.*;
-import com.db.ms.model.UserRole;
-import com.db.ms.service.UserService;
+import com.db.ms.user.controller.UserController;
+import com.db.ms.user.dto.request.UserLoginDTO;
+import com.db.ms.user.dto.request.UserRegistrationDTO;
+import com.db.ms.user.dto.request.UserUpdateDTO;
+import com.db.ms.user.dto.response.UserResponseDTO;
+import com.db.ms.user.model.UserRole;
+import com.db.ms.user.service.UserService;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

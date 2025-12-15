@@ -3,9 +3,9 @@
 // ============================================================================
 package com.db.ms.repository;
 
-import com.db.ms.model.User;
-import com.db.ms.model.UserRole;
-import com.db.ms.repository.impl.UserRepository;
+import com.db.ms.user.model.User;
+import com.db.ms.user.model.UserRole;
+import com.db.ms.user.repository.impl.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
