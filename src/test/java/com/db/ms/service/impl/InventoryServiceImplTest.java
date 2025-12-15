@@ -1,9 +1,11 @@
 package com.db.ms.service.impl;
 
-import com.db.ms.dto.*;
-import com.db.ms.model.Inventory;
-import com.db.ms.exception.*;
-import com.db.ms.repository.InventoryRepository;
+import com.db.ms.Inventory.dto.*;
+import com.db.ms.Inventory.model.Inventory;
+import com.db.ms.Inventory.exception.*;
+import com.db.ms.Inventory.repository.InventoryRepository;
+import com.db.ms.Inventory.service.impl.InventoryServiceImpl;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

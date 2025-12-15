@@ -1,4 +1,4 @@
-package com.db.ms.exception;
+package com.db.ms.Inventory.exception;
 /**
  * Exception thrown for invalid inventory operations.
  *

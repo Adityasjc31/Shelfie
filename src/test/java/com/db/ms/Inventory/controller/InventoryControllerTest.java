@@ -10,9 +10,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.db.ms.controller.InventoryController;
-import com.db.ms.dto.*;
-import com.db.ms.service.InventoryService;
+import com.db.ms.Inventory.controller.InventoryController;
+import com.db.ms.Inventory.dto.*;
+import com.db.ms.Inventory.service.InventoryService;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;

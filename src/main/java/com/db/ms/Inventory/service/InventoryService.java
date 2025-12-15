@@ -1,13 +1,13 @@
-package com.db.ms.service;
+package com.db.ms.Inventory.service;
 
 import java.util.List;
 import java.util.Map;
 
-import com.db.ms.dto.*;
-import com.db.ms.exception.InsufficientStockException;
-import com.db.ms.exception.InvalidInventoryOperationException;
-import com.db.ms.exception.InventoryAlreadyExistsException;
-import com.db.ms.exception.InventoryNotFoundException;
+import com.db.ms.Inventory.dto.*;
+import com.db.ms.Inventory.exception.InsufficientStockException;
+import com.db.ms.Inventory.exception.InvalidInventoryOperationException;
+import com.db.ms.Inventory.exception.InventoryAlreadyExistsException;
+import com.db.ms.Inventory.exception.InventoryNotFoundException;
 
 
 /**

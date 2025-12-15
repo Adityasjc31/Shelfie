@@ -1,4 +1,4 @@
-package com.db.ms.dto;
+package com.db.ms.Inventory.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
