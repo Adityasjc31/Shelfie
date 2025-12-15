@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/test/java/com/bookstore/user/repository/UserRepositoryTest.java
 // ============================================================================
-package com.db.ms.repository;
+package com.db.ms.user.repository;
 
 import com.db.ms.user.model.User;
 import com.db.ms.user.model.UserRole;

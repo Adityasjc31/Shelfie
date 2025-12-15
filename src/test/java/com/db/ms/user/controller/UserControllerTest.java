@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/test/java/com/bookstore/user/controller/UserControllerTest.java
 // ============================================================================
-package com.db.ms.controller;
+package com.db.ms.user.controller;
 
 import com.db.ms.user.controller.UserController;
 import com.db.ms.user.dto.request.UserLoginDTO;

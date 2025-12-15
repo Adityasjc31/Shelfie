@@ -1,4 +1,4 @@
-package com.db.ms.service.impl;
+package com.db.ms.review_rating.service.impl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

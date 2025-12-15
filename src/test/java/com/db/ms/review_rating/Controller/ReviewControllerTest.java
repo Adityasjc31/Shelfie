@@ -1,4 +1,4 @@
-package com.db.ms.controller;
+package com.db.ms.review_rating.Controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

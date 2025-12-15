@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/test/java/com/bookstore/user/service/impl/UserServiceImplTest.java
 // ============================================================================
-package com.db.ms.service.impl;
+package com.db.ms.user.service.impl;
 
 import com.db.ms.user.dto.request.UserLoginDTO;
 import com.db.ms.user.dto.request.UserRegistrationDTO;
