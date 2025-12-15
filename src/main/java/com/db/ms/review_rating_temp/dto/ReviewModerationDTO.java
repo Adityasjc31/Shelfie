@@ -1,11 +1,11 @@
-package com.db.ms.review_rating.dto;
+package com.db.ms.review_rating_temp.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Builder;
 
-import com.db.ms.review_rating.model.Review.ReviewStatus;
+import com.db.ms.review_rating_temp.model.Review.ReviewStatus;
 
 import jakarta.validation.constraints.NotNull;
 

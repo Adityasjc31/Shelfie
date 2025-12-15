@@ -1,4 +1,4 @@
-package com.db.ms.review_rating.exception;
+package com.db.ms.review_rating_temp.exception;
 
 /**
  * Exception thrown when a user tries to modify someone else's review.

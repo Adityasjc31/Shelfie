@@ -1,4 +1,4 @@
-package com.db.ms.review_rating.dto;
+package com.db.ms.review_rating_temp.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
