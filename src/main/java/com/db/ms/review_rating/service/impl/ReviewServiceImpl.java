@@ -1,24 +1,24 @@
-package com.db.ms.review_rating_temp.service.impl;
+package com.db.ms.review_rating.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import com.db.ms.review_rating_temp.dto.BookRatingStatsDTO;
-import com.db.ms.review_rating_temp.dto.RatingDistribution;
-import com.db.ms.review_rating_temp.dto.ReviewCreateDTO;
-import com.db.ms.review_rating_temp.dto.ReviewModerationDTO;
-import com.db.ms.review_rating_temp.dto.ReviewResponseDTO;
-import com.db.ms.review_rating_temp.dto.ReviewUpdateDTO;
-import com.db.ms.review_rating_temp.exception.DuplicateReviewException;
-import com.db.ms.review_rating_temp.exception.InvalidModerationException;
-import com.db.ms.review_rating_temp.exception.InvalidReviewOperationException;
-import com.db.ms.review_rating_temp.exception.ReviewNotFoundException;
-import com.db.ms.review_rating_temp.exception.UnauthorizedReviewAccessException;
-import com.db.ms.review_rating_temp.model.Review;
-import com.db.ms.review_rating_temp.model.Review.ReviewStatus;
-import com.db.ms.review_rating_temp.repository.ReviewRepository;
-import com.db.ms.review_rating_temp.service.ReviewService;
+import com.db.ms.review_rating.dto.BookRatingStatsDTO;
+import com.db.ms.review_rating.dto.RatingDistribution;
+import com.db.ms.review_rating.dto.ReviewCreateDTO;
+import com.db.ms.review_rating.dto.ReviewModerationDTO;
+import com.db.ms.review_rating.dto.ReviewResponseDTO;
+import com.db.ms.review_rating.dto.ReviewUpdateDTO;
+import com.db.ms.review_rating.exception.DuplicateReviewException;
+import com.db.ms.review_rating.exception.InvalidModerationException;
+import com.db.ms.review_rating.exception.InvalidReviewOperationException;
+import com.db.ms.review_rating.exception.ReviewNotFoundException;
+import com.db.ms.review_rating.exception.UnauthorizedReviewAccessException;
+import com.db.ms.review_rating.model.Review;
+import com.db.ms.review_rating.model.Review.ReviewStatus;
+import com.db.ms.review_rating.repository.ReviewRepository;
+import com.db.ms.review_rating.service.ReviewService;
 
 import java.util.List;
 import java.util.Map;

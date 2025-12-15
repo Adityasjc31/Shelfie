@@ -1,4 +1,4 @@
-package com.db.ms.review_rating_temp.dto;
+package com.db.ms.review_rating.dto;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
