@@ -1,4 +1,4 @@
-package com.db.ms;
+package com.book.management;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
