@@ -1,6 +1,6 @@
-package com.db.ms.bookModule.repository;
+package com.db.ms.book.repository;
 
-import com.db.ms.bookModule.model.Book;
+import com.db.ms.book.model.Book;
 
 import java.util.List;
 import java.util.Optional;

@@ -1,16 +1,16 @@
-package com.db.ms.bookModule.service.impl;
+package com.db.ms.book.service.impl;
 
-import com.db.ms.bookModule.dto.requestdto.AddBookRequestDTO;
-import com.db.ms.bookModule.dto.requestdto.UpdateBookRequestDTO;
-import com.db.ms.bookModule.dto.responsedto.BookPriceResponseDTO;
-import com.db.ms.bookModule.dto.responsedto.BookResponseDTO;
-import com.db.ms.bookModule.enums.CategoryEnum;
-import com.db.ms.bookModule.exception.BookNotFoundException;
-import com.db.ms.bookModule.exception.DuplicateBookException;
-import com.db.ms.bookModule.exception.InvalidBookDataException;
-import com.db.ms.bookModule.model.Book;
-import com.db.ms.bookModule.repository.BookRepository;
-import com.db.ms.bookModule.service.BookService;
+import com.db.ms.book.dto.requestdto.AddBookRequestDTO;
+import com.db.ms.book.dto.requestdto.UpdateBookRequestDTO;
+import com.db.ms.book.dto.responsedto.BookPriceResponseDTO;
+import com.db.ms.book.dto.responsedto.BookResponseDTO;
+import com.db.ms.book.enums.CategoryEnum;
+import com.db.ms.book.exception.BookNotFoundException;
+import com.db.ms.book.exception.DuplicateBookException;
+import com.db.ms.book.exception.InvalidBookDataException;
+import com.db.ms.book.model.Book;
+import com.db.ms.book.repository.BookRepository;
+import com.db.ms.book.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

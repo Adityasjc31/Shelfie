@@ -1,11 +1,11 @@
-package com.db.ms.bookModule.controller;
+package com.db.ms.book.controller;
 
-import com.db.ms.bookModule.dto.requestdto.AddBookRequestDTO;
-import com.db.ms.bookModule.dto.requestdto.BookPriceRequestDTO;
-import com.db.ms.bookModule.dto.requestdto.UpdateBookRequestDTO;
-import com.db.ms.bookModule.dto.responsedto.BookPriceResponseDTO;
-import com.db.ms.bookModule.dto.responsedto.BookResponseDTO;
-import com.db.ms.bookModule.service.BookService;
+import com.db.ms.book.dto.requestdto.AddBookRequestDTO;
+import com.db.ms.book.dto.requestdto.BookPriceRequestDTO;
+import com.db.ms.book.dto.requestdto.UpdateBookRequestDTO;
+import com.db.ms.book.dto.responsedto.BookPriceResponseDTO;
+import com.db.ms.book.dto.responsedto.BookResponseDTO;
+import com.db.ms.book.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

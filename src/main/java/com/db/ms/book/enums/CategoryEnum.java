@@ -1,4 +1,4 @@
-package com.db.ms.bookModule.enums;
+package com.db.ms.book.enums;
 
 import java.util.Locale;
 

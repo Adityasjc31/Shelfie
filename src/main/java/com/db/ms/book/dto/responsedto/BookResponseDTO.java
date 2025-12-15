@@ -1,4 +1,4 @@
-package com.db.ms.bookModule.dto.responsedto;
+package com.db.ms.book.dto.responsedto;
 
 
 import lombok.NoArgsConstructor;

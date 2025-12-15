@@ -1,9 +1,9 @@
-package com.db.ms.bookModule.service;
+package com.db.ms.book.service;
 
-import com.db.ms.bookModule.dto.requestdto.AddBookRequestDTO;
-import com.db.ms.bookModule.dto.requestdto.UpdateBookRequestDTO;
-import com.db.ms.bookModule.dto.responsedto.BookPriceResponseDTO;
-import com.db.ms.bookModule.dto.responsedto.BookResponseDTO;
+import com.db.ms.book.dto.requestdto.AddBookRequestDTO;
+import com.db.ms.book.dto.requestdto.UpdateBookRequestDTO;
+import com.db.ms.book.dto.responsedto.BookPriceResponseDTO;
+import com.db.ms.book.dto.responsedto.BookResponseDTO;
 
 import java.util.List;
 import java.util.Optional;

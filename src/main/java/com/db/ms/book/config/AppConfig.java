@@ -1,8 +1,6 @@
-package com.db.ms.bookModule.config;
+package com.db.ms.book.config;
 
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 @Configuration
 public class AppConfig {

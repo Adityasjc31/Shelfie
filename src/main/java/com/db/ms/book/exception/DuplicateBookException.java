@@ -1,4 +1,4 @@
-package com.db.ms.bookModule.exception;
+package com.db.ms.book.exception;
 
 
 

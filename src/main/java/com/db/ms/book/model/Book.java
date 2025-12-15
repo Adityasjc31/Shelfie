@@ -1,4 +1,4 @@
-package com.db.ms.bookModule.model;
+package com.db.ms.book.model;
 
 import lombok.*;
 
