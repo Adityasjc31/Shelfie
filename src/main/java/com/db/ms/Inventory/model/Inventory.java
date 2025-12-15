@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.model;
+package com.db.ms.inventory.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
