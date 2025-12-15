@@ -1,9 +1,4 @@
-<<<<<<< HEAD:src/test/java/com/db/ms/Inventory/impl/InventoryServiceImplTest.java
 package com.db.ms.inventory.impl;
-=======
-package com.db.ms.service.impl;
->>>>>>> origin/InventoryManagementModule:src/test/java/com/db/ms/service/impl/InventoryServiceImplTest.java
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,19 +6,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-<<<<<<< HEAD:src/test/java/com/db/ms/Inventory/impl/InventoryServiceImplTest.java
-import com.db.ms.Inventory.dto.*;
-import com.db.ms.Inventory.exception.*;
-import com.db.ms.Inventory.model.Inventory;
-import com.db.ms.Inventory.repository.InventoryRepository;
-import com.db.ms.Inventory.service.impl.InventoryServiceImpl;
-=======
 import com.db.ms.inventory.dto.*;
 import com.db.ms.inventory.exception.*;
 import com.db.ms.inventory.model.Inventory;
 import com.db.ms.inventory.repository.InventoryRepository;
 import com.db.ms.inventory.service.impl.InventoryServiceImpl;
->>>>>>> origin/InventoryManagementModule:src/test/java/com/db/ms/service/impl/InventoryServiceImplTest.java
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
