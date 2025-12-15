@@ -1,4 +1,4 @@
-package com.db.ms.inventory.controller;
+package com.book.management.inventory.controller;
 
 import tools.jackson.databind.ObjectMapper;
 
