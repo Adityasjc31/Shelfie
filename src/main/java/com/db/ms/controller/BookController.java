@@ -1,4 +1,3 @@
-
 package com.db.ms.controller;
 
 import com.db.ms.dto.requestdto.AddBookRequestDTO;
@@ -12,10 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/books")
+@RequestMapping("/api/v1/book")
 public class BookController {
 
     private final BookService bookService;
@@ -25,20 +23,17 @@ public class BookController {
         this.bookService = bookService;
     }
 
-    // Create
     @PostMapping("/add")
     public ResponseEntity<BookResponseDTO> addBook(@RequestBody AddBookRequestDTO request) {
         BookResponseDTO created = bookService.addBook(request);
         return ResponseEntity.ok(created);
     }
 
-    // Read: getAll
     @GetMapping("/getAll")
     public ResponseEntity<List<BookResponseDTO>> getAllBooks() {
         return ResponseEntity.ok(bookService.getBooksAll());
     }
 
-    // Read: getById
     @GetMapping("/getById/{bookId}")
     public ResponseEntity<BookResponseDTO> getBookById(@PathVariable long bookId) {
         return bookService.getBookById(bookId)
@@ -46,35 +41,31 @@ public class BookController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Read: getByAuthor
     @GetMapping("/getByAuthor/{authorId}")
     public ResponseEntity<List<BookResponseDTO>> getBooksByAuthor(@PathVariable String authorId) {
         return ResponseEntity.ok(bookService.getBooksByAuthor(authorId));
     }
 
-    // Read: getByCategory
     @GetMapping("/getByCategory")
     public ResponseEntity<List<BookResponseDTO>> getBooksByCategory(@RequestParam String categoryId) {
         return ResponseEntity.ok(bookService.getBooksByCategory(categoryId));
     }
 
-
-
-    @GetMapping("/pricesMap")
+    /**
+     * Endpoint to fetch a Map of Book IDs and Prices.
+     * Uses POST because it accepts a RequestBody list of IDs.
+     */
+    @PostMapping("/getPrice")
     public ResponseEntity<BookPriceResponseDTO> getBookPricesMap(@RequestBody BookPriceRequestDTO request) {
         BookPriceResponseDTO dto = bookService.getBookPricesMap(request.getBookIds());
         return ResponseEntity.ok(dto);
     }
 
-
-
-    // Read: search by title substring
     @GetMapping("/search")
     public ResponseEntity<List<BookResponseDTO>> searchBooksByTitle(@RequestParam String title) {
         return ResponseEntity.ok(bookService.searchBooksByTitle(title));
     }
 
-    // Update (partial)
     @PatchMapping("/update/{bookId}")
     public ResponseEntity<BookResponseDTO> updateBook(@PathVariable long bookId,
                                                       @RequestBody UpdateBookRequestDTO request) {
@@ -82,7 +73,6 @@ public class BookController {
         return ResponseEntity.ok(updated);
     }
 
-    // Delete
     @DeleteMapping("/delete/{bookId}")
     public ResponseEntity<Void> deleteBook(@PathVariable long bookId) {
         bookService.deleteBook(bookId);

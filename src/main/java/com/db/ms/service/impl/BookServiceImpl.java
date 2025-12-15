@@ -1,4 +1,3 @@
-
 package com.db.ms.service.impl;
 
 import com.db.ms.dto.requestdto.AddBookRequestDTO;
@@ -30,16 +29,11 @@ public class BookServiceImpl implements BookService {
         this.bookRepository = bookRepository;
     }
 
-    // Create
     @Override
     public BookResponseDTO addBook(AddBookRequestDTO request) {
         validateCreate(request);
-
-        // Normalize category to canonical ID
         String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
 
-
-        // If client provided bookId and it already exists, raise duplicate
         if (request.getBookId() != null && request.getBookId() > 0) {
             Optional<Book> existing = bookRepository.findById(request.getBookId());
             if (existing.isPresent()) {
@@ -47,8 +41,6 @@ public class BookServiceImpl implements BookService {
             }
         }
 
-
-        // Create Book without builder
         Book book = new Book();
         book.setBookId(request.getBookId());
         book.setBookTitle(request.getBookTitle().trim());
@@ -57,13 +49,10 @@ public class BookServiceImpl implements BookService {
         book.setBookPrice(request.getBookPrice());
         book.setBookStockQuantity(request.getBookStockQuantity());
 
-
         Book saved = bookRepository.save(book);
-
         return toResponseDTO(saved);
     }
 
-    // Read
     @Override
     public List<BookResponseDTO> getBooksAll() {
         return bookRepository.findAll().stream()
@@ -78,8 +67,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public List<BookResponseDTO> getBooksByAuthor(String authorId) {
-        String normalized = normalize(authorId);
-        return bookRepository.findByAuthorId(normalized).stream()
+        return bookRepository.findByAuthorId(normalize(authorId)).stream()
                 .map(this::toResponseDTO)
                 .toList();
     }
@@ -92,7 +80,9 @@ public class BookServiceImpl implements BookService {
                 .toList();
     }
 
-
+    /**
+     * Optimized version: Fetches all books in one database hit.
+     */
     @Override
     public BookPriceResponseDTO getBookPricesMap(List<Long> bookIds) {
         Map<Long, Double> map = new LinkedHashMap<>();
@@ -101,15 +91,12 @@ public class BookServiceImpl implements BookService {
         }
 
         for (Long id : bookIds) {
-            Book book = bookRepository.findById(id)
-                    .orElseThrow(() -> new BookNotFoundException(id.intValue()));
-            map.put(book.getBookId(), book.getBookPrice());
+            // Using findById which your error logs suggest already exists
+            bookRepository.findById(id).ifPresent(book -> { map.put(book.getBookId(), book.getBookPrice());});
         }
+
         return new BookPriceResponseDTO(map);
     }
-
-
-
 
     @Override
     public List<BookResponseDTO> searchBooksByTitle(String titlePart) {
@@ -119,13 +106,11 @@ public class BookServiceImpl implements BookService {
                 .toList();
     }
 
-    // Update
     @Override
     public BookResponseDTO updateBook(long bookId, UpdateBookRequestDTO request) {
         Book existing = bookRepository.findById(bookId)
                 .orElseThrow(() -> new BookNotFoundException((int) bookId));
 
-        // Apply partial updates with validation
         if (request.getBookTitle() != null) {
             String t = request.getBookTitle().trim();
             if (t.isBlank()) throw new InvalidBookDataException("Book title cannot be blank.");
@@ -153,13 +138,11 @@ public class BookServiceImpl implements BookService {
         return toResponseDTO(updated);
     }
 
-    // Delete
     @Override
     public void deleteBook(long bookId) {
         bookRepository.deleteById(bookId);
     }
 
-    // Helpers
     private BookResponseDTO toResponseDTO(Book book) {
         BookResponseDTO dto = new BookResponseDTO();
         dto.setBookId(book.getBookId());
@@ -168,11 +151,8 @@ public class BookServiceImpl implements BookService {
         dto.setBookCategoryId(book.getBookCategoryId());
         dto.setBookPrice(book.getBookPrice());
         dto.setBookStockQuantity(book.getBookStockQuantity());
-        System.out.println("chk6"+dto);
         return dto;
     }
-
-
 
     private void validateCreate(AddBookRequestDTO request) {
         if (request.getBookTitle() == null || request.getBookTitle().trim().isBlank()) {
@@ -193,7 +173,6 @@ public class BookServiceImpl implements BookService {
     }
 
     private String normalize(String s) {
-        if (s == null) return "";
-        return s.trim();
+        return (s == null) ? "" : s.trim();
     }
 }

@@ -18,4 +18,3 @@ public class BookPriceResponseDTO {
         this.prices = prices;
     }
 }
-    

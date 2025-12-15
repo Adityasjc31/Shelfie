@@ -1,4 +1,3 @@
-
 package com.db.ms.repository;
 
 import com.db.ms.model.Book;
@@ -23,4 +22,5 @@ public interface BookRepository {
 
     // Delete
     void deleteById(long bookId);
+
 }
