@@ -1,5 +1,9 @@
+<<<<<<< HEAD:src/main/java/com/db/ms/Review_Rating/exception/ReviewGlobalExceptionHandler.java
 package com.db.ms.review_rating.exception;
 
+=======
+package com.db.ms.inventory.exception;
+>>>>>>> origin/InventoryManagementModule:src/main/java/com/db/ms/Inventory/exception/GlobalExceptionHandler.java
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
