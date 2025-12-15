@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.controller;
+package com.db.ms.inventory.controller;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -10,9 +10,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.db.ms.Inventory.controller.InventoryController;
-import com.db.ms.Inventory.dto.*;
-import com.db.ms.Inventory.service.InventoryService;
+import com.db.ms.inventory.controller.InventoryController;
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.service.InventoryService;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;

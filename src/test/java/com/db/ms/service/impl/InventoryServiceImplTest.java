@@ -1,17 +1,17 @@
 package com.db.ms.service.impl;
 
-import com.db.ms.Inventory.dto.*;
-import com.db.ms.Inventory.model.Inventory;
-import com.db.ms.Inventory.exception.*;
-import com.db.ms.Inventory.repository.InventoryRepository;
-import com.db.ms.Inventory.service.impl.InventoryServiceImpl;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.exception.*;
+import com.db.ms.inventory.model.Inventory;
+import com.db.ms.inventory.repository.InventoryRepository;
+import com.db.ms.inventory.service.impl.InventoryServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;

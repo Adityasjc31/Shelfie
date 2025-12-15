@@ -1,4 +1,4 @@
-package com.db.ms.Inventory.exception;
+package com.db.ms.inventory.exception;
 /**
  * Exception thrown when attempting to create duplicate inventory record.
  *
