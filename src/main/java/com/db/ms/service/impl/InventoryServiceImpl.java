@@ -12,7 +12,9 @@ import com.db.ms.exception.InventoryNotFoundException;
 import com.db.ms.repository.InventoryRepository;
 import com.db.ms.service.InventoryService;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -310,5 +312,67 @@ public class InventoryServiceImpl implements InventoryService {
                 .quantityNeeded(quantityNeeded)
                 .alertLevel(alertLevel)
                 .build();
+    }
+
+    @Override
+    public Map<Long, Boolean> checkBulkAvailability(Map<Long, Integer> bookQuantities) {
+        log.info("Checking bulk availability for {} books", bookQuantities.size());
+
+        Map<Long, Boolean> availabilityMap = new HashMap<>();
+
+        for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
+            Long bookId = entry.getKey();
+            Integer requiredQuantity = entry.getValue();
+
+            boolean available = checkAvailability(bookId, requiredQuantity);
+            availabilityMap.put(bookId, available);
+
+            log.debug("Book ID: {} - Required: {} - Available: {}",
+                    bookId, requiredQuantity, available);
+        }
+
+        log.info("Bulk availability check completed. Results: {}", availabilityMap);
+        return availabilityMap;
+    }
+
+    @Override
+    public Map<Long, Boolean> reduceBulkInventory(Map<Long, Integer> bookQuantities) {
+        log.info("Reducing bulk inventory for {} books", bookQuantities.size());
+
+        // First, check if all books are available
+        Map<Long, Boolean> availabilityMap = checkBulkAvailability(bookQuantities);
+
+        boolean allAvailable = availabilityMap.values().stream().allMatch(Boolean::booleanValue);
+
+        if (!allAvailable) {
+            List<Long> unavailableBooks = availabilityMap.entrySet().stream()
+                    .filter(entry -> !entry.getValue())
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+
+            log.error("Cannot reduce inventory. Unavailable books: {}", unavailableBooks);
+            throw new InsufficientStockException(
+                    "Insufficient stock for books: " + unavailableBooks);
+        }
+
+        // All available - proceed with deduction
+        Map<Long, Boolean> deductionResults = new HashMap<>();
+
+        for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
+            Long bookId = entry.getKey();
+            Integer quantity = entry.getValue();
+
+            try {
+                reduceInventory(bookId, quantity);
+                deductionResults.put(bookId, true);
+                log.debug("Successfully reduced {} units for book ID: {}", quantity, bookId);
+            } catch (Exception e) {
+                log.error("Failed to reduce inventory for book ID: {}", bookId, e);
+                deductionResults.put(bookId, false);
+            }
+        }
+
+        log.info("Bulk inventory reduction completed. Results: {}", deductionResults);
+        return deductionResults;
     }
 }

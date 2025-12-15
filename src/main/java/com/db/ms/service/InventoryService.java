@@ -1,6 +1,7 @@
 package com.db.ms.service;
 
 import java.util.List;
+import java.util.Map;
 
 import com.db.ms.dto.*;
 import com.db.ms.exception.InsufficientStockException;
@@ -142,4 +143,22 @@ public interface InventoryService {
      * @throws InventoryNotFoundException if inventory not found
      */
     void deleteInventory(Long inventoryId);
+
+    /**
+     * Checks stock availability for multiple books.
+     *
+     * @param bookQuantities map of bookId to required quantity
+     * @return map of bookId to availability status
+     */
+    Map<Long, Boolean> checkBulkAvailability(Map<Long, Integer> bookQuantities);
+
+    /**
+     * Reduces inventory for multiple books (bulk deduction).
+     * Only deducts if ALL books are available in required quantities.
+     *
+     * @param bookQuantities map of bookId to quantity to deduct
+     * @return map of bookId to success status
+     * @throws InsufficientStockException if any book has insufficient stock
+     */
+    Map<Long, Boolean> reduceBulkInventory(Map<Long, Integer> bookQuantities);
 }

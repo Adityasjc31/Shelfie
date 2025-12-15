@@ -11,6 +11,7 @@ import com.db.ms.service.InventoryService;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST Controller for Inventory Management operations.
@@ -274,4 +275,69 @@ public class InventoryController {
         log.info("Successfully deleted inventory with ID: {}", inventoryId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Checks stock availability for multiple books.
+     *
+     * @param checkDTO the bulk stock check data
+     * @return ResponseEntity with availability map and HTTP 200 status
+     */
+    @PostMapping("/bulk/check-availability")
+    public ResponseEntity<BulkStockCheckResponseDTO> checkBulkAvailability(
+            @Valid @RequestBody BulkStockCheckDTO checkDTO) {
+        log.info("POST /api/v1/inventory/bulk/check-availability - Checking {} books",
+                checkDTO.getBookQuantities().size());
+
+        Map<Long, Boolean> availabilityMap = inventoryService.checkBulkAvailability(
+                checkDTO.getBookQuantities());
+
+        boolean allAvailable = availabilityMap.values().stream()
+                .allMatch(Boolean::booleanValue);
+
+        String message = allAvailable ?
+                "All books are available in required quantities" :
+                "Some books are not available in required quantities";
+
+        BulkStockCheckResponseDTO response = BulkStockCheckResponseDTO.builder()
+                .availabilityMap(availabilityMap)
+                .allAvailable(allAvailable)
+                .message(message)
+                .build();
+
+        log.info("Bulk availability check completed. All available: {}", allAvailable);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Reduces inventory for multiple books (bulk deduction).
+     *
+     * @param checkDTO the bulk stock deduction data
+     * @return ResponseEntity with deduction results and HTTP 200 status
+     */
+    @PostMapping("/bulk/reduce")
+    public ResponseEntity<BulkStockCheckResponseDTO> reduceBulkInventory(
+            @Valid @RequestBody BulkStockCheckDTO checkDTO) {
+        log.info("POST /api/v1/inventory/bulk/reduce - Reducing inventory for {} books",
+                checkDTO.getBookQuantities().size());
+
+        Map<Long, Boolean> deductionResults = inventoryService.reduceBulkInventory(
+                checkDTO.getBookQuantities());
+
+        boolean allSuccessful = deductionResults.values().stream()
+                .allMatch(Boolean::booleanValue);
+
+        String message = allSuccessful ?
+                "All inventory reductions successful" :
+                "Some inventory reductions failed";
+
+        BulkStockCheckResponseDTO response = BulkStockCheckResponseDTO.builder()
+                .availabilityMap(deductionResults)
+                .allAvailable(allSuccessful)
+                .message(message)
+                .build();
+
+        log.info("Bulk inventory reduction completed. All successful: {}", allSuccessful);
+        return ResponseEntity.ok(response);
+    }
+
 }
