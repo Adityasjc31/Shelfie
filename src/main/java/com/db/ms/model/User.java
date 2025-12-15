@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 
 /**
  * Entity class representing a User in the Digital Bookstore system.
- * This is a plain Java object (POJO) for in-memory storage.
  * 
  * @author Digital Bookstore Team
  * @version 1.0
