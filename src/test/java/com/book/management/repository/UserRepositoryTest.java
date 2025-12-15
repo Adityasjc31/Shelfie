@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/test/java/com/bookstore/user/repository/UserRepositoryTest.java
 // ============================================================================
-package com.db.ms.repository;
+package com.book.management.repository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

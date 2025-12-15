@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/test/java/com/bookstore/user/controller/UserControllerTest.java
 // ============================================================================
-package com.db.ms.controller;
+package com.book.management.controller;
 
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
