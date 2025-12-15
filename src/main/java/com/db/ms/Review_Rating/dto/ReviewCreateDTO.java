@@ -1,16 +1,17 @@
-package com.db.ms.dto;
+package com.db.ms.Review_Rating.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+
 /**
- * Data Transfer Object for updating reviews.
+ * Data Transfer Object for creating new reviews.
  * 
  * @author Bookstore Development Team
  * @version 1.0
@@ -20,7 +21,13 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReviewUpdateDTO {
+public class ReviewCreateDTO {
+    
+    @NotNull(message = "User ID is required")
+    private Long userId;
+    
+    @NotNull(message = "Book ID is required")
+    private Long bookId;
     
     @NotNull(message = "Rating is required")
     @Min(value = 1, message = "Rating must be at least 1")

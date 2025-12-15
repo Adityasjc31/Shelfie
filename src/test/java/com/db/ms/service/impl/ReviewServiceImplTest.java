@@ -1,10 +1,17 @@
 package com.db.ms.service.impl;
 
-import com.db.ms.dto.*;
-import com.db.ms.model.Review;
-import com.db.ms.model.Review.ReviewStatus;
-import com.db.ms.exception.*;
-import com.db.ms.repository.ReviewRepository;
+import com.db.ms.Review_Rating.dto.ReviewCreateDTO;
+import com.db.ms.Review_Rating.dto.ReviewResponseDTO;
+import com.db.ms.Review_Rating.dto.ReviewUpdateDTO;
+import com.db.ms.Review_Rating.exception.DuplicateReviewException;
+import com.db.ms.Review_Rating.exception.InvalidModerationException;
+import com.db.ms.Review_Rating.exception.ReviewNotFoundException;
+import com.db.ms.Review_Rating.exception.UnauthorizedReviewAccessException;
+import com.db.ms.Review_Rating.model.Review;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.repository.ReviewRepository;
+import com.db.ms.Review_Rating.service.impl.ReviewServiceImpl;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,13 +1,12 @@
-package com.db.ms.dto;
+package com.db.ms.Review_Rating.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Data Transfer Object for marking review as helpful.
+ * Data Transfer Object for rating distribution.
  * 
  * @author Bookstore Development Team
  * @version 1.0
@@ -17,8 +16,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-class ReviewHelpfulDTO {
+public class RatingDistribution {
     
-    @NotNull(message = "User ID is required")
-    private Long userId;
+    private Long fiveStars;
+    private Long fourStars;
+    private Long threeStars;
+    private Long twoStars;
+    private Long oneStar;
 }

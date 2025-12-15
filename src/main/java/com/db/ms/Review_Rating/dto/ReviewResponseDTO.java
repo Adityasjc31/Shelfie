@@ -1,8 +1,8 @@
-package com.db.ms.dto;
+package com.db.ms.Review_Rating.dto;
 
 import java.time.LocalDateTime;
 
-import com.db.ms.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

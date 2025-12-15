@@ -1,10 +1,10 @@
-package com.db.ms.repository.impl;
+package com.db.ms.Review_Rating.repository.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
-import com.db.ms.model.Review;
-import com.db.ms.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.model.Review;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
 
 import jakarta.annotation.PostConstruct;
 

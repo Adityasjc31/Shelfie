@@ -1,4 +1,4 @@
-package com.db.ms.config;
+package com.db.ms.Review_Rating.config;
 
 import org.springframework.context.annotation.Configuration;
 

@@ -1,24 +1,24 @@
-package com.db.ms.service.impl;
+package com.db.ms.Review_Rating.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import com.db.ms.dto.BookRatingStatsDTO;
-import com.db.ms.dto.RatingDistribution;
-import com.db.ms.dto.ReviewCreateDTO;
-import com.db.ms.dto.ReviewModerationDTO;
-import com.db.ms.dto.ReviewResponseDTO;
-import com.db.ms.dto.ReviewUpdateDTO;
-import com.db.ms.exception.DuplicateReviewException;
-import com.db.ms.exception.ReviewNotFoundException;
-import com.db.ms.exception.InvalidReviewOperationException;
-import com.db.ms.exception.UnauthorizedReviewAccessException;
-import com.db.ms.exception.InvalidModerationException;
-import com.db.ms.model.Review;
-import com.db.ms.model.Review.ReviewStatus;
-import com.db.ms.repository.ReviewRepository;
-import com.db.ms.service.ReviewService;
+import com.db.ms.Review_Rating.dto.BookRatingStatsDTO;
+import com.db.ms.Review_Rating.dto.RatingDistribution;
+import com.db.ms.Review_Rating.dto.ReviewCreateDTO;
+import com.db.ms.Review_Rating.dto.ReviewModerationDTO;
+import com.db.ms.Review_Rating.dto.ReviewResponseDTO;
+import com.db.ms.Review_Rating.dto.ReviewUpdateDTO;
+import com.db.ms.Review_Rating.exception.DuplicateReviewException;
+import com.db.ms.Review_Rating.exception.ReviewNotFoundException;
+import com.db.ms.Review_Rating.exception.InvalidReviewOperationException;
+import com.db.ms.Review_Rating.exception.UnauthorizedReviewAccessException;
+import com.db.ms.Review_Rating.exception.InvalidModerationException;
+import com.db.ms.Review_Rating.model.Review;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.repository.ReviewRepository;
+import com.db.ms.Review_Rating.service.ReviewService;
 
 import java.util.List;
 import java.util.Map;

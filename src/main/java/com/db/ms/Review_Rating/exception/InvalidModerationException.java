@@ -1,4 +1,4 @@
-package com.db.ms.exception;
+package com.db.ms.Review_Rating.exception;
 
 /**
  * Exception thrown when moderation action is invalid.

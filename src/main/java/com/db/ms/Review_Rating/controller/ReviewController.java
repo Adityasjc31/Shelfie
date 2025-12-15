@@ -1,8 +1,8 @@
-package com.db.ms.controller;
+package com.db.ms.Review_Rating.controller;
 
-import com.db.ms.dto.*;
-import com.db.ms.model.Review.ReviewStatus;
-import com.db.ms.service.ReviewService;
+import com.db.ms.Review_Rating.dto.*;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

@@ -1,8 +1,12 @@
 package com.db.ms.controller;
 
-import com.db.ms.dto.*;
-import com.db.ms.model.Review.ReviewStatus;
-import com.db.ms.service.ReviewService;
+import com.db.ms.Review_Rating.controller.ReviewController;
+import com.db.ms.Review_Rating.dto.BookRatingStatsDTO;
+import com.db.ms.Review_Rating.dto.ReviewCreateDTO;
+import com.db.ms.Review_Rating.dto.ReviewResponseDTO;
+import com.db.ms.Review_Rating.dto.ReviewUpdateDTO;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.service.ReviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

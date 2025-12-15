@@ -1,10 +1,10 @@
-package com.db.ms.repository;
+package com.db.ms.Review_Rating.repository;
 
 import java.util.List;
 import java.util.Optional;
 
-import com.db.ms.model.Review;
-import com.db.ms.model.Review.ReviewStatus;
+import com.db.ms.Review_Rating.model.Review;
+import com.db.ms.Review_Rating.model.Review.ReviewStatus;
 
 /**
  * Repository interface for Review entity.
