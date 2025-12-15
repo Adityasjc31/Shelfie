@@ -1,4 +1,4 @@
-package com.db.ms.inventory_temp.impl;
+package com.db.ms.inventory.impl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
