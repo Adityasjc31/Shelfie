@@ -1,4 +1,4 @@
-package com.db.ms.inventory_temp.controller;
+package com.db.ms.inventory.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -6,8 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.db.ms.inventory_temp.dto.*;
-import com.db.ms.inventory_temp.service.InventoryService;
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.service.InventoryService;
 
 import jakarta.validation.Valid;
 import java.util.List;

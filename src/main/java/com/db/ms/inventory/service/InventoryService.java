@@ -1,13 +1,13 @@
-package com.db.ms.inventory_temp.service;
+package com.db.ms.inventory.service;
 
 import java.util.List;
 import java.util.Map;
 
-import com.db.ms.inventory_temp.dto.*;
-import com.db.ms.inventory_temp.exception.InsufficientStockException;
-import com.db.ms.inventory_temp.exception.InvalidInventoryOperationException;
-import com.db.ms.inventory_temp.exception.InventoryAlreadyExistsException;
-import com.db.ms.inventory_temp.exception.InventoryNotFoundException;
+import com.db.ms.inventory.dto.*;
+import com.db.ms.inventory.exception.InsufficientStockException;
+import com.db.ms.inventory.exception.InvalidInventoryOperationException;
+import com.db.ms.inventory.exception.InventoryAlreadyExistsException;
+import com.db.ms.inventory.exception.InventoryNotFoundException;
 
 
 /**

@@ -1,4 +1,4 @@
-package com.db.ms.inventory_temp.exception;
+package com.db.ms.inventory.exception;
 /**
  * Exception thrown when insufficient stock is available for an operation.
  *
