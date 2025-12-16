@@ -13,7 +13,7 @@ public class AddBookRequestDTO {
     private String bookAuthorId;
     private String bookCategoryId;     // e.g., "CAT-FIC"
     private Double bookPrice;          // non-negative
-    private Long bookStockQuantity;    // non-negative
+    private Integer bookStockQuantity;    // non-negative
 
     public Long getBookId() {
         return bookId;
@@ -35,7 +35,7 @@ public class AddBookRequestDTO {
         return bookPrice;
     }
 
-    public Long getBookStockQuantity() {
+    public Integer getBookStockQuantity() {
         return bookStockQuantity;
     }
 }

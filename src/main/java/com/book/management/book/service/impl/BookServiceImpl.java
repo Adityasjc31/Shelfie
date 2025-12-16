@@ -11,6 +11,12 @@ import com.book.management.book.exception.InvalidBookDataException;
 import com.book.management.book.model.Book;
 import com.book.management.book.repository.BookRepository;
 import com.book.management.book.service.BookService;
+
+// *** CORRECTED INVENTORY IMPORTS ***
+import com.book.management.inventory.dto.InventoryCreateDTO;
+import com.book.management.inventory.service.InventoryService;
+// ***********************************
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,17 +29,19 @@ import java.util.Optional;
 public class BookServiceImpl implements BookService {
 
     private final BookRepository bookRepository;
+    private final InventoryService inventoryService;
 
     @Autowired
-    public BookServiceImpl(BookRepository bookRepository) {
+    public BookServiceImpl(BookRepository bookRepository, InventoryService inventoryService) {
         this.bookRepository = bookRepository;
+        this.inventoryService = inventoryService;
     }
 
     @Override
     public BookResponseDTO addBook(AddBookRequestDTO request) {
         validateCreate(request);
-        String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
 
+        String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
         if (request.getBookId() != null && request.getBookId() > 0) {
             Optional<Book> existing = bookRepository.findById(request.getBookId());
             if (existing.isPresent()) {
@@ -47,11 +55,26 @@ public class BookServiceImpl implements BookService {
         book.setBookAuthorId(request.getBookAuthorId().trim());
         book.setBookCategoryId(canonicalCategoryId);
         book.setBookPrice(request.getBookPrice());
-        book.setBookStockQuantity(request.getBookStockQuantity());
 
         Book saved = bookRepository.save(book);
+
+        // 3. Define the final threshold quantity
+        final Integer thresholdQuantity = 10;
+
+        // 4. Create the Inventory DTO
+        InventoryCreateDTO inventoryCreateDTO = InventoryCreateDTO.builder()
+                .bookId(saved.getBookId())
+                .quantity(request.getBookStockQuantity())
+                .lowStockThreshold(thresholdQuantity)
+                .build();
+
+        // 5. Call the Inventory Service
+        inventoryService.createInventory(inventoryCreateDTO);
+
         return toResponseDTO(saved);
     }
+
+
 
     @Override
     public List<BookResponseDTO> getBooksAll() {
@@ -80,9 +103,6 @@ public class BookServiceImpl implements BookService {
                 .toList();
     }
 
-    /**
-     * Optimized version: Fetches all books in one database hit.
-     */
     @Override
     public BookPriceResponseDTO getBookPricesMap(List<Long> bookIds) {
         Map<Long, Double> map = new LinkedHashMap<>();
@@ -129,10 +149,6 @@ public class BookServiceImpl implements BookService {
             if (request.getBookPrice() < 0) throw new InvalidBookDataException("Price cannot be negative.");
             existing.setBookPrice(request.getBookPrice());
         }
-        if (request.getBookStockQuantity() != null) {
-            if (request.getBookStockQuantity() < 0) throw new InvalidBookDataException("Stock quantity cannot be negative.");
-            existing.setBookStockQuantity(request.getBookStockQuantity());
-        }
 
         Book updated = bookRepository.update(existing);
         return toResponseDTO(updated);
@@ -150,7 +166,6 @@ public class BookServiceImpl implements BookService {
         dto.setBookAuthorId(book.getBookAuthorId());
         dto.setBookCategoryId(book.getBookCategoryId());
         dto.setBookPrice(book.getBookPrice());
-        dto.setBookStockQuantity(book.getBookStockQuantity());
         return dto;
     }
 
