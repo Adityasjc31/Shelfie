@@ -3,7 +3,7 @@ package com.book.management.review_rating.exception;
 /**
  * Exception thrown when a user tries to review the same book twice.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

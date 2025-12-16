@@ -1,9 +1,8 @@
 package com.book.management.review_rating.controller;
 
-import lombok.NoArgsConstructor;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +18,7 @@ import java.util.List;
  * REST Controller for Review Management operations.
  * Exposes endpoints for managing book reviews, ratings, and moderation.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

@@ -1,6 +1,3 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/dto/ErrorResponse.java
-// ============================================================================
 package com.book.management.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -14,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * Standardized error response structure for REST API.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @Data

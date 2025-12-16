@@ -1,6 +1,3 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/dto/UserRegistrationDTO.java
-// ============================================================================
 package com.book.management.user.dto;
 
 import lombok.AllArgsConstructor;
@@ -19,7 +16,7 @@ import jakarta.validation.constraints.Size;
  * Data Transfer Object for user registration requests.
  * Contains validation constraints for input data.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @Data

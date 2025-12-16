@@ -11,7 +11,7 @@ import com.book.management.review_rating.model.Review.ReviewStatus;
  * Provides data access methods for review management operations.
  * Can be implemented using in-memory storage or JPA.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

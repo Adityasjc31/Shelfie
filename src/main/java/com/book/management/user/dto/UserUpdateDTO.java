@@ -1,6 +1,3 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/dto/UserUpdateDTO.java
-// ============================================================================
 package com.book.management.user.dto;
 
 import lombok.AllArgsConstructor;
@@ -14,7 +11,7 @@ import jakarta.validation.constraints.Size;
  * Data Transfer Object for updating user profile.
  * All fields are optional.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @Data

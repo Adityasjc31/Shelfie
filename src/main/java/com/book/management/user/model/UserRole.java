@@ -4,7 +4,7 @@ package com.book.management.user.model;
  * Enumeration representing different user roles in the system.
  * Defines access levels and permissions for users.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 public enum UserRole {

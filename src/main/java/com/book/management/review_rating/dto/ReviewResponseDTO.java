@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 /**
  * Data Transfer Object for Review responses.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

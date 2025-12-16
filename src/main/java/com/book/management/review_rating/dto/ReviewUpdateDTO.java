@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Size;
 /**
  * Data Transfer Object for updating reviews.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * Entity class representing a User in the Digital Bookstore system.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  * @since 2024-01-01
  */

@@ -1,6 +1,3 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/dto/UserResponseDTO.java
-// ============================================================================
 package com.book.management.user.dto;
 
 import com.book.management.user.model.UserRole;
@@ -16,7 +13,7 @@ import java.time.LocalDateTime;
  * Data Transfer Object for user responses.
  * Excludes sensitive information like passwords.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @Data

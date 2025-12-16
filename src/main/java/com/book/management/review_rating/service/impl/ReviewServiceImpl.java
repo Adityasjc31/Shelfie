@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  * Handles all business logic for review management operations.
  * Follows Single Responsibility and Dependency Inversion Principles.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

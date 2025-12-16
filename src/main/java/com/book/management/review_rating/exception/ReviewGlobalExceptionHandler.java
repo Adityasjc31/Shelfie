@@ -19,7 +19,7 @@ import java.util.Map;
  * Global exception handler for the Review Management module.
  * Centralizes exception handling across all controllers.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

@@ -1,12 +1,9 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/exception/InvalidCredentialsException.java
-// ============================================================================
 package com.book.management.user.exception;
 
 /**
  * Exception thrown when user provides invalid login credentials.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 public class InvalidCredentialsException extends RuntimeException {

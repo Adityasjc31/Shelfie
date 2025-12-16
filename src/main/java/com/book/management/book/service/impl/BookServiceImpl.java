@@ -41,7 +41,7 @@ import java.util.Optional;
  * Integration Pattern: Service-to-Service Communication (Book → Inventory)
 
  * 
- * @author Original Book Module Team + Integration Team
+ * @author Shashwat Srivastava + Aditya Srivastava
  * @version 2.0 - Added Inventory Integration
  * @since 2024-12-16
  */

@@ -1,12 +1,9 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/exception/UserNotFoundException.java
-// ============================================================================
 package com.book.management.user.exception;
 
 /**
  * Exception thrown when a requested user is not found in the system.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 public class UserNotFoundException extends RuntimeException {

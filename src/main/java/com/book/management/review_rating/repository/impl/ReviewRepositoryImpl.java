@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * Uses ConcurrentHashMap for thread-safe operations.
  * Can be easily replaced with JPA repository interface later.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

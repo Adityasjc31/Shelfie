@@ -11,7 +11,7 @@ import com.book.management.user.model.UserRole;
  * 
  * Following Interface Segregation Principle (SOLID).
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 public interface UserService {

@@ -3,7 +3,7 @@ package com.book.management.review_rating.exception;
 /**
  * Exception thrown when moderation action is invalid.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

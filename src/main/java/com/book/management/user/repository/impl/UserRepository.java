@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * NOTE: When switching to JPA later, replace this with:
  * public interface UserRepository extends JpaRepository<User, Long> { ... }
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @Repository

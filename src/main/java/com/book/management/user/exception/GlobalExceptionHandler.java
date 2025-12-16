@@ -21,7 +21,7 @@ import java.util.Map;
  * Global exception handler for the User Management module.
  * Handles all exceptions and returns standardized error responses.
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @RestControllerAdvice

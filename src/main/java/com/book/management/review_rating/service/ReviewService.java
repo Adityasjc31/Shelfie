@@ -14,7 +14,7 @@ import com.book.management.review_rating.model.Review.ReviewStatus;
  * Service interface defining business logic operations for Review Management.
  * Follows the Interface Segregation Principle (ISP) from SOLID principles.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

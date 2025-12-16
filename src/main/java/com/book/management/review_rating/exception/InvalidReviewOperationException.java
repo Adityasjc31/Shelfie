@@ -3,7 +3,7 @@ package com.book.management.review_rating.exception;
 /**
  * Exception thrown for invalid review operations.
  * 
- * @author Bookstore Development Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-15
  */

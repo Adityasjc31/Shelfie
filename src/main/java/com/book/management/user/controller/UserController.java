@@ -1,6 +1,3 @@
-// ============================================================================
-// FILE: src/main/java/com/bookstore/user/controller/UserController.java
-// ============================================================================
 package com.book.management.user.controller;
 
 import lombok.RequiredArgsConstructor;
@@ -22,7 +19,7 @@ import java.util.List;
  * 
  * Base URL: /api/v1/users
  * 
- * @author Digital Bookstore Team
+ * @author Abdul Ahad
  * @version 1.0
  */
 @RestController
