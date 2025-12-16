@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import com.book.management.inventory.dto.*;
 import com.book.management.inventory.exception.InsufficientStockException;
 import com.book.management.inventory.exception.InvalidInventoryOperationException;
 import com.book.management.inventory.exception.InventoryAlreadyExistsException;
@@ -12,6 +11,8 @@ import com.book.management.inventory.exception.InventoryNotFoundException;
 import com.book.management.inventory.model.Inventory;
 import com.book.management.inventory.repository.InventoryRepository;
 import com.book.management.inventory.service.InventoryService;
+import com.book.management.inventory.util.BookServiceHelper;
+import com.book.management.inventory.util.InventoryBookValidator;
 
 import java.util.HashMap;
 import java.util.List;
@@ -34,18 +35,24 @@ import java.util.stream.Collectors;
 public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryRepository inventoryRepository;
+    private final InventoryBookValidator inventoryBookValidator;
+    private final BookServiceHelper bookServiceHelper;
 
     @Override
     public InventoryResponseDTO createInventory(InventoryCreateDTO createDTO) {
-        log.info("Creating inventory for book ID: {}", createDTO.getBookId());
+        Long bookId = createDTO.getBookId();
+        log.info("Creating inventory for book ID: {}", bookId);
 
-        if (inventoryRepository.existsByBookId(createDTO.getBookId())) {
-            log.error("Inventory already exists for book ID: {}", createDTO.getBookId());
-            throw new InventoryAlreadyExistsException(createDTO.getBookId());
+        inventoryBookValidator.validateBookExistsForInventoryCreation(bookId);
+        inventoryBookValidator.logBookInfo(bookId);
+        
+        if (inventoryRepository.existsByBookId(bookId)) {
+            log.error("Inventory already exists for book ID: {}", bookId);
+            throw new InventoryAlreadyExistsException(bookId);
         }
 
         Inventory inventory = Inventory.builder()
-                .bookId(createDTO.getBookId())
+                .bookId(bookId)
                 .quantity(createDTO.getQuantity())
                 .lowStockThreshold(createDTO.getLowStockThreshold() != null ?
                         createDTO.getLowStockThreshold() : 10)
