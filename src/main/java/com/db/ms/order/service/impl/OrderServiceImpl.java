@@ -1,17 +1,21 @@
 package com.db.ms.order.service.impl;
 
+import com.db.ms.book.exception.BookNotFoundException;
 import com.db.ms.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.db.ms.order.dto.requestdto.UpdateOrderStatusRequestDTO;
-import com.db.ms.order.dto.responsedto.OrderPriceStockResponseDTO;
 import com.db.ms.order.dto.responsedto.OrderResponseDTO;
 import com.db.ms.order.enums.OrderEnum;
-import com.db.ms.order.exception.OrderCancellationNotAllowedException;
-import com.db.ms.order.exception.OrderInvalidStatusTransitionException;
-import com.db.ms.order.exception.OrderNotFoundException; // Now extends RuntimeException
-import com.db.ms.order.exception.OrderNotPlacedException; // Now extends RuntimeException
+import com.db.ms.order.exception.*;
 import com.db.ms.order.model.Order;
 import com.db.ms.order.repository.OrderRepository;
 import com.db.ms.order.service.OrderService;
+// Injected Services (Assume interfaces are available)
+import com.db.ms.book.service.BookService;
+import com.db.ms.inventory.service.InventoryService;
+// DTOs from external services
+import com.db.ms.book.dto.responsedto.BookPriceResponseDTO;
+import com.db.ms.inventory.exception.InsufficientStockException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,112 +27,223 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Service implementation for Order operations.
+ * Service implementation for Order operations, handling orchestration of Book and Inventory services.
+ * Propagation of specific exceptions (BookNotFoundException, InsufficientStockException).
  */
 @Service
 @Slf4j
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final BookService bookService;
+    private final InventoryService inventoryService;
 
     // Exception type constants for centralized handling
     private static final String IAE = "IllegalArgumentException";
     private static final String NFE = "OrderNotFoundException";
     private static final String ONFRE = "Order not found with ID:";
+
     @Autowired
-    public OrderServiceImpl(OrderRepository orderRepository) {
+    public OrderServiceImpl(OrderRepository orderRepository, BookService bookService, InventoryService inventoryService) {
         this.orderRepository = orderRepository;
+        this.bookService = bookService;
+        this.inventoryService = inventoryService;
     }
 
+
+    /**
+     * Orchestrates order placement in two phases: pre-process & save, then stock reduction.
+     * Validates input, delegates to helpers, and returns the finalized OrderResponseDTO.
+     * Propagates domain and infra exceptions (validation, price, stock, persistence).
+     * Keeps core logic thin for clarity and testability.
+     */
+
     @Override
-    public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request, OrderPriceStockResponseDTO priceStock) throws OrderNotPlacedException {
-        // ... (Place order implementation remains the same, throwing IAE and OrderNotPlacedException)
+    public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException {
         log.info("Order placement started: userId={}, itemsCount={}",
                 request == null ? null : request.getUserId(),
                 (request == null || request.getBookOrder() == null) ? 0 : request.getBookOrder().size());
 
-        // --- VALIDATION (Keep IAE checks) ---
-        if (request == null) {
-            handleValidationOrNotFoundError(IAE, "Place order failed: request is null", "Request cannot be null");
-        }
-        if (request.getUserId() <= 0) {
-            handleValidationOrNotFoundError(IAE, "Place order failed: invalid userId=" + request.getUserId(), "Invalid userId: " + request.getUserId());
+        // Part 1: Validate, fetch prices, (optional) check stock, compute total, save
+        Order savedOrder = preProcessAndSaveOrder(request);
+
+        // Part 2: Reduce inventory & finalize order
+        return inventoryStockReduction(savedOrder, request.getBookOrder());
+    }
+
+
+    /**
+     * Phase 1: Pre-processes an order and persists it in PENDING status.
+     *
+     * Workflow:
+     * - Validates request (userId > 0, non-empty bookOrder, each bookId/qty > 0).
+     * - Fetches prices from Book service and verifies the price map (non-null, non-empty, no null prices).
+     * - Checks stock availability with inventoryService.checkBulkAvailability(bookOrder);
+     *   throws InsufficientStockException if any requested item is unavailable.
+     * - Computes total (sum of price * quantity) and persists a new Order using ID=0
+     *   so the repository auto-generates the real ID.
+
+     * Returns:
+     * - The saved Order (as returned by repository.save()), expected to have a generated ID if the repo populates it.
+
+     * Exceptions:
+     * - IllegalArgumentException via handleValidationOrNotFoundError for invalid input.
+     * - BookNotFoundException for missing/invalid pricing data.
+     * - InsufficientStockException if availability check fails.
+     * - OrderNotPlacedException for infrastructure/persistence errors.
+     */
+
+
+    private Order preProcessAndSaveOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException {
+        // --- 1. INITIAL VALIDATION ---
+        if (request == null || request.getUserId() <= 0) {
+            handleValidationOrNotFoundError(IAE, "Invalid request or userId", "Invalid request or userId provided.");
         }
         Map<Long, Integer> bookOrder = request.getBookOrder();
         if (bookOrder == null || bookOrder.isEmpty()) {
-            handleValidationOrNotFoundError(IAE, "Place order failed: empty bookOrder for userId=" + request.getUserId(), "bookOrder must not be empty");
+            handleValidationOrNotFoundError(IAE, "Empty bookOrder", "bookOrder must not be empty");
         }
-        for (Map.Entry<Long, Integer> e : bookOrder.entrySet()) {
-            Long bookId = e.getKey();
-            Integer qty = e.getValue();
-            if (bookId == null || bookId <= 0) {
-                handleValidationOrNotFoundError(IAE, "Invalid bookId found in bookOrder: " + bookId, "Invalid bookId in bookOrder: " + bookId);
+        bookOrder.forEach((bookId, qty) -> {
+            if (bookId == null || bookId <= 0 || qty == null || qty <= 0) {
+                handleValidationOrNotFoundError(IAE,
+                        String.format("Invalid bookId (%d) or quantity (%d)", bookId, qty),
+                        "Invalid bookId or quantity in order list.");
             }
-            if (qty == null || qty <= 0) {
-                handleValidationOrNotFoundError(IAE, "Invalid quantity found for bookId=" + bookId + ": qty=" + qty, "Quantity must be > 0 for bookId: " + bookId);
-            }
-        }
-
-        if (priceStock == null) {
-            handleValidationOrNotFoundError(IAE, "Place order failed: priceStock is null", "priceStock cannot be null. Provide OrderPriceStockResponseDTO.");
-        }
-        Map<Long, Double> priceMap = priceStock.getBookPrice();
-        Map<Long, Boolean> stockMap = priceStock.getBookStock();
-        if (priceMap == null || priceMap.isEmpty()) {
-            handleValidationOrNotFoundError(IAE, "Place order failed: priceMap is empty/null", "Price map is empty or null");
-        }
-        if (stockMap == null || stockMap.isEmpty()) {
-            handleValidationOrNotFoundError(IAE, "Place order failed: stockMap is empty/null", "Stock map is empty or null");
-        }
-
-        // Defensive check for missing prices or insufficient stock
-        for (Long bookId : bookOrder.keySet()) {
-            if (!priceMap.containsKey(bookId)) {
-                handleValidationOrNotFoundError(IAE, "Missing price for bookId=" + bookId, "Missing price for bookId: " + bookId);
-            }
-            Boolean available = stockMap.get(bookId);
-            if (available == null || !available) {
-                handleValidationOrNotFoundError(IAE, "Insufficient stock for bookId=" + bookId, "Insufficient stock for bookId: " + bookId);
-            }
-        }
-        // --- END VALIDATION ---
-
-        // Compute total amount
-        double totalAmount = 0.0;
-        for (Map.Entry<Long, Integer> e : bookOrder.entrySet()) {
-            Long bookId = e.getKey();
-            Integer qty = e.getValue();
-            Double unitPrice = priceMap.get(bookId);
-            totalAmount += (unitPrice * qty);
-        }
-        log.info("Computed order total: userId={}, totalAmount={}", request.getUserId(), totalAmount);
-
-        // Build list of bookIds for the Order model
+        });
         List<Long> bookIds = new ArrayList<>(bookOrder.keySet());
 
-        // Build and persist Order
-        Order order = new Order();
-        order.setUserId(request.getUserId());
-        order.setBookId(bookIds);
-        order.setOrderTotalAmount(totalAmount);
-        order.setOrderDateTime(LocalDateTime.now());
-        order.setOrderStatus(OrderEnum.PENDING);
+        // --- 2.1 PRICE CHECK (Book Service) ---
+        Map<Long, Double> priceMap;
+        try {
+            log.info("Fetching prices for {} books...", bookIds.size());
+            BookPriceResponseDTO priceResponse = bookService.getBookPricesMap(bookIds);
+            priceMap = priceResponse.getPrices();
+        } catch (BookNotFoundException ex) {
+            throw ex; // propagate specific
+        } catch (Exception ex) {
+            log.error("Book service price fetch failed: {}", ex.getMessage(), ex);
+            throw new OrderNotPlacedException("Failed to retrieve prices from the Book service due to a system error.");
+        }
+
+        if (priceMap == null || priceMap.isEmpty()) {
+            throw new BookNotFoundException("Book Service returned an empty or null price map for requested books.");
+        }
+        List<Long> nullPricedBooks = bookIds.stream()
+                .filter(id -> priceMap.containsKey(id) && priceMap.get(id) == null)
+                .toList();
+        if (!nullPricedBooks.isEmpty()) {
+            throw new BookNotFoundException("Null price found for books: " + nullPricedBooks);
+        }
+
+        // --- 2.2 STOCK AVAILABILITY CHECK (Inventory Service) ---
+        Map<Long, Boolean> availability;
+        try {
+            availability = inventoryService.checkBulkAvailability(bookOrder);
+            log.info("Availability check results: {}", availability);
+        } catch (Exception ex) {
+            log.error("Inventory availability check failed: {}", ex.getMessage(), ex);
+            throw new OrderNotPlacedException("Failed to check inventory availability due to a system error.");
+        }
+
+        // Ensure the availability map has entries for all requested books
+        if (!availability.keySet().containsAll(bookOrder.keySet())) {
+            log.error("Availability map missing entries for some requested books. requested={}, availabilityKeys={}",
+                    bookOrder.keySet(), availability.keySet());
+            throw new OrderNotPlacedException("Availability check returned incomplete results.");
+        }
+
+        // Ensure all requested items are available in required quantities
+        List<Long> unavailable = availability.entrySet().stream()
+                .filter(e -> !Boolean.TRUE.equals(e.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        if (!unavailable.isEmpty()) {
+            String msg = "Insufficient stock for books: " + unavailable;
+            log.warn(msg);
+            throw new InsufficientStockException(msg);
+        }
+
+        // --- 3. COMPUTE TOTAL & SAVE ORDER ---
+        double totalAmount = bookOrder.entrySet().stream()
+                .mapToDouble(entry -> priceMap.get(entry.getKey()) * entry.getValue())
+                .sum();
+        log.info("Computed order total: userId={}, totalAmount={}", request.getUserId(), totalAmount);
+
+        Order order = new Order(
+                0, // Placeholder: repo will generate the real ID
+                request.getUserId(),
+                bookIds,
+                LocalDateTime.now(),
+                totalAmount,
+                OrderEnum.PENDING
+        );
 
         try {
-            Order saved = orderRepository.save(order);
-            log.info("Order placed successfully: orderId={}, userId={}, itemsCount={}",
-                    saved.getOrderId(), saved.getUserId(), bookIds.size());
-            return toResponseDTO(saved);
+            Order savedOrder = orderRepository.save(order);
+            log.info("Order saved successfully: orderId={}", savedOrder.getOrderId());
+            return savedOrder;
         } catch (RuntimeException ex) {
-            // Throw custom OrderNotPlacedException for persistence failure
-            log.error("Order persistence failed: userId={}, error={}", request.getUserId(), ex.getMessage(), ex);
-            throw new OrderNotPlacedException("Order could not be placed due to an internal system error.");
+            log.error("Order persistence failed: {}", ex.getMessage(), ex);
+            throw new OrderNotPlacedException("Order database persistence failed.");
         }
     }
 
+
+    /**
+     * Phase 2: Reduces inventory for the saved order and finalizes the order status.
+
+     * Workflow:
+     * - Calls inventoryService.reduceBulkInventory(bookOrder) to decrement stock; propagates
+     *   InsufficientStockException on failures.
+     * - Updates the order status to a default state (e.g., PENDING) and persists via repository.update.
+     * - Guards against repository update returning null; throws OrderNotPlacedException if it does.
+
+     * Returns:
+     * - OrderResponseDTO produced from the finalized (updated) Order.
+
+     * Exceptions:
+     * - InsufficientStockException for stock reduction failures.
+     * - OrderNotPlacedException if update fails or returns null; RuntimeException propagated for other infra errors.
+
+     * Notes:
+     * - Logs use savedOrder.getOrderId() for traceability; ensure repository save populates
+     *   the generated ID (by mutating the entity or returning a new instance with the ID).
+     */
+    private OrderResponseDTO inventoryStockReduction(Order savedOrder, Map<Long, Integer> bookOrder) {
+        // --- 4. Stock Reduction  ---
+        try {
+            log.info("Reducing bulk inventory for orderId: {}", savedOrder.getOrderId());
+
+            // Throws InsufficientStockException if any book is unavailable.
+            inventoryService.reduceBulkInventory(bookOrder);
+
+            // Update to final successful status and persist
+            savedOrder.setOrderStatus(OrderEnum.PENDING);
+            Order finalOrder = orderRepository.update(savedOrder);
+
+            if (finalOrder == null) {
+                log.error("Order update returned null for tentative order (userId={}).", savedOrder.getUserId());
+                throw new OrderNotPlacedException("Order update failed—repository returned null.");
+            }
+
+            log.info("Stock reduced and Order finalized: orderId={}", finalOrder.getOrderId());
+            return toResponseDTO(finalOrder);
+
+        } catch (InsufficientStockException ex) {
+            log.error("Stock reduction failed for orderId: {}. Insufficient stock. Propagating.", savedOrder.getOrderId());
+            throw ex;
+        } catch (RuntimeException ex) {
+            log.error("Stock reduction failed for orderId: {}. Runtime error.", savedOrder.getOrderId(), ex);
+            throw ex;
+        }
+    }
+
+    /*
+    *  Get All Order details
+    */
     @Override
     public List<OrderResponseDTO> getOrderAll() {
-        // ... (getAll implementation remains the same)
+
         List<OrderResponseDTO> result = orderRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .toList();
@@ -136,24 +251,24 @@ public class OrderServiceImpl implements OrderService {
         return result;
     }
 
+    /*
+    * Get Order details by OrderId
+    */
     @Override
     public Optional<OrderResponseDTO> getOrderById(long orderId) {
-        // FIX: If the Optional is empty, throw OrderNotFoundException immediately.
+
         log.info("Fetching order by ID: {}", orderId);
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> {
-                    log.error("Order not found with ID: {}", orderId);
-                    return new OrderNotFoundException(ONFRE + orderId);
-                });
-
-        log.info("Order found: orderId={}", orderId);
-        return Optional.of(toResponseDTO(order));
+        // FIX: If the Optional is empty, throw OrderNotFoundException immediately.
+        return orderRepository.findById(orderId)
+                .map(this::toResponseDTO);
     }
 
+    /*
+     * Get All Order details by Order Status
+     */
     @Override
     public List<OrderResponseDTO> getOrderByStatus(OrderEnum status) {
-        // ... (getOrderByStatus implementation remains the same)
+        // ... (implementation remains the same)
         List<OrderResponseDTO> result = orderRepository.findByStatus(status).stream()
                 .map(this::toResponseDTO)
                 .toList();
@@ -162,7 +277,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Changes the status of an existing order.
+     * Change the status of an existing order.
      */
     @Override
     public OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request) throws OrderNotFoundException, OrderInvalidStatusTransitionException {
@@ -175,9 +290,6 @@ public class OrderServiceImpl implements OrderService {
                 });
 
         // NOTE: If you add status validation, throw OrderInvalidStatusTransitionException here.
-        // if (transition_is_invalid) {
-        //    throw new OrderInvalidStatusTransitionException(...);
-        // }
 
         existing.setOrderStatus(request.getOrderStatus());
         Order updated = orderRepository.update(existing);
@@ -204,7 +316,7 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderCancellationNotAllowedException("Order cannot be cancelled in status: " + order.getOrderStatus());
         }
 
-        // NOTE: If you add status validation, throw OrderInvalidStatusTransitionException here.
+        // NOTE: In a real system, you would call InventoryService.restockInventory() here.
 
         orderRepository.deleteById(orderId);
         log.info("Order cancelled successfully: orderId={}", orderId);

@@ -2,86 +2,84 @@ package com.db.ms.order.service;
 
 import com.db.ms.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.db.ms.order.dto.requestdto.UpdateOrderStatusRequestDTO;
-import com.db.ms.order.dto.responsedto.OrderPriceStockResponseDTO;
 import com.db.ms.order.dto.responsedto.OrderResponseDTO;
 import com.db.ms.order.enums.OrderEnum;
-import com.db.ms.order.exception.OrderCancellationNotAllowedException; // Added for completeness
-import com.db.ms.order.exception.OrderNotPlacedException; // Added for completeness
-import com.db.ms.order.exception.OrderNotFoundException;
+import com.db.ms.order.exception.OrderCancellationNotAllowedException;
 import com.db.ms.order.exception.OrderInvalidStatusTransitionException;
+import com.db.ms.order.exception.OrderNotFoundException;
+import com.db.ms.order.exception.OrderNotPlacedException;
+// Note: We are assuming BookNotFoundException and InsufficientStockException
+// are thrown by the implementation layer, but we don't declare them here
+// unless they are specific to the Order service contract.
+// We declare OrderNotPlacedException as the final failure state.
+
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Service interface defining business logic operations for Order Management.
- * Follows SOLID principles—particularly Interface Segregation and Single Responsibility.
- *
- * FIX: The signatures below have been updated to include all CHECKED exceptions
- * thrown by the OrderServiceImpl (OrderNotPlacedException, OrderCancellationNotAllowedException).
+ * Defines the contract for Order Management services.
+ * All order-related business logic and orchestration are handled here.
  *
  * @author Rehan Ashraf
- * @version 1.0 (Fixed for compilation with checked exceptions)
- * @since 2024-12-08
+ * @version 1.5 (Updated placeOrder signature)
+ * @since 2024-12-15
  */
 public interface OrderService {
 
     /**
-     * Places a new order using the request payload and the pre-fetched price/stock maps.
+     * Places a new order. The service handles fetching prices, checking stock,
+     * persisting the order, and reducing inventory internally.
      *
-     * @param request    PlaceOrderRequestDTO containing userId and bookOrder map
-     * @param priceStock OrderPriceStockResponseDTO containing bookPrice and bookStock maps
-     * @return the created order response
-     * @throws IllegalArgumentException if payload or price/stock data is invalid (Unchecked, but often declared for clarity)
-     * @throws OrderNotPlacedException if persistence fails unexpectedly (CHECKED)
+     * @param request The DTO containing userId and bookOrder map.
+     * @return The response DTO of the newly created order.
+     * @throws OrderNotPlacedException if the order fails at the persistence or stock reduction stage.
+     * @throws IllegalArgumentException for validation errors (like null request or empty book list).
+     * @throws com.db.ms.book.exception.BookNotFoundException if prices cannot be retrieved for requested items.
+     * @throws com.db.ms.inventory.exception.InsufficientStockException if stock checks fail.
      */
-    OrderResponseDTO placeOrder(PlaceOrderRequestDTO request, OrderPriceStockResponseDTO priceStock)
-            throws IllegalArgumentException, OrderNotPlacedException;
-
+    OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException, IllegalArgumentException;
 
     /**
-     * Retrieves all orders.
+     * Retrieves all existing orders.
      *
-     * @return list of all orders
+     * @return A list of all order response DTOs.
      */
     List<OrderResponseDTO> getOrderAll();
 
     /**
-     * Retrieves an order by its ID.
+     * Retrieves an order by its unique ID.
      *
-     * @param orderId the order ID
-     * @return optional order response (empty if not found)
+     * @param orderId The unique identifier of the order.
+     * @return An Optional containing the OrderResponseDTO if found, otherwise empty.
      */
     Optional<OrderResponseDTO> getOrderById(long orderId);
 
     /**
-     * Retrieves orders filtered by their status.
+     * Retrieves all orders matching a specific status.
      *
-     * @param status the order status to filter by
-     * @return list of orders matching the status
+     * @param status The status enum to filter by (e.g., PENDING, PLACED).
+     * @return A list of matching order response DTOs.
      */
     List<OrderResponseDTO> getOrderByStatus(OrderEnum status);
 
     /**
      * Changes the status of an existing order.
      *
-     * @param orderId the order ID
-     * @param request the status change request (newStatus, optional reason/meta)
-     * @return the updated order response
-     * @throws OrderNotFoundException                if the order does not exist (CHECKED)
-     * @throws OrderInvalidStatusTransitionException if the requested transition is invalid (CHECKED)
+     * @param orderId The unique identifier of the order.
+     * @param request The DTO containing the new status.
+     * @return The updated order response DTO.
+     * @throws OrderNotFoundException if the order ID is not found.
+     * @throws OrderInvalidStatusTransitionException if the status change is not allowed by business rules.
      */
     OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request)
             throws OrderNotFoundException, OrderInvalidStatusTransitionException;
 
     /**
-     * Cancels an order.
+     * Cancels an existing order.
      *
-     * @param orderId the order ID
-     * @throws OrderNotFoundException                if the order does not exist (CHECKED)
-     * @throws OrderInvalidStatusTransitionException if order cannot be cancelled from its current status (CHECKED)
-     * @throws OrderCancellationNotAllowedException  if cancellation is forbidden by domain rules (CHECKED)
+     * @param orderId The unique identifier of the order to cancel.
+     * @throws OrderNotFoundException if the order ID is not found.
+     * @throws OrderCancellationNotAllowedException if the order is in a state that cannot be cancelled (e.g., DELIVERED).
      */
-    void cancelOrder(long orderId)
-            throws OrderNotFoundException, OrderInvalidStatusTransitionException, OrderCancellationNotAllowedException;
-
+    void cancelOrder(long orderId) throws OrderNotFoundException, OrderCancellationNotAllowedException;
 }

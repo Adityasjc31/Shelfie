@@ -137,7 +137,7 @@ public class InMemoryOrderRepository implements OrderRepository {
     @Override
     public Order save(Order order) {
         long id = order.getOrderId() > 0 ? order.getOrderId() : sequence.incrementAndGet();
-        // order.setOrderId(id); // intentionally left commented per original code
+         order.setOrderId(id);
         store.put(id, order);
         log.debug("Saved order with storage id={}, order={}", id, order);
         return order;
