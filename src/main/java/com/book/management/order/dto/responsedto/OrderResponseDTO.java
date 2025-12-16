@@ -1,12 +1,11 @@
 package com.book.management.order.dto.responsedto;
 
+import com.book.management.order.enums.OrderEnum;
 import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import com.book.management.order.enums.OrderEnum;
 
 @Data
 @Builder

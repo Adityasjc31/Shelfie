@@ -1,12 +1,11 @@
 
 package com.book.management.order.model;
 
+import com.book.management.order.enums.OrderEnum;
 import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import com.book.management.order.enums.OrderEnum;
 
 /**
  * Entity class representing an Order in the Digital Book Store.

@@ -1,9 +1,9 @@
 package com.book.management.book.repository;
 
+import com.book.management.book.model.Book;
+
 import java.util.List;
 import java.util.Optional;
-
-import com.book.management.book.model.Book;
 
 public interface BookRepository {
 

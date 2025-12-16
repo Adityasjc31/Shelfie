@@ -1,11 +1,10 @@
 package com.book.management.order.repository.impl;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Repository;
-
 import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.model.Order;
 import com.book.management.order.repository.OrderRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -138,7 +137,7 @@ public class InMemoryOrderRepository implements OrderRepository {
     @Override
     public Order save(Order order) {
         long id = order.getOrderId() > 0 ? order.getOrderId() : sequence.incrementAndGet();
-        // order.setOrderId(id); // intentionally left commented per original code
+         order.setOrderId(id);
         store.put(id, order);
         log.debug("Saved order with storage id={}, order={}", id, order);
         return order;
