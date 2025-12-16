@@ -12,7 +12,6 @@ public class Book {
     private String bookAuthorId;
     private String bookCategoryId; // canonical ID like "CAT-FIC"
     private double bookPrice;
-    private long bookStockQuantity;
 
     public long getBookId() {
         return bookId;
@@ -54,11 +53,4 @@ public class Book {
         this.bookPrice = bookPrice;
     }
 
-    public long getBookStockQuantity() {
-        return bookStockQuantity;
-    }
-
-    public void setBookStockQuantity(long bookStockQuantity) {
-        this.bookStockQuantity = bookStockQuantity;
-    }
 }
