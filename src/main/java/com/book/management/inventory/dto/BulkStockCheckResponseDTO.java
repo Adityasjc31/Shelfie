@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.util.Map; /**
  * Data Transfer Object for bulk stock check response.
  *
- * @author Bookstore Development Team
+ * @author Shelfie
  * @version 1.0
  * @since 2024-12-15
  */
