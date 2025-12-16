@@ -1,4 +1,4 @@
-package com.db.ms.order.dto.responsedto;
+package com.book.management.order.dto.responsedto;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

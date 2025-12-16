@@ -1,5 +1,5 @@
 
-package com.db.ms.order.dto.requestdto;
+package com.book.management.order.dto.requestdto;
 
 import lombok.Data;
 import java.util.Map;

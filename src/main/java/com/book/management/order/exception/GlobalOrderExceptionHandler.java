@@ -1,8 +1,8 @@
-package com.db.ms.order.exception;
+package com.book.management.order.exception;
 
-import com.db.ms.book.exception.BookNotFoundException;
-import com.db.ms.inventory.exception.InsufficientStockException;
-import com.db.ms.order.dto.responsedto.ErrorResponseDTO;
+import com.book.management.book.exception.BookNotFoundException;
+import com.book.management.inventory.exception.InsufficientStockException;
+import com.book.management.order.dto.responsedto.ErrorResponseDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

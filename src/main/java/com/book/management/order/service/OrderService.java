@@ -1,13 +1,15 @@
-package com.db.ms.order.service;
+package com.book.management.order.service;
 
-import com.db.ms.order.dto.requestdto.PlaceOrderRequestDTO;
-import com.db.ms.order.dto.requestdto.UpdateOrderStatusRequestDTO;
-import com.db.ms.order.dto.responsedto.OrderResponseDTO;
-import com.db.ms.order.enums.OrderEnum;
-import com.db.ms.order.exception.OrderCancellationNotAllowedException;
-import com.db.ms.order.exception.OrderInvalidStatusTransitionException;
-import com.db.ms.order.exception.OrderNotFoundException;
-import com.db.ms.order.exception.OrderNotPlacedException;
+import com.book.management.book.exception.BookNotFoundException;
+import com.book.management.inventory.exception.InsufficientStockException;
+import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
+import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
+import com.book.management.order.dto.responsedto.OrderResponseDTO;
+import com.book.management.order.enums.OrderEnum;
+import com.book.management.order.exception.OrderCancellationNotAllowedException;
+import com.book.management.order.exception.OrderInvalidStatusTransitionException;
+import com.book.management.order.exception.OrderNotFoundException;
+import com.book.management.order.exception.OrderNotPlacedException;
 // Note: We are assuming BookNotFoundException and InsufficientStockException
 // are thrown by the implementation layer, but we don't declare them here
 // unless they are specific to the Order service contract.
@@ -34,8 +36,8 @@ public interface OrderService {
      * @return The response DTO of the newly created order.
      * @throws OrderNotPlacedException if the order fails at the persistence or stock reduction stage.
      * @throws IllegalArgumentException for validation errors (like null request or empty book list).
-     * @throws com.db.ms.book.exception.BookNotFoundException if prices cannot be retrieved for requested items.
-     * @throws com.db.ms.inventory.exception.InsufficientStockException if stock checks fail.
+     * @throws BookNotFoundException if prices cannot be retrieved for requested items.
+     * @throws InsufficientStockException if stock checks fail.
      */
     OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException, IllegalArgumentException;
 

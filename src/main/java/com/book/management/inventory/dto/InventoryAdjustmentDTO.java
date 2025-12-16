@@ -1,4 +1,4 @@
-package com.db.ms.inventory.dto;
+package com.book.management.inventory.dto;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

@@ -1,8 +1,8 @@
-package com.db.ms.order.repository.impl;
+package com.book.management.order.repository.impl;
 
-import com.db.ms.order.enums.OrderEnum;
-import com.db.ms.order.model.Order;
-import com.db.ms.order.repository.OrderRepository;
+import com.book.management.order.enums.OrderEnum;
+import com.book.management.order.model.Order;
+import com.book.management.order.repository.OrderRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 

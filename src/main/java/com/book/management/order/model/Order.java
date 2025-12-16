@@ -1,7 +1,7 @@
 
-package com.db.ms.order.model;
+package com.book.management.order.model;
 
-import com.db.ms.order.enums.OrderEnum;
+import com.book.management.order.enums.OrderEnum;
 import lombok.*;
 
 import java.time.LocalDateTime;

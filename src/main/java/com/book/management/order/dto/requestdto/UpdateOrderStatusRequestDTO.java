@@ -1,7 +1,7 @@
 
-package com.db.ms.order.dto.requestdto;
+package com.book.management.order.dto.requestdto;
 
-import com.db.ms.order.enums.OrderEnum;
+import com.book.management.order.enums.OrderEnum;
 import lombok.Data;
 
 /**

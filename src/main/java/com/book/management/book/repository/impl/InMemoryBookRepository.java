@@ -1,7 +1,7 @@
-package com.db.ms.book.repository.impl;
+package com.book.management.book.repository.impl;
 
-import com.db.ms.book.model.Book;
-import com.db.ms.book.repository.BookRepository;
+import com.book.management.book.model.Book;
+import com.book.management.book.repository.BookRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;

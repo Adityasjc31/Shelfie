@@ -1,4 +1,4 @@
-package com.db.ms.inventory.exception;
+package com.book.management.inventory.exception;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;

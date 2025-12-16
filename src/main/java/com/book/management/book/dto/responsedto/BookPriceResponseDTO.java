@@ -1,4 +1,4 @@
-package com.db.ms.book.dto.responsedto;
+package com.book.management.book.dto.responsedto;
 
 import lombok.Data;
 

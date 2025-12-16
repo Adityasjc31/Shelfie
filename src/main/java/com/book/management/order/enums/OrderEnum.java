@@ -1,5 +1,5 @@
 
-package com.db.ms.order.enums;
+package com.book.management.order.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

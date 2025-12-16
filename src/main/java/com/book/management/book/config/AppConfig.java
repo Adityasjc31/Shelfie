@@ -1,4 +1,4 @@
-package com.db.ms.book.config;
+package com.book.management.book.config;
 
 import org.springframework.context.annotation.Configuration;
 

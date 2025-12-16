@@ -1,6 +1,6 @@
-package com.db.ms.order.dto.responsedto;
+package com.book.management.order.dto.responsedto;
 
-import com.db.ms.order.enums.OrderEnum;
+import com.book.management.order.enums.OrderEnum;
 import lombok.Builder;
 import lombok.Data;
 

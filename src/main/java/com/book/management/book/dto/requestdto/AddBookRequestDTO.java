@@ -1,4 +1,4 @@
-package com.db.ms.book.dto.requestdto;
+package com.book.management.book.dto.requestdto;
 
 
 /**

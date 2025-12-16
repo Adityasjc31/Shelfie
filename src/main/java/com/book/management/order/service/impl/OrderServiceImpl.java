@@ -1,20 +1,24 @@
-package com.db.ms.order.service.impl;
+package com.book.management.order.service.impl;
 
-import com.db.ms.book.exception.BookNotFoundException;
-import com.db.ms.order.dto.requestdto.PlaceOrderRequestDTO;
-import com.db.ms.order.dto.requestdto.UpdateOrderStatusRequestDTO;
-import com.db.ms.order.dto.responsedto.OrderResponseDTO;
-import com.db.ms.order.enums.OrderEnum;
-import com.db.ms.order.exception.*;
-import com.db.ms.order.model.Order;
-import com.db.ms.order.repository.OrderRepository;
-import com.db.ms.order.service.OrderService;
+import com.book.management.book.exception.BookNotFoundException;
+import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
+import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
+import com.book.management.order.dto.responsedto.OrderResponseDTO;
+import com.book.management.order.enums.OrderEnum;
+import com.book.management.order.exception.OrderCancellationNotAllowedException;
+import com.book.management.order.exception.OrderInvalidStatusTransitionException;
+import com.book.management.order.exception.OrderNotFoundException;
+import com.book.management.order.exception.OrderNotPlacedException;
+import com.book.management.order.exception.*;
+import com.book.management.order.model.Order;
+import com.book.management.order.repository.OrderRepository;
+import com.book.management.order.service.OrderService;
 // Injected Services (Assume interfaces are available)
-import com.db.ms.book.service.BookService;
-import com.db.ms.inventory.service.InventoryService;
+import com.book.management.book.service.BookService;
+import com.book.management.inventory.service.InventoryService;
 // DTOs from external services
-import com.db.ms.book.dto.responsedto.BookPriceResponseDTO;
-import com.db.ms.inventory.exception.InsufficientStockException;
+import com.book.management.book.dto.responsedto.BookPriceResponseDTO;
+import com.book.management.inventory.exception.InsufficientStockException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,4 +1,4 @@
-package com.db.ms.order.dto.responsedto;
+package com.book.management.order.dto.responsedto;
 
 /**
  * Data Transfer Object for standardized error responses, used by the

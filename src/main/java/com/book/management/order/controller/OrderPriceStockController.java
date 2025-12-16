@@ -1,7 +1,7 @@
-package com.db.ms.order.controller;
+package com.book.management.order.controller;
 
-import com.db.ms.order.dto.requestdto.PlaceOrderRequestDTO;
-import com.db.ms.order.dto.responsedto.OrderPriceStockResponseDTO;
+import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
+import com.book.management.order.dto.responsedto.OrderPriceStockResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
