@@ -1,5 +1,5 @@
 package com.book.management.book.service.impl;
-
+ 
 import com.book.management.book.dto.requestdto.AddBookRequestDTO;
 import com.book.management.book.dto.requestdto.UpdateBookRequestDTO;
 import com.book.management.book.dto.responsedto.BookPriceResponseDTO;
@@ -253,7 +253,7 @@ public class BookServiceImpl implements BookService {
         if (bookIds == null || bookIds.isEmpty()) {
             return new BookPriceResponseDTO(map);
         }
-
+ 
         for (Long id : bookIds) {
             bookRepository.findById(id).ifPresent(book -> {
                 map.put(book.getBookId(), book.getBookPrice());
