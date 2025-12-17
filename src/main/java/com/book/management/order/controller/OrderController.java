@@ -14,7 +14,6 @@ import java.util.List;
 
 /**
  * REST Controller for Order Management.
- * Removed dependency on OrderPriceStockController.
  *
  * @author Rehan Ashraf
  * @version 1.5 (Cleaned for direct service invocation)
