@@ -1,4 +1,3 @@
-
 package com.book.management.order.util;
 
 import com.book.management.book.dto.responsedto.BookPriceResponseDTO;
@@ -26,43 +25,17 @@ Purpose
 3. Preserve existing exception semantics: IllegalArgumentException, BookNotFoundException,
    InsufficientStockException, OrderNotPlacedException.
 
-Design
+Design (Simplified)
 1. All methods are static; the class is non-instantiable via a private constructor.
-2. No logging inside utils; service layer is responsible for logging and orchestration.
-3. Initial validation uses a supplied handler to mirror the service’s centralized exception handling.
-
-Methods
-1. initialValidation
-   - Validates userId, bookOrder and entries; derives bookIds list.
-   - Uses the provided handler to throw IllegalArgumentException consistently with the service’s policy.
-   - Returns the derived bookIds for downstream steps.
-
-2. priceCheck
-   - Calls BookService to fetch a price map for given bookIds.
-   - Ensures price map is non-null/non-empty and no requested id has a null price.
-   - Propagates BookNotFoundException for missing/null prices; wraps other errors in OrderNotPlacedException.
-
-3. stockCheck
-   - Calls InventoryService to check bulk availability for the requested items.
-   - Ensures the availability map covers all requested ids; throws InsufficientStockException when any unavailable.
-
-4. stockReduction
-   - Calls InventoryService to reduce bulk inventory for the requested items.
-   - Propagates InsufficientStockException on failures.
-
-5. computeTotalAndSaveOrder
-   - Computes total (price * qty) and persists a new Order with the given initial status.
-   - Throws OrderNotPlacedException on persistence failures or null returns.
-
-Usage
-1. In OrderServiceImpl.preProcessAndSaveOrder: call initialValidation → priceCheck → stockCheck → stockReduction → computeTotalAndSaveOrder.
+2. Methods throw standard and custom exceptions directly to be caught by Service or Global Handler.
+3. Removed functional interface delegation for better readability and standard Java flow.
 */
 
 /**
  * Util for Order Management.
  *
  * @author Rehan Ashraf
- * @version 1.1 (delegate service calls to utila)
+ * @version 1.2 (Simplified direct exception flow)
  * @since 2024-12-15
  */
 public final class OrderOpsUtils {
@@ -71,56 +44,33 @@ public final class OrderOpsUtils {
     }
 
     /*
-    Functional contract for centralized validation error handling.
-
-    Purpose
-    1. Allow utils to delegate exception throwing to the service’s handler.
-    2. Keep consistency with service-level constants and messaging.
-
-    Signature
-    - handle(exceptionType, logMessage, errorMessage)
-    */
-    @FunctionalInterface
-    public interface ValidationErrorHandler {
-        void handle(String exceptionType, String logMessage, String errorMessage);
-    }
-
-    /*
     initialValidation
     Inputs
-    1. PlaceOrderRequestDTO request: incoming order request (== null).
-    2. ValidationErrorHandler handler: service-supplied handler (lambda, not a method reference).
-    3. String IAE: the service’s IllegalArgumentException type constant (e.g., "IllegalArgumentException").
+    1. PlaceOrderRequestDTO request: incoming order request.
 
     Sonar null-safety
-    - Guard access to request before dereferencing request.getUserId().
-    - Guard access to bookOrder before iteration or keySet() usage.
+    - Explicitly check request for null before dereferencing userId or bookOrder.
+    - Guard access to bookOrder before iteration.
 
     Steps
-    1. If request is null, invoke handler and then explicitly throw IllegalArgumentException to satisfy static analysis.
+    1. If request is null, throw IllegalArgumentException.
     2. Validate userId > 0.
     3. Safely read bookOrder, ensure non-null and non-empty.
     4. Validate each entry: bookId > 0 and qty > 0.
     5. Derive and return bookIds list from bookOrder keys.
-
-    Output
-    - List<Long> bookIds for downstream price and stock operations.
     */
-    public static List<Long> initialValidation(PlaceOrderRequestDTO request, ValidationErrorHandler handler, String iae) {
+    public static List<Long> initialValidation(PlaceOrderRequestDTO request) {
         if (request == null) {
-            handler.handle(iae, "Invalid request or userId", "Invalid request or userId provided.");
-            throw new IllegalArgumentException("Invalid request or userId provided.");
+            throw new IllegalArgumentException("Invalid request provided: request body is null.");
         }
 
         if (request.getUserId() <= 0) {
-            handler.handle(iae, "Invalid userId", "Invalid request or userId provided.");
-            throw new IllegalArgumentException("Invalid request or userId provided.");
+            throw new IllegalArgumentException("Invalid request: userId must be greater than 0.");
         }
 
-        final Map<Long, Integer> bookOrder = request.getBookOrder(); // may be null, guard below
+        final Map<Long, Integer> bookOrder = request.getBookOrder();
         if (bookOrder == null || bookOrder.isEmpty()) {
-            handler.handle(iae, "Empty bookOrder", "bookOrder must not be empty");
-            throw new IllegalArgumentException("bookOrder must not be empty");
+            throw new IllegalArgumentException("Invalid request: bookOrder must not be empty.");
         }
 
         // Defensive iteration with null checks at entry level
@@ -128,8 +78,7 @@ public final class OrderOpsUtils {
             final Long bookId = entry.getKey();
             final Integer qty = entry.getValue();
             if (bookId == null || bookId <= 0 || qty == null || qty <= 0) {
-                handler.handle(iae, String.format("Invalid bookId (%s) or quantity (%s)", bookId, qty), "Invalid bookId or quantity in order list.");
-                throw new IllegalArgumentException("Invalid bookId or quantity in order list.");
+                throw new IllegalArgumentException("Invalid bookId or quantity found in order list.");
             }
         }
 
@@ -138,17 +87,10 @@ public final class OrderOpsUtils {
 
     /*
     priceCheck
-    Inputs
-    1. BookService bookService: external service to fetch prices.
-    2. List<Long> bookIds: ids to price.
-
     Steps
     1. Call bookService.getBookPricesMap(bookIds).
     2. Extract price map; ensure non-null and non-empty.
     3. Ensure that for each requested id, price exists and is non-null.
-
-    Output
-    - Map<Long, Double> priceMap.
 
     Exceptions
     - BookNotFoundException when price map is empty/null or any requested id has null price.
@@ -161,12 +103,12 @@ public final class OrderOpsUtils {
             final Map<Long, Double> priceMap = (priceResponse == null) ? null : priceResponse.getPrices();
 
             if (priceMap == null || priceMap.isEmpty()) {
-                throw new BookNotFoundException("Book Service returned an empty or null price map for requested books.");
+                throw new BookNotFoundException("Book Service returned an empty or null price map.");
             }
 
             for (Long id : bookIds) {
-                if (priceMap.containsKey(id) && priceMap.get(id) == null) {
-                    throw new BookNotFoundException("Null price found for books: [" + id + "]");
+                if (!priceMap.containsKey(id) || priceMap.get(id) == null) {
+                    throw new BookNotFoundException("Price not found for book ID: " + id);
                 }
             }
 
@@ -175,34 +117,22 @@ public final class OrderOpsUtils {
         } catch (BookNotFoundException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new OrderNotPlacedException("Failed to retrieve prices from the Book service due to a system error.");
+            throw new OrderNotPlacedException("Failed to retrieve prices due to a system error.");
         }
     }
 
     /*
     stockCheck
-    Inputs
-    1. InventoryService inventoryService: external service to check availability.
-    2. Map<Long, Integer> bookOrder: requested quantities per bookId (== null when called incorrectly).
-
-    Sonar null-safety
-    - If bookOrder is null, fail fast with OrderNotPlacedException.
-
     Steps
-    1. If bookOrder is null, throw OrderNotPlacedException to avoid NPE downstream.
+    1. If bookOrder is null, throw OrderNotPlacedException.
     2. Call inventoryService.checkBulkAvailability(bookOrder).
-    3. Ensure availability map contains all requested keys.
-    4. Collect any keys with false/null; throw InsufficientStockException if any.
-
-    Output
-    - Map<Long, Boolean> availability map, validated to cover all requested keys and all true.
+    3. Ensure availability map contains all requested keys and all are True.
 
     Exceptions
-    - OrderNotPlacedException if the inventory service fails or returns incomplete results or if bookOrder is null.
+    - OrderNotPlacedException if the inventory service fails or returns incomplete results.
     - InsufficientStockException when any requested item is unavailable.
     */
-    public static Map<Long, Boolean> stockCheck(InventoryService inventoryService,
-                                                Map<Long, Integer> bookOrder)
+    public static Map<Long, Boolean> stockCheck(InventoryService inventoryService, Map<Long, Integer> bookOrder)
             throws OrderNotPlacedException, InsufficientStockException {
         if (bookOrder == null) {
             throw new OrderNotPlacedException("Availability check failed: bookOrder is null.");
@@ -212,11 +142,11 @@ public final class OrderOpsUtils {
         try {
             availability = inventoryService.checkBulkAvailability(bookOrder);
         } catch (Exception ex) {
-            throw new OrderNotPlacedException("Failed to check inventory availability due to a system error.");
+            throw new OrderNotPlacedException("Failed to check inventory availability due to system error.");
         }
 
         if (availability == null || !availability.keySet().containsAll(bookOrder.keySet())) {
-            throw new OrderNotPlacedException("Availability check returned incomplete results.");
+            throw new OrderNotPlacedException("Availability check returned incomplete results from Inventory Service.");
         }
 
         final List<Long> unavailable = availability.entrySet().stream()
@@ -233,27 +163,10 @@ public final class OrderOpsUtils {
 
     /*
     stockReduction
-    Inputs
-    1. InventoryService inventoryService: external service to reduce stock.
-    2. Map<Long, Integer> bookOrder: requested quantities per bookId (== null when called incorrectly).
-
-    Sonar null-safety
-    - If bookOrder is null, fail fast with OrderNotPlacedException (wrapped inside InsufficientStockException not suitable).
-
     Steps
-    1. If bookOrder is null, throw OrderNotPlacedException to avoid NPE downstream.
-    2. Invoke inventoryService.reduceBulkInventory(bookOrder).
-
-    Output
-    - None.
-
-    Exceptions
-    - InsufficientStockException when stock cannot be reduced as requested.
-    - OrderNotPlacedException when bookOrder is null.
-    - Runtime exceptions propagate to be handled by the service layer if needed.
+    1. Invoke inventoryService.reduceBulkInventory(bookOrder).
     */
-    public static void stockReduction(InventoryService inventoryService,
-                                      Map<Long, Integer> bookOrder)
+    public static void stockReduction(InventoryService inventoryService, Map<Long, Integer> bookOrder)
             throws InsufficientStockException, OrderNotPlacedException {
         if (bookOrder == null) {
             throw new OrderNotPlacedException("Stock reduction failed: bookOrder is null.");
@@ -263,27 +176,9 @@ public final class OrderOpsUtils {
 
     /*
     computeTotalAndSaveOrder
-    Inputs
-    1. OrderRepository orderRepository: repository to persist orders.
-    2. long userId: validated user identifier.
-    3. Map<Long, Integer> bookOrder: requested quantities per bookId.
-    4. Map<Long, Double> priceMap: prices per bookId, validated as non-null per id.
-    5. List<Long> bookIds: ids included in the order.
-    6. OrderEnum initialStatus: initial status to set on the order.
-
-    Sonar null-safety
-    - Validate bookOrder and priceMap are non-null before usage.
-
     Steps
-    1. Compute totalAmount = sum(priceMap[id] * qty) for all entries.
-    2. Build Order with ID=0 so repository assigns a real ID.
-    3. Save via orderRepository.save(order); validate non-null result.
-
-    Output
-    - Order savedOrder: persisted order with generated ID.
-
-    Exceptions
-    - OrderNotPlacedException when persistence fails or returns null, or when inputs are invalid.
+    1. Compute totalAmount = sum(priceMap[id] * qty).
+    2. Build Order and persist via repository.
     */
     public static Order computeTotalAndSaveOrder(OrderRepository orderRepository,
                                                  long userId,
@@ -294,7 +189,7 @@ public final class OrderOpsUtils {
             throws OrderNotPlacedException {
 
         if (bookOrder == null || priceMap == null) {
-            throw new OrderNotPlacedException("Compute total failed: bookOrder or priceMap is null.");
+            throw new OrderNotPlacedException("Compute total failed: data maps are null.");
         }
 
         final double totalAmount = bookOrder.entrySet().stream()
@@ -307,14 +202,7 @@ public final class OrderOpsUtils {
                 })
                 .sum();
 
-        final Order order = new Order(
-                0, // repository will generate the real ID
-                userId,
-                bookIds,
-                LocalDateTime.now(),
-                totalAmount,
-                initialStatus
-        );
+        final Order order = new Order(0, userId, bookIds, LocalDateTime.now(), totalAmount, initialStatus);
 
         try {
             final Order savedOrder = orderRepository.save(order);
@@ -322,7 +210,7 @@ public final class OrderOpsUtils {
                 throw new OrderNotPlacedException("Order database persistence returned null.");
             }
             return savedOrder;
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             throw new OrderNotPlacedException("Order database persistence failed.");
         }
     }
