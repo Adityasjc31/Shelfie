@@ -2,6 +2,8 @@
 package com.book.management.order.dto.requestdto;
 
 import lombok.Data;
+import lombok.Getter;
+
 import java.util.Map;
 
 /**
@@ -33,6 +35,7 @@ import java.util.Map;
  * @since 2024-12-08
  */
 @Data
+@Getter
 public class PlaceOrderRequestDTO {
 
     /**
@@ -51,4 +54,6 @@ public class PlaceOrderRequestDTO {
      * - Quantities must be greater than zero.
      */
     private Map<Long, Integer> bookOrder;
+
+
 }

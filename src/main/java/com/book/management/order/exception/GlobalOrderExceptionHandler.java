@@ -6,19 +6,19 @@ import com.book.management.order.dto.responsedto.ErrorResponseDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
- * Global exception handler for the Order service, using @ControllerAdvice.
+ * Global exception handler for the Order service, using @RestControllerAdvice.
  * Catches custom domain exceptions and maps them to appropriate HTTP status codes.
  * Ensures a consistent error response format (ErrorResponseDTO).
  *
  * NOTE: Aligned to handle orchestration exceptions (BookNotFound, InsufficientStock).
  */
-@ControllerAdvice
+@RestControllerAdvice
 @Slf4j
 public class GlobalOrderExceptionHandler extends ResponseEntityExceptionHandler {
 

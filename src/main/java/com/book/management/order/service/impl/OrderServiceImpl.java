@@ -1,5 +1,6 @@
 package com.book.management.order.service.impl;
 
+import com.book.management.book.exception.BookNotFoundException;
 import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
@@ -71,10 +72,20 @@ public class OrderServiceImpl implements OrderService {
         final Map<Long, Integer> bookOrder = request.getBookOrder();
 
         // 2) Price check (Propagates BookNotFoundException or OrderNotPlacedException)
-        Map<Long, Double> priceMap = OrderOpsUtils.priceCheck(bookService, bookIds);
-
+        Map<Long, Double> priceMap;
+        try {
+             priceMap= OrderOpsUtils.priceCheck(bookService, bookIds);
+        } catch (BookNotFoundException ex ){
+            log.error("Price fetch failed for userId={}: {}",request.getUserId(), ex.getMessage());
+             throw ex;
+        }
         // 3) Stock availability check (Propagates InsufficientStockException)
-        OrderOpsUtils.stockCheck(inventoryService, bookOrder);
+        try {
+            OrderOpsUtils.stockCheck(inventoryService, bookOrder);
+        }catch (InsufficientStockException ex){
+            log.error("Stock check failed for userId={}: {}", request.getUserId(), ex.getMessage());
+            throw ex;
+        }
 
         // 4) Stock reduction
         try {
@@ -85,14 +96,20 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 5) Compute total & save
-        Order savedOrder = OrderOpsUtils.computeTotalAndSaveOrder(
+        Order savedOrder;
+        try{
+        savedOrder = OrderOpsUtils.computeTotalAndSaveOrder(
                 orderRepository,
                 request.getUserId(),
                 bookOrder,
                 priceMap,
                 bookIds,
                 OrderEnum.PENDING
-        );
+        );}
+        catch (OrderNotPlacedException ex){
+            log.error("Order placing failed for bookOrder: {}", request.getBookOrder(), ex.getMessage());
+            throw ex;
+        }
 
         log.info("Order successfully persisted: orderId={}", savedOrder.getOrderId());
         return savedOrder;
