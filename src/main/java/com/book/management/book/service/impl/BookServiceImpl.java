@@ -253,11 +253,13 @@ public class BookServiceImpl implements BookService {
         if (bookIds == null || bookIds.isEmpty()) {
             return new BookPriceResponseDTO(map);
         }
- 
+
         for (Long id : bookIds) {
-            bookRepository.findById(id).ifPresent(book -> {
-                map.put(book.getBookId(), book.getBookPrice());
-            });
+            // Change from .ifPresent to .orElseThrow
+            Book book = bookRepository.findById(id)
+                    .orElseThrow(() -> new BookNotFoundException("Book not found with ID: " + id));
+
+            map.put(book.getBookId(), book.getBookPrice());
         }
 
         log.debug("Retrieved prices for {} books", map.size());

@@ -26,7 +26,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    // Removed dependency on OrderPriceStockController
+
 
     /**
      * Places a new order. The service layer handles all external calls.

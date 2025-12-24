@@ -97,28 +97,23 @@ public final class OrderOpsUtils {
     - OrderNotPlacedException for other system errors while calling BookService.
     */
     public static Map<Long, Double> priceCheck(BookService bookService, List<Long> bookIds)
-            throws BookNotFoundException, OrderNotPlacedException {
-        try {
-            final BookPriceResponseDTO priceResponse = bookService.getBookPricesMap(bookIds);
-            final Map<Long, Double> priceMap = (priceResponse == null) ? null : priceResponse.getPrices();
+            throws BookNotFoundException {
 
-            if (priceMap == null || priceMap.isEmpty()) {
-                throw new BookNotFoundException("Book Service returned an empty or null price map.");
-            }
+        final BookPriceResponseDTO priceResponse = bookService.getBookPricesMap(bookIds);
 
-            for (Long id : bookIds) {
-                if (!priceMap.containsKey(id) || priceMap.get(id) == null) {
-                    throw new BookNotFoundException("Price not found for book ID: " + id);
-                }
-            }
-
-            return priceMap;
-
-        } catch (BookNotFoundException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new OrderNotPlacedException("Failed to retrieve prices due to a system error.");
+        if (priceResponse == null || priceResponse.getPrices() == null || priceResponse.getPrices().isEmpty()) {
+            throw new BookNotFoundException("Book Service returned no price data for the requested IDs.");
         }
+
+        Map<Long, Double> priceMap = priceResponse.getPrices();
+
+        // Secondary safety check: Ensure every ID requested is present in the response
+        for (Long id : bookIds) {
+            if (!priceMap.containsKey(id)) {
+                throw new BookNotFoundException("Price data missing for book ID: " + id);
+            }
+        }
+            return priceMap;
     }
 
     /*
@@ -133,32 +128,24 @@ public final class OrderOpsUtils {
     - InsufficientStockException when any requested item is unavailable.
     */
     public static Map<Long, Boolean> stockCheck(InventoryService inventoryService, Map<Long, Integer> bookOrder)
-            throws OrderNotPlacedException, InsufficientStockException {
-        if (bookOrder == null) {
-            throw new OrderNotPlacedException("Availability check failed: bookOrder is null.");
-        }
+            throws InsufficientStockException {
 
-        final Map<Long, Boolean> availability;
-        try {
-            availability = inventoryService.checkBulkAvailability(bookOrder);
-        } catch (Exception ex) {
-            throw new OrderNotPlacedException("Failed to check inventory availability due to system error.");
-        }
+            Map<Long, Boolean> availability = inventoryService.checkBulkAvailability(bookOrder);
 
-        if (availability == null || !availability.keySet().containsAll(bookOrder.keySet())) {
-            throw new OrderNotPlacedException("Availability check returned incomplete results from Inventory Service.");
-        }
+            if (availability == null || !availability.keySet().containsAll(bookOrder.keySet())) {
+                throw new OrderNotPlacedException("Inventory check returned incomplete results.");
+            }
 
-        final List<Long> unavailable = availability.entrySet().stream()
-                .filter(e -> !Boolean.TRUE.equals(e.getValue()))
-                .map(Map.Entry::getKey)
-                .toList();
+            List<Long> unavailable = availability.entrySet().stream()
+                    .filter(e -> !Boolean.TRUE.equals(e.getValue()))
+                    .map(longBooleanEntry -> longBooleanEntry.getKey())
+                    .toList();
 
-        if (!unavailable.isEmpty()) {
-            throw new InsufficientStockException("Insufficient stock for books: " + unavailable);
-        }
+            if (!unavailable.isEmpty()) {
+                throw new InsufficientStockException("Insufficient stock for books: " + unavailable);
+            }
+            return availability;
 
-        return availability;
     }
 
     /*
@@ -167,7 +154,7 @@ public final class OrderOpsUtils {
     1. Invoke inventoryService.reduceBulkInventory(bookOrder).
     */
     public static void stockReduction(InventoryService inventoryService, Map<Long, Integer> bookOrder)
-            throws InsufficientStockException, OrderNotPlacedException {
+            throws InsufficientStockException{
         if (bookOrder == null) {
             throw new OrderNotPlacedException("Stock reduction failed: bookOrder is null.");
         }
@@ -188,28 +175,24 @@ public final class OrderOpsUtils {
                                                  OrderEnum initialStatus)
             throws OrderNotPlacedException {
 
-        if (bookOrder == null || priceMap == null) {
+      /*    if (bookOrder == null || priceMap == null) {
             throw new OrderNotPlacedException("Compute total failed: data maps are null.");
-        }
+      } */
 
-        final double totalAmount = bookOrder.entrySet().stream()
-                .mapToDouble(e -> {
-                    final Double price = priceMap.get(e.getKey());
-                    if (price == null) {
-                        throw new IllegalArgumentException("Missing price for bookId: " + e.getKey());
-                    }
-                    return price * e.getValue();
-                })
-                .sum();
+        double totalAmount = 0.0;
+        for (Map.Entry<Long, Integer> longIntegerEntry : bookOrder.entrySet()) {
+            final Double price = priceMap.get(longIntegerEntry.getKey());
+            if (price == null) {
+                throw new IllegalArgumentException("Missing price for bookId: " + longIntegerEntry.getKey());
+            }
+            double v = price * longIntegerEntry.getValue();
+            totalAmount += v;
+        }
 
         final Order order = new Order(0, userId, bookIds, LocalDateTime.now(), totalAmount, initialStatus);
 
         try {
-            final Order savedOrder = orderRepository.save(order);
-            if (savedOrder == null) {
-                throw new OrderNotPlacedException("Order database persistence returned null.");
-            }
-            return savedOrder;
+            return orderRepository.save(order);
         } catch (Exception ex) {
             throw new OrderNotPlacedException("Order database persistence failed.");
         }
