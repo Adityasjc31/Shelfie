@@ -1,12 +1,12 @@
 package com.book.management.inventory.controller;
 
+import com.book.management.inventory.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.book.management.inventory.dto.*;
 import com.book.management.inventory.service.InventoryService;
 
 import jakarta.validation.Valid;
@@ -35,7 +35,7 @@ public class InventoryController {
      * @param createDTO the inventory creation data
      * @return ResponseEntity with created inventory and HTTP 201 status
      */
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<InventoryResponseDTO> createInventory(
             @Valid @RequestBody InventoryCreateDTO createDTO) {
         log.info("POST /api/v1/inventory - Creating inventory for book ID: {}", createDTO.getBookId());

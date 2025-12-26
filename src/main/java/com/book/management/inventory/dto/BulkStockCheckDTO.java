@@ -4,14 +4,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.util.Map;
 
 /**
  * Data Transfer Object for bulk stock check and deduction.
  *
- * @author Bookstore Development Team
+ * @author Shelfie
  * @version 1.0
  * @since 2024-12-15
  */

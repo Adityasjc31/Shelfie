@@ -1,9 +1,9 @@
 package com.book.management.inventory.service.impl;
+import com.book.management.inventory.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import com.book.management.inventory.dto.*;
 import com.book.management.inventory.exception.InsufficientStockException;
 import com.book.management.inventory.exception.InvalidInventoryOperationException;
 import com.book.management.inventory.exception.InventoryAlreadyExistsException;
@@ -33,18 +33,20 @@ import java.util.stream.Collectors;
 public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryRepository inventoryRepository;
-
+    
     @Override
     public InventoryResponseDTO createInventory(InventoryCreateDTO createDTO) {
-        log.info("Creating inventory for book ID: {}", createDTO.getBookId());
+        Long bookId = createDTO.getBookId();
+        log.info("Creating inventory for book ID: {}", bookId);
 
-        if (inventoryRepository.existsByBookId(createDTO.getBookId())) {
-            log.error("Inventory already exists for book ID: {}", createDTO.getBookId());
-            throw new InventoryAlreadyExistsException(createDTO.getBookId());
+        
+        if (inventoryRepository.existsByBookId(bookId)) {
+            log.error("Inventory already exists for book ID: {}", bookId);
+            throw new InventoryAlreadyExistsException(bookId);
         }
 
         Inventory inventory = Inventory.builder()
-                .bookId(createDTO.getBookId())
+                .bookId(bookId)
                 .quantity(createDTO.getQuantity())
                 .lowStockThreshold(createDTO.getLowStockThreshold() != null ?
                         createDTO.getLowStockThreshold() : 10)
