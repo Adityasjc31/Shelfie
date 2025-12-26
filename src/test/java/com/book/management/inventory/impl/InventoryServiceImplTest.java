@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:src/test/java/com/book/management/service/impl/InventoryServiceImplTest.java
-package com.book.management.service.impl;
-========
 package com.book.management.inventory.impl;
->>>>>>>> origin/main:src/test/java/com/book/management/inventory/impl/InventoryServiceImplTest.java
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
