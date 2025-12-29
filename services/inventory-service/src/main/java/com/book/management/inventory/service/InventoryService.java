@@ -15,7 +15,7 @@ import com.book.management.inventory.exception.InventoryNotFoundException;
  * Follows the Interface Segregation Principle (ISP) from SOLID principles.
  *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-078
  */
 public interface InventoryService {

@@ -22,7 +22,7 @@ import java.util.List;
  * - Transaction management
  * - CORS settings
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */
@@ -73,7 +73,7 @@ public class MicroserviceConfig {
                                 Authentication: All requests must be authenticated via API Gateway.
                                 """)
                         .contact(new Contact()
-                                .name("Digital Bookstore Team")
+                                .name("Aditya Srivastava")
                                 .email("support@digitalbookstore.com")
                                 .url("https://digitalbookstore.com"))
                         .license(new License()

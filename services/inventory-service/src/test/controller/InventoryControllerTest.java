@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Uses MockMvc for testing REST endpoints with JUnit 5 and Mockito.
  * 
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-08
  */
 @WebMvcTest(InventoryController.class)

@@ -3,7 +3,7 @@ package com.book.management.inventory.exception;
  * Exception thrown when an inventory record is not found.
  *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-08
  */
 public class InventoryNotFoundException extends RuntimeException {

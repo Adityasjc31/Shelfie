@@ -1,4 +1,4 @@
-package com.book.management;
+package com.book.management.inventory;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -20,8 +20,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
  * - Eureka Server for service discovery
  * - API Gateway for routing and authentication
  * 
- * @author Digital Bookstore Team
- * @version 1.0
+ * @author Aditya Srivastava
+ * @version 2.0
  * @since 2024-12-29
  */
 @SpringBootApplication

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * Used to send inventory data to clients.
  *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-08
  */
 @Data

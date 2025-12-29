@@ -18,7 +18,7 @@ import java.util.Map;
  * Exposes endpoints for managing book inventory, stock levels, and alerts.
  *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-07
  */
 @RestController

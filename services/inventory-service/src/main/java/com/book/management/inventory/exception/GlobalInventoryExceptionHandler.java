@@ -19,7 +19,7 @@ import java.util.Map;
  * Centralizes exception handling across all controllers.
  *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-08
  */
 @RestControllerAdvice

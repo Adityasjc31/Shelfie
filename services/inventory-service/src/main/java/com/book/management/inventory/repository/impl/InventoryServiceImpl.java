@@ -1,4 +1,4 @@
-package com.book.management.inventory.service.impl;
+package com.book.management.inventory.repository.impl;
 
 import com.book.management.inventory.annotation.LogExecutionTime;
 import com.book.management.inventory.dto.*;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  * - Single Responsibility: Only handles inventory business logic
  * - Dependency Inversion: Depends on InventoryRepository abstraction
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 2.0
  * @since 2024-12-29
  */

@@ -21,8 +21,8 @@ import java.lang.annotation.Target;
  * }
  * </pre>
  * 
- * @author Digital Bookstore Team
- * @version 1.0
+ * @author Aditya Srivastava
+ * @version 2.0
  * @since 2024-12-29
  */
 @Target(ElementType.METHOD)

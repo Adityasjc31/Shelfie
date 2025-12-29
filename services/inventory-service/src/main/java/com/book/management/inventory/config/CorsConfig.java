@@ -16,7 +16,7 @@ import java.util.List;
  * In production, this should be configured at the API Gateway level.
  * This configuration is primarily for development/testing direct access.
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */

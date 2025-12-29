@@ -19,8 +19,8 @@ import java.time.LocalDateTime;
  * - Low stock thresholds
  * - Timestamps for auditing
  * 
- * @author Digital Bookstore Team
- * @version 1.0
+ * @author Aditya Srivastava
+ * @version 2.0
  * @since 2024-12-29
  */
 @Entity

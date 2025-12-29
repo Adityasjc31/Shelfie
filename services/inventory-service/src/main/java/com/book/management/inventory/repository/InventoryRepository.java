@@ -15,8 +15,8 @@ import java.util.Optional;
  * Provides CRUD operations and custom queries for inventory management.
  * Extends JpaRepository for standard database operations.
  * 
- * @author Digital Bookstore Team
- * @version 1.0
+ * @author Aditya Srivastava
+ * @version 2.0
  * @since 2024-12-29
  */
 @Repository

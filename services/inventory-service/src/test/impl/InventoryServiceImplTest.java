@@ -29,7 +29,7 @@ import static org.mockito.Mockito.*;
  * Tests work with both in-memory repository and future JPA implementation.
  * 
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-08
  */
 @ExtendWith(MockitoExtension.class)

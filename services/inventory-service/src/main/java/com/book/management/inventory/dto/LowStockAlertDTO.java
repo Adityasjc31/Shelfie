@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
  * Data Transfer Object for low stock alert information.
  *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 2.0
  * @since 2024-12-07
  */
 @Data

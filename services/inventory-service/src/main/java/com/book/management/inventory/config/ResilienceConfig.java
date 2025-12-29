@@ -2,6 +2,7 @@ package com.book.management.inventory.config;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
@@ -20,7 +21,7 @@ import java.time.Duration;
  * - Retry: Automatic retry for transient failures
  * - Time Limiter: Timeout configuration
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */
@@ -101,6 +102,13 @@ public class ResilienceConfig {
      */
     @Bean
     public RetryRegistry retryRegistry() {
+        // Use IntervalFunction for exponential backoff (and optional jitter)
+        IntervalFunction intervalFn = IntervalFunction.ofExponentialRandomBackoff(
+                1000L,   // initial interval: 1 second in ms
+                2.0,     // multiplier
+                0.2      // jitter factor (0.0..1.0) - optional, helps avoid thundering herd
+        );
+    
         RetryConfig config = RetryConfig.custom()
                 // Maximum retry attempts
                 .maxAttempts(3)
@@ -109,7 +117,7 @@ public class ResilienceConfig {
                 .waitDuration(Duration.ofSeconds(1))
                 
                 // Exponential backoff multiplier
-                .exponentialBackoffMultiplier(2)
+                .intervalFunction(intervalFn)
                 
                 // Retry on specific exceptions
                 .retryExceptions(
@@ -164,10 +172,9 @@ public class ResilienceConfig {
         registry.timeLimiter("inventoryService").getEventPublisher()
                 .onTimeout(event -> 
                         log.error("Operation timed out after {} ms", 
-                                event.getElapsedDuration().toMillis()))
+                                config.getTimeoutDuration().toMillis()))
                 .onSuccess(event -> 
-                        log.debug("Operation completed in {} ms", 
-                                event.getElapsedDuration().toMillis()));
+                        log.debug("Operation completed successfully"));
         
         return registry;
     }
