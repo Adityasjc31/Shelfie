@@ -1,215 +1,403 @@
-package com.book.management.inventory.repository.impl;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Repository;
+package com.book.management.inventory.service.impl;
 
+import com.book.management.inventory.annotation.LogExecutionTime;
+import com.book.management.inventory.dto.*;
+import com.book.management.inventory.exception.*;
 import com.book.management.inventory.model.Inventory;
 import com.book.management.inventory.repository.InventoryRepository;
+import com.book.management.inventory.service.InventoryService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Repository class for Inventory entity using in-memory data structures.
- * Uses ConcurrentHashMap for thread-safe operations.
- *
- * @author Aditya Srivastava
- * @version 1.0
- * @since 2024-12-08
+ * Implementation of InventoryService interface with JPA support.
+ * 
+ * Handles all business logic for inventory management operations:
+ * - CRUD operations with transactional support
+ * - Stock level management
+ * - Low stock alerts
+ * - Bulk operations
+ * 
+ * Follows SOLID principles:
+ * - Single Responsibility: Only handles inventory business logic
+ * - Dependency Inversion: Depends on InventoryRepository abstraction
+ * 
+ * @author Digital Bookstore Team
+ * @version 2.0
+ * @since 2024-12-29
  */
-@Repository
+@Service
+@RequiredArgsConstructor
 @Slf4j
-public class InventoryRepositoryImpl implements InventoryRepository{
+public class InventoryServiceImpl implements InventoryService {
 
-    // In-memory storage using ConcurrentHashMap for thread safety
-    private final Map<Long, Inventory> inventoryStore = new ConcurrentHashMap<>();
+    private final InventoryRepository inventoryRepository;
 
-    // Index for quick lookup by bookId
-    private final Map<Long, Long> bookIdToInventoryIdIndex = new ConcurrentHashMap<>();
+    @Override
+    @Transactional
+    @LogExecutionTime
+    public InventoryResponseDTO createInventory(InventoryCreateDTO createDTO) {
+        Long bookId = createDTO.getBookId();
+        log.info("Creating inventory for book ID: {}", bookId);
 
-    // Auto-increment ID generator
-    private final AtomicLong idGenerator = new AtomicLong(1);
+        if (inventoryRepository.existsByBookId(bookId)) {
+            log.error("Inventory already exists for book ID: {}", bookId);
+            throw new InventoryAlreadyExistsException(bookId);
+        }
 
-    /**
-     * Initializes repository with sample data for testing.
-     * This method is called after the bean is constructed.
-     */
-    @PostConstruct
-    public void initializeSampleData() {
-        log.info("Initializing repository with sample inventory data");
-
-        // Sample inventory data
-        createSampleInventory(101L, 50, 10);
-        createSampleInventory(102L, 75, 15);
-        createSampleInventory(103L, 5, 10);   // Low stock
-        createSampleInventory(104L, 0, 10);   // Out of stock
-        createSampleInventory(105L, 100, 20);
-        createSampleInventory(106L, 8, 10);   // Low stock
-        createSampleInventory(107L, 150, 25);
-        createSampleInventory(108L, 30, 10);
-        createSampleInventory(109L, 0, 15);   // Out of stock
-        createSampleInventory(110L, 200, 30);
-
-        log.info("Sample data initialized: {} inventory records", inventoryStore.size());
-    }
-
-    /**
-     * Helper method to create sample inventory.
-     */
-    private void createSampleInventory(Long bookId, Integer quantity, Integer threshold) {
         Inventory inventory = Inventory.builder()
-                .inventoryId(idGenerator.getAndIncrement())
                 .bookId(bookId)
-                .quantity(quantity)
-                .lowStockThreshold(threshold)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .quantity(createDTO.getQuantity())
+                .lowStockThreshold(createDTO.getLowStockThreshold() != null ?
+                        createDTO.getLowStockThreshold() : 10)
                 .build();
 
-        inventoryStore.put(inventory.getInventoryId(), inventory);
-        bookIdToInventoryIdIndex.put(bookId, inventory.getInventoryId());
+        Inventory savedInventory = inventoryRepository.save(inventory);
+        log.info("Successfully created inventory with ID: {} for book ID: {}",
+                savedInventory.getInventoryId(), savedInventory.getBookId());
+
+        return mapToResponseDTO(savedInventory);
     }
 
-    /**
-     * Saves inventory record (create or update).
-     *
-     * @param inventory the inventory to save
-     * @return the saved inventory
-     */
-    public Inventory save(Inventory inventory) {
-        if (inventory.getInventoryId() == null) {
-            // New inventory - generate ID
-            inventory.setInventoryId(idGenerator.getAndIncrement());
-            inventory.setCreatedAt(LocalDateTime.now());
-        }
-        inventory.setUpdatedAt(LocalDateTime.now());
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryResponseDTO getInventoryById(Long inventoryId) {
+        log.info("Fetching inventory by ID: {}", inventoryId);
 
-        inventoryStore.put(inventory.getInventoryId(), inventory);
-        bookIdToInventoryIdIndex.put(inventory.getBookId(), inventory.getInventoryId());
+        Inventory inventory = inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found with ID: {}", inventoryId);
+                    return new InventoryNotFoundException(inventoryId);
+                });
 
-        log.debug("Saved inventory: {}", inventory);
-        return inventory;
+        log.info("Successfully fetched inventory with ID: {}", inventoryId);
+        return mapToResponseDTO(inventory);
     }
 
-    /**
-     * Finds inventory by ID.
-     *
-     * @param inventoryId the inventory ID
-     * @return Optional containing the inventory if found
-     */
-    public Optional<Inventory> findById(Long inventoryId) {
-        return Optional.ofNullable(inventoryStore.get(inventoryId));
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryResponseDTO getInventoryByBookId(Long bookId) {
+        log.info("Fetching inventory by book ID: {}", bookId);
+
+        Inventory inventory = inventoryRepository.findByBookId(bookId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found for book ID: {}", bookId);
+                    return new InventoryNotFoundException("bookId", bookId);
+                });
+
+        log.info("Successfully fetched inventory for book ID: {}", bookId);
+        return mapToResponseDTO(inventory);
     }
 
-    /**
-     * Finds inventory by book ID.
-     *
-     * @param bookId the book ID
-     * @return Optional containing the inventory if found
-     */
-    public Optional<Inventory> findByBookId(Long bookId) {
-        Long inventoryId = bookIdToInventoryIdIndex.get(bookId);
-        if (inventoryId == null) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(inventoryStore.get(inventoryId));
-    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<InventoryResponseDTO> getAllInventory() {
+        log.info("Fetching all inventory records");
 
-    /**
-     * Checks if inventory exists for a book ID.
-     *
-     * @param bookId the book ID
-     * @return true if exists, false otherwise
-     */
-    public boolean existsByBookId(Long bookId) {
-        return bookIdToInventoryIdIndex.containsKey(bookId);
-    }
+        List<Inventory> inventories = inventoryRepository.findAll();
+        log.info("Successfully fetched {} inventory records", inventories.size());
 
-    /**
-     * Checks if inventory exists by ID.
-     *
-     * @param inventoryId the inventory ID
-     * @return true if exists, false otherwise
-     */
-    public boolean existsById(Long inventoryId) {
-        return inventoryStore.containsKey(inventoryId);
-    }
-
-    /**
-     * Finds all inventory records.
-     *
-     * @return List of all inventories
-     */
-    public List<Inventory> findAll() {
-        return new ArrayList<>(inventoryStore.values());
-    }
-
-    /**
-     * Finds all inventory records with low stock.
-     *
-     * @return List of low stock inventories
-     */
-    public List<Inventory> findLowStockItems() {
-        return inventoryStore.values().stream()
-                .filter(Inventory::isLowStock)
+        return inventories.stream()
+                .map(this::mapToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Finds all out-of-stock inventory records.
-     *
-     * @return List of out-of-stock inventories
-     */
-    public List<Inventory> findOutOfStockItems() {
-        return inventoryStore.values().stream()
-                .filter(Inventory::isOutOfStock)
-                .collect(Collectors.toList());
+    @Override
+    @Transactional
+    @LogExecutionTime
+    public InventoryResponseDTO updateInventoryQuantity(Long inventoryId, InventoryUpdateDTO updateDTO) {
+        log.info("Updating inventory quantity for ID: {} to {}", inventoryId, updateDTO.getQuantity());
+
+        Inventory inventory = inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found with ID: {}", inventoryId);
+                    return new InventoryNotFoundException(inventoryId);
+                });
+
+        inventory.setQuantity(updateDTO.getQuantity());
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+
+        log.info("Successfully updated inventory ID: {} with new quantity: {}",
+                inventoryId, updateDTO.getQuantity());
+
+        return mapToResponseDTO(updatedInventory);
     }
 
-    /**
-     * Finds all in-stock inventory records.
-     *
-     * @return List of in-stock inventories
-     */
-    public List<Inventory> findInStockItems() {
-        return inventoryStore.values().stream()
-                .filter(inventory -> inventory.getQuantity() > 0)
-                .collect(Collectors.toList());
-    }
+    @Override
+    @Transactional
+    @LogExecutionTime
+    public InventoryResponseDTO adjustInventoryQuantity(Long inventoryId, InventoryAdjustmentDTO adjustmentDTO) {
+        log.info("Adjusting inventory ID: {} by {} units. Reason: {}",
+                inventoryId, adjustmentDTO.getAdjustmentQuantity(), adjustmentDTO.getReason());
 
-    /**
-     * Deletes inventory by ID.
-     *
-     * @param inventoryId the inventory ID
-     */
-    public void deleteById(Long inventoryId) {
-        Inventory inventory = inventoryStore.get(inventoryId);
-        if (inventory != null) {
-            bookIdToInventoryIdIndex.remove(inventory.getBookId());
-            inventoryStore.remove(inventoryId);
-            log.debug("Deleted inventory with ID: {}", inventoryId);
+        Inventory inventory = inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found with ID: {}", inventoryId);
+                    return new InventoryNotFoundException(inventoryId);
+                });
+
+        int newQuantity = inventory.getQuantity() + adjustmentDTO.getAdjustmentQuantity();
+
+        if (newQuantity < 0) {
+            log.error("Invalid adjustment: would result in negative quantity. Current: {}, Adjustment: {}",
+                    inventory.getQuantity(), adjustmentDTO.getAdjustmentQuantity());
+            throw new InvalidInventoryOperationException(
+                    "Adjustment would result in negative quantity");
         }
+
+        inventory.setQuantity(newQuantity);
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+
+        log.info("Successfully adjusted inventory ID: {}. New quantity: {}", inventoryId, newQuantity);
+
+        return mapToResponseDTO(updatedInventory);
+    }
+
+    @Override
+    @Transactional
+    @LogExecutionTime
+    public InventoryResponseDTO reduceInventory(Long bookId, Integer quantity) {
+        log.info("Reducing inventory for book ID: {} by {} units", bookId, quantity);
+
+        Inventory inventory = inventoryRepository.findByBookId(bookId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found for book ID: {}", bookId);
+                    return new InventoryNotFoundException("bookId", bookId);
+                });
+
+        if (inventory.getQuantity() < quantity) {
+            log.error("Insufficient stock for book ID: {}. Available: {}, Requested: {}",
+                    bookId, inventory.getQuantity(), quantity);
+            throw new InsufficientStockException(bookId, inventory.getQuantity(), quantity);
+        }
+
+        inventory.setQuantity(inventory.getQuantity() - quantity);
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+
+        log.info("Successfully reduced inventory for book ID: {}. Remaining quantity: {}",
+                bookId, updatedInventory.getQuantity());
+
+        return mapToResponseDTO(updatedInventory);
+    }
+
+    @Override
+    @Transactional
+    @LogExecutionTime
+    public InventoryResponseDTO restockInventory(Long bookId, Integer quantity) {
+        log.info("Restocking inventory for book ID: {} with {} units", bookId, quantity);
+
+        Inventory inventory = inventoryRepository.findByBookId(bookId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found for book ID: {}", bookId);
+                    return new InventoryNotFoundException("bookId", bookId);
+                });
+
+        inventory.setQuantity(inventory.getQuantity() + quantity);
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+
+        log.info("Successfully restocked inventory for book ID: {}. New quantity: {}",
+                bookId, updatedInventory.getQuantity());
+
+        return mapToResponseDTO(updatedInventory);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean checkAvailability(Long bookId, Integer quantity) {
+        log.info("Checking availability for book ID: {} with quantity: {}", bookId, quantity);
+
+        return inventoryRepository.findByBookId(bookId)
+                .map(inventory -> {
+                    boolean available = inventory.getQuantity() >= quantity;
+                    log.info("Availability check for book ID: {} - Available: {}", bookId, available);
+                    return available;
+                })
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LowStockAlertDTO> getLowStockItems() {
+        log.info("Fetching low stock items");
+
+        List<Inventory> lowStockInventories = inventoryRepository.findLowStockItems();
+        log.info("Found {} low stock items", lowStockInventories.size());
+
+        return lowStockInventories.stream()
+                .map(this::mapToLowStockAlertDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InventoryResponseDTO> getOutOfStockItems() {
+        log.info("Fetching out-of-stock items");
+
+        List<Inventory> outOfStockInventories = inventoryRepository.findOutOfStockItems();
+        log.info("Found {} out-of-stock items", outOfStockInventories.size());
+
+        return outOfStockInventories.stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InventoryResponseDTO> getInStockItems() {
+        log.info("Fetching in-stock items");
+
+        List<Inventory> inStockInventories = inventoryRepository.findInStockItems();
+        log.info("Found {} in-stock items", inStockInventories.size());
+
+        return inStockInventories.stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public InventoryResponseDTO updateLowStockThreshold(Long inventoryId, Integer newThreshold) {
+        log.info("Updating low stock threshold for inventory ID: {} to {}", inventoryId, newThreshold);
+
+        Inventory inventory = inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found with ID: {}", inventoryId);
+                    return new InventoryNotFoundException(inventoryId);
+                });
+
+        inventory.setLowStockThreshold(newThreshold);
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+
+        log.info("Successfully updated low stock threshold for inventory ID: {}", inventoryId);
+
+        return mapToResponseDTO(updatedInventory);
+    }
+
+    @Override
+    @Transactional
+    public void deleteInventory(Long inventoryId) {
+        log.info("Deleting inventory with ID: {}", inventoryId);
+
+        if (!inventoryRepository.existsById(inventoryId)) {
+            log.error("Inventory not found with ID: {}", inventoryId);
+            throw new InventoryNotFoundException(inventoryId);
+        }
+
+        inventoryRepository.deleteById(inventoryId);
+        log.info("Successfully deleted inventory with ID: {}", inventoryId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @LogExecutionTime
+    public Map<Long, Boolean> checkBulkAvailability(Map<Long, Integer> bookQuantities) {
+        log.info("Checking bulk availability for {} books", bookQuantities.size());
+
+        Map<Long, Boolean> availabilityMap = new HashMap<>();
+
+        for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
+            Long bookId = entry.getKey();
+            Integer requiredQuantity = entry.getValue();
+
+            boolean available = checkAvailability(bookId, requiredQuantity);
+            availabilityMap.put(bookId, available);
+
+            log.debug("Book ID: {} - Required: {} - Available: {}",
+                    bookId, requiredQuantity, available);
+        }
+
+        log.info("Bulk availability check completed. Results: {}", availabilityMap);
+        return availabilityMap;
+    }
+
+    @Override
+    @Transactional
+    @LogExecutionTime
+    public Map<Long, Boolean> reduceBulkInventory(Map<Long, Integer> bookQuantities) {
+        log.info("Reducing bulk inventory for {} books", bookQuantities.size());
+
+        // First, check if all books are available
+        Map<Long, Boolean> availabilityMap = checkBulkAvailability(bookQuantities);
+
+        boolean allAvailable = availabilityMap.values().stream().allMatch(Boolean::booleanValue);
+
+        if (!allAvailable) {
+            List<Long> unavailableBooks = availabilityMap.entrySet().stream()
+                    .filter(entry -> !entry.getValue())
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+
+            log.error("Cannot reduce inventory. Unavailable books: {}", unavailableBooks);
+            throw new InsufficientStockException(
+                    "Insufficient stock for books: " + unavailableBooks);
+        }
+
+        // All available - proceed with deduction
+        Map<Long, Boolean> deductionResults = new HashMap<>();
+
+        for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
+            Long bookId = entry.getKey();
+            Integer quantity = entry.getValue();
+
+            try {
+                reduceInventory(bookId, quantity);
+                deductionResults.put(bookId, true);
+                log.debug("Successfully reduced {} units for book ID: {}", quantity, bookId);
+            } catch (Exception e) {
+                log.error("Failed to reduce inventory for book ID: {}", bookId, e);
+                deductionResults.put(bookId, false);
+                // Transaction will be rolled back automatically
+                throw e;
+            }
+        }
+
+        log.info("Bulk inventory reduction completed. Results: {}", deductionResults);
+        return deductionResults;
     }
 
     /**
-     * Deletes all inventory records.
-     * Useful for testing.
-     */
-    public void deleteAll() {
-        inventoryStore.clear();
-        bookIdToInventoryIdIndex.clear();
-        log.debug("Deleted all inventory records");
-    }
-
-    /**
-     * Counts total inventory records.
+     * Maps Inventory entity to InventoryResponseDTO.
      *
-     * @return count of inventories
+     * @param inventory the inventory entity
+     * @return the inventory response DTO
      */
-    public long count() {
-        return inventoryStore.size();
+    private InventoryResponseDTO mapToResponseDTO(Inventory inventory) {
+        return InventoryResponseDTO.builder()
+                .inventoryId(inventory.getInventoryId())
+                .bookId(inventory.getBookId())
+                .quantity(inventory.getQuantity())
+                .lowStockThreshold(inventory.getLowStockThreshold())
+                .isLowStock(inventory.isLowStock())
+                .isOutOfStock(inventory.isOutOfStock())
+                .createdAt(inventory.getCreatedAt())
+                .updatedAt(inventory.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Maps Inventory entity to LowStockAlertDTO.
+     *
+     * @param inventory the inventory entity
+     * @return the low stock alert DTO
+     */
+    private LowStockAlertDTO mapToLowStockAlertDTO(Inventory inventory) {
+        int quantityNeeded = inventory.getLowStockThreshold() - inventory.getQuantity();
+        String alertLevel = inventory.isOutOfStock() ? "CRITICAL" : "WARNING";
+
+        return LowStockAlertDTO.builder()
+                .inventoryId(inventory.getInventoryId())
+                .bookId(inventory.getBookId())
+                .currentQuantity(inventory.getQuantity())
+                .lowStockThreshold(inventory.getLowStockThreshold())
+                .quantityNeeded(quantityNeeded)
+                .alertLevel(alertLevel)
+                .build();
     }
 }

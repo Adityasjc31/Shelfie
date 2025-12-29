@@ -1,112 +1,111 @@
 package com.book.management.inventory.repository;
-import jakarta.annotation.PostConstruct;
-
-import java.util.*;
-import org.springframework.stereotype.Repository;
 
 import com.book.management.inventory.model.Inventory;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
- * Repository interface for Inventory entity.
- * Defines methods for CRUD operations and custom queries on inventory records.
- *
- * @author Aditya Srivastava
+ * JPA Repository interface for Inventory entity.
+ * 
+ * Provides CRUD operations and custom queries for inventory management.
+ * Extends JpaRepository for standard database operations.
+ * 
+ * @author Digital Bookstore Team
  * @version 1.0
- * @since 2024-12-08
+ * @since 2024-12-29
  */
 @Repository
-public interface InventoryRepository {
-    /**
-     * Initializes repository with sample data for testing.
-     * This method is called after the bean is constructed.
-     */
-    @PostConstruct
-    public void initializeSampleData();
-    
-    /**
-     * Saves inventory record (create or update).
-     *
-     * @param inventory the inventory to save
-     * @return the saved inventory
-     */
-    public Inventory save(Inventory inventory);
+public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     /**
-     * Finds inventory by ID.
-     *
-     * @param inventoryId the inventory ID
-     * @return Optional containing the inventory if found
-     */
-    public Optional<Inventory> findById(Long inventoryId);
-    /**
      * Finds inventory by book ID.
-     *
+     * 
      * @param bookId the book ID
      * @return Optional containing the inventory if found
      */
-    public Optional<Inventory> findByBookId(Long bookId) ;
+    Optional<Inventory> findByBookId(Long bookId);
 
     /**
      * Checks if inventory exists for a book ID.
-     *
+     * 
      * @param bookId the book ID
      * @return true if exists, false otherwise
      */
-    public boolean existsByBookId(Long bookId) ;
-
-    /**
-     * Checks if inventory exists by ID.
-     *
-     * @param inventoryId the inventory ID
-     * @return true if exists, false otherwise
-     */
-    public boolean existsById(Long inventoryId);
-
-    /**
-     * Finds all inventory records.
-     *
-     * @return List of all inventories
-     */
-    public List<Inventory> findAll();
+    boolean existsByBookId(Long bookId);
 
     /**
      * Finds all inventory records with low stock.
-     *
+     * Returns items where quantity is less than or equal to low stock threshold.
+     * 
      * @return List of low stock inventories
      */
-    public List<Inventory> findLowStockItems();
+    @Query("SELECT i FROM Inventory i WHERE i.quantity <= i.lowStockThreshold")
+    List<Inventory> findLowStockItems();
 
     /**
      * Finds all out-of-stock inventory records.
-     *
+     * Returns items where quantity is zero.
+     * 
      * @return List of out-of-stock inventories
      */
-    public List<Inventory> findOutOfStockItems();
+    @Query("SELECT i FROM Inventory i WHERE i.quantity = 0")
+    List<Inventory> findOutOfStockItems();
 
     /**
      * Finds all in-stock inventory records.
-     *
+     * Returns items where quantity is greater than zero.
+     * 
      * @return List of in-stock inventories
      */
-    public List<Inventory> findInStockItems();
+    @Query("SELECT i FROM Inventory i WHERE i.quantity > 0")
+    List<Inventory> findInStockItems();
 
     /**
-     * Deletes inventory by ID.
-     *
-     * @param inventoryId the inventory ID
+     * Finds inventory items by quantity range.
+     * 
+     * @param minQuantity minimum quantity
+     * @param maxQuantity maximum quantity
+     * @return List of inventories within the range
      */
-    public void deleteById(Long inventoryId);
+    @Query("SELECT i FROM Inventory i WHERE i.quantity BETWEEN :minQuantity AND :maxQuantity")
+    List<Inventory> findByQuantityRange(@Param("minQuantity") Integer minQuantity, 
+                                       @Param("maxQuantity") Integer maxQuantity);
 
     /**
-     * Deletes all inventory records.
-     * Useful for testing.
+     * Finds all inventory records ordered by quantity ascending.
+     * Useful for identifying lowest stock items first.
+     * 
+     * @return List of inventories ordered by quantity
      */
-    public void deleteAll();
+    List<Inventory> findAllByOrderByQuantityAsc();
 
     /**
-     * Counts total inventory records.
-     *
-     * @return count of inventories
+     * Counts total inventory records with low stock.
+     * 
+     * @return count of low stock items
      */
-    public long count();
+    @Query("SELECT COUNT(i) FROM Inventory i WHERE i.quantity <= i.lowStockThreshold")
+    long countLowStockItems();
+
+    /**
+     * Counts total inventory records that are out of stock.
+     * 
+     * @return count of out-of-stock items
+     */
+    @Query("SELECT COUNT(i) FROM Inventory i WHERE i.quantity = 0")
+    long countOutOfStockItems();
+
+    /**
+     * Finds inventory by book IDs (bulk operation).
+     * 
+     * @param bookIds list of book IDs
+     * @return List of inventories for the specified books
+     */
+    @Query("SELECT i FROM Inventory i WHERE i.bookId IN :bookIds")
+    List<Inventory> findByBookIdIn(@Param("bookIds") List<Long> bookIds);
 }
