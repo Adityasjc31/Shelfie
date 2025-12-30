@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
  * - Read/Write timeouts
  * - HTTP client settings
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */

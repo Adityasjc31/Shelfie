@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * Provides fallback responses when downstream services are unavailable
  * or circuit breaker is open.
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */

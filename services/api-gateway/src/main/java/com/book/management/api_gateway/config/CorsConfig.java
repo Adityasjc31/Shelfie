@@ -25,7 +25,7 @@ import java.util.List;
  * - Limit methods to required ones
  * - Specify exact headers needed
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */

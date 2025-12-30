@@ -28,7 +28,7 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
  * - CORS configuration
  * - Centralized error handling
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */

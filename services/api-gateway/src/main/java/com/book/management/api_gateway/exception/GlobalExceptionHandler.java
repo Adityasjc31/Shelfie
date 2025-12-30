@@ -19,7 +19,7 @@ import java.util.Map;
  * Provides centralized exception handling and custom error responses
  * for all gateway errors.
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */

@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
  * 
  * Route Pattern: /service-path/** → lb://service-name
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */
