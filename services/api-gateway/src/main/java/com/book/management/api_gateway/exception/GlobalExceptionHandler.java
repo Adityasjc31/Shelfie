@@ -90,29 +90,3 @@ public class GlobalExceptionHandler extends DefaultErrorAttributes {
     }
 }
 
-/**
- * Custom exception for unauthorized access.
- */
-class UnauthorizedException extends RuntimeException {
-    public UnauthorizedException(String message) {
-        super(message);
-    }
-}
-
-/**
- * Custom exception for service unavailable.
- */
-class ServiceUnavailableException extends RuntimeException {
-    public ServiceUnavailableException(String message) {
-        super(message);
-    }
-}
-
-/**
- * Custom exception for timeout.
- */
-class TimeoutException extends RuntimeException {
-    public TimeoutException(String message) {
-        super(message);
-    }
-}
