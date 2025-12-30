@@ -54,8 +54,8 @@ public class MicroserviceConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .servers(List.of(
-                        new Server().url("http://localhost:8080").description("API Gateway"),
-                        new Server().url("http://localhost:8083").description("Direct Access (Dev Only)")
+                        new Server().url("http://localhost:9080").description("API Gateway"),
+                        new Server().url("http://localhost:9081").description("Direct Access (Dev Only)")
                 ))
                 .info(new Info()
                         .title("Inventory Service API")
