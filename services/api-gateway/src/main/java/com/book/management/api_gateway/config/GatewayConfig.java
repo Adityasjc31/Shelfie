@@ -1,12 +1,14 @@
 package com.book.management.api_gateway.config;
 
-import com.book.management.book.gateway.filter.AuthenticationFilter;
-import com.book.management.book.gateway.filter.LoggingFilter;
+import com.book.management.api_gateway.filter.AuthenticationFilter;
+import com.book.management.api_gateway.filter.LoggingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Duration;
 
 /**
  * Gateway Route Configuration.
@@ -55,7 +57,7 @@ public class GatewayConfig {
                                         .setFallbackUri("forward:/fallback/auth"))
                                 .retry(retryConfig -> retryConfig
                                         .setRetries(3)
-                                        .setBackoff(null, null, null, true)))
+                                        .setBackoff(Duration.ofMillis(50), Duration.ofSeconds(5), 2, true)))
                         .uri("lb://authentication-service"))
                 
                 // ==========================================

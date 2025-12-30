@@ -8,7 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Mono;
+
 
 import java.time.Instant;
 import java.util.UUID;
@@ -70,7 +70,7 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
             
             // Continue filter chain and log response
             return chain.filter(exchange.mutate().request(modifiedRequest).build())
-                    .then(Mono.fromRunnable(() -> {
+                    .doOnSuccess(aVoid -> {
                         ServerHttpResponse response = exchange.getResponse();
                         long executionTime = Instant.now().toEpochMilli() - startTime.toEpochMilli();
                         
@@ -85,8 +85,8 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
                         }
                         
                         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    }))
-                    .onErrorResume(error -> {
+                    })
+                    .doOnError(error -> {
                         long executionTime = Instant.now().toEpochMilli() - startTime.toEpochMilli();
                         
                         log.error("✗ REQUEST FAILED");
@@ -95,8 +95,6 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
                         log.error("✗ Error: {}", error.getMessage());
                         log.error("✗ Execution Time: {} ms", executionTime);
                         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                        
-                        return Mono.error(error);
                     });
         };
     }

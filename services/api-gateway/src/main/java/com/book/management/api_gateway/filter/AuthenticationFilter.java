@@ -1,6 +1,5 @@
 package com.book.management.api_gateway.filter;
 
-import com.book.management.book.gateway.exception.UnauthorizedException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,7 +39,7 @@ import java.util.List;
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
 
     private final WebClient.Builder webClientBuilder;
-    
+
     @Value("${auth.service.url:lb://authentication-service}")
     private String authServiceUrl;
 
@@ -51,8 +50,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             "/auth/refresh",
             "/actuator",
             "/swagger-ui",
-            "/api-docs"
-    );
+            "/api-docs");
 
     public AuthenticationFilter(WebClient.Builder webClientBuilder) {
         super(Config.class);
@@ -72,7 +70,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             }
             
             // Extract Authorization header
-            if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
+            if (!request.getHeaders().containsHeader(HttpHeaders.AUTHORIZATION)) {
                 log.warn("Missing Authorization header for path: {}", path);
                 return onError(exchange, "Missing Authorization header", HttpStatus.UNAUTHORIZED);
             }
@@ -125,7 +123,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private Mono<ValidationResponse> validateToken(String token) {
         // TODO: Replace with actual authentication service call
         // For now, return a mock response for development
-        
+
         return webClientBuilder.build()
                 .post()
                 .uri(authServiceUrl + "/api/v1/auth/validate")
@@ -163,25 +161,23 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     /**
      * Creates error response.
      * 
-     * @param exchange ServerWebExchange
-     * @param message error message
+     * @param exchange   ServerWebExchange
+     * @param message    error message
      * @param httpStatus HTTP status
      * @return Mono<Void>
      */
     private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus httpStatus) {
         exchange.getResponse().setStatusCode(httpStatus);
         exchange.getResponse().getHeaders().add("Content-Type", "application/json");
-        
+
         String errorBody = String.format(
                 "{\"error\":\"%s\",\"message\":\"%s\",\"status\":%d}",
                 httpStatus.getReasonPhrase(),
                 message,
-                httpStatus.value()
-        );
-        
+                httpStatus.value());
+
         return exchange.getResponse().writeWith(
-                Mono.just(exchange.getResponse().bufferFactory().wrap(errorBody.getBytes()))
-        );
+                Mono.just(exchange.getResponse().bufferFactory().wrap(errorBody.getBytes())));
     }
 
     /**
