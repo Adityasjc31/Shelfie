@@ -26,7 +26,7 @@ import org.springframework.cloud.netflix.eureka.server.EnableEurekaServer;
  * - review-service
  * - user-service
  * 
- * @author Digital Bookstore Team
+ * @author Aditya Srivastava
  * @version 1.0
  * @since 2024-12-29
  */
