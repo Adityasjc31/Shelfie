@@ -1,13 +1,13 @@
-package com.book.management;
+package com.book.management.review_rating;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class MsApplication {
+public class ReviewRatingApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(MsApplication.class, args);
+		SpringApplication.run(ReviewRatingApplication.class, args);
 	}
 
 }

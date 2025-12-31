@@ -1,4 +1,4 @@
-package com.bookstore.eureka;
+package com.book.management.eureka;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
