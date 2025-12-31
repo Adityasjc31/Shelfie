@@ -8,11 +8,11 @@
 		<version>4.0.0</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.db</groupId>
-	<artifactId>ms</artifactId>
+	<groupId>com.dbms</groupId>
+	<artifactId>book</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>ms</name>
-	<description>Demo project for Spring Boot</description>
+	<name>book</name>
+	<description>Handling Book info</description>
 	<url/>
 	<licenses>
 		<license/>

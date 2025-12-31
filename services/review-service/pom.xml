@@ -8,11 +8,11 @@
 		<version>4.0.0</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.db</groupId>
-	<artifactId>ms</artifactId>
+	<groupId>com.dbms</groupId>
+	<artifactId>review-rating</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>ms</name>
-	<description>Demo project for Spring Boot</description>
+	<name>review-rating</name>
+	<description>Handling Reviews and rating info provided per book</description>
 	<url/>
 	<licenses>
 		<license/>
