@@ -12,7 +12,7 @@ import com.book.management.authentication.dto.*; /**
  * - Minimal token tracking only for logout/revocation
  * 
  * @author Aditya Srivastava
- * @version 2.0 - REST API Compliant
+ * @version 1.0 - REST API Compliant
  */
 public interface IAuthenticationService {
 

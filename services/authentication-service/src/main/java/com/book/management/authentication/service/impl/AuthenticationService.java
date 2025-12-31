@@ -1,17 +1,18 @@
-package com.book.management.authentication.service;
+package com.book.management.authentication.service.impl;
 
 import com.book.management.authentication.dto.*;
 import com.book.management.authentication.exception.*;
-import com.book.management.authentication.model.Session;
-import com.book.management.authentication.repository.SessionRepository;
+import com.book.management.authentication.model.BlacklistedToken;
+import com.book.management.authentication.model.RefreshToken;
+import com.book.management.authentication.repository.ITokenBlacklistRepository;
+import com.book.management.authentication.repository.IRefreshTokenRepository;
+import com.book.management.authentication.service.IAuthenticationService;
 import com.book.management.authentication.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -19,17 +20,24 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Authentication Service Implementation
- * 
- * Handles all authentication operations including:
- * - User registration
- * - User login with JWT generation
- * - Token validation
- * - Token refresh
- * - Session management
- * 
+ * Authentication Service Implementation - Stateless REST API
+ *
+ * Implements stateless JWT authentication without server-side sessions.
+ *
+ * Key Features:
+ * - Stateless authentication (REST compliant)
+ * - JWT token generation and validation
+ * - Token blacklist for logout
+ * - Refresh token rotation
+ * - Integration with User Service
+ *
+ * Storage:
+ * - NO sessions stored
+ * - Blacklisted tokens only (until expiry)
+ * - Refresh tokens for rotation
+ *
  * @author Aditya Srivastava
- * @version 1.0
+ * @version 1.0 - REST API Compliant
  */
 @Service
 @RequiredArgsConstructor
@@ -37,22 +45,17 @@ import java.util.UUID;
 public class AuthenticationService implements IAuthenticationService {
 
     private final JwtUtil jwtUtil;
-    private final SessionRepository sessionRepository;
+    private final ITokenBlacklistRepository tokenBlacklistRepository;
+    private final IRefreshTokenRepository refreshTokenRepository;
     private final WebClient.Builder webClientBuilder;
 
     @Value("${user.service.url:lb://user-service}")
     private String userServiceUrl;
 
-    @Value("${session.max-concurrent-sessions:3}")
-    private int maxConcurrentSessions;
-
     /**
-     * Registers a new user.
-     * Communicates with User Service to create user account.
-     * 
-     * @param request registration details
-     * @return authentication response with tokens
+     * {@inheritDoc}
      */
+    @Override
     public AuthResponse register(RegisterRequest request) {
         log.info("Processing registration for email: {}", request.getEmail());
 
@@ -65,7 +68,6 @@ public class AuthenticationService implements IAuthenticationService {
                 .build();
 
         try {
-            // Call user-service synchronously
             UserResponseDTO user = webClientBuilder.build()
                     .post()
                     .uri(userServiceUrl + "/users/register")
@@ -80,7 +82,7 @@ public class AuthenticationService implements IAuthenticationService {
 
             log.info("User registered successfully: {}", user.getUserId());
 
-            // Generate tokens
+            // Generate JWT tokens (no session created)
             return generateAuthResponse(user);
 
         } catch (Exception e) {
@@ -90,11 +92,9 @@ public class AuthenticationService implements IAuthenticationService {
     }
 
     /**
-     * Authenticates user and generates JWT tokens.
-     * 
-     * @param request login credentials
-     * @return authentication response with tokens
+     * {@inheritDoc}
      */
+    @Override
     public AuthResponse login(LoginRequest request) {
         log.info("Processing login for email: {}", request.getEmail());
 
@@ -105,7 +105,6 @@ public class AuthenticationService implements IAuthenticationService {
                 .build();
 
         try {
-            // Call user-service synchronously
             UserResponseDTO user = webClientBuilder.build()
                     .post()
                     .uri(userServiceUrl + "/users/login")
@@ -120,10 +119,7 @@ public class AuthenticationService implements IAuthenticationService {
 
             log.info("User authenticated successfully: {}", user.getUserId());
 
-            // Check and manage sessions
-            manageUserSessions(user.getUserId().toString());
-
-            // Generate tokens and create session
+            // Generate JWT tokens (stateless - no session)
             return generateAuthResponse(user);
 
         } catch (Exception e) {
@@ -133,35 +129,32 @@ public class AuthenticationService implements IAuthenticationService {
     }
 
     /**
-     * Validates JWT token.
-     * 
-     * @param token JWT token to validate
-     * @return validation response
+     * {@inheritDoc}
+     *
+     * Performs STATELESS validation:
+     * 1. Cryptographic JWT validation (signature, expiry)
+     * 2. Check if token is blacklisted (logout)
+     * 3. Extract user info from JWT claims (no database lookup)
      */
+    @Override
     public TokenValidationResponse validateToken(String token) {
         log.debug("Validating token");
 
         try {
+            // 1. Validate JWT cryptographically (fast, no database)
             if (!jwtUtil.validateToken(token)) {
-                return TokenValidationResponse.builder()
-                        .valid(false)
-                        .message("Invalid or expired token")
-                        .validatedAt(LocalDateTime.now())
-                        .build();
+                return buildInvalidResponse("Invalid or expired token");
             }
 
+            // 2. Check if token is blacklisted (logout)
+            if (tokenBlacklistRepository.existsByToken(token)) {
+                return buildInvalidResponse("Token has been revoked");
+            }
+
+            // 3. Extract user info from JWT claims (no database lookup)
             String userId = jwtUtil.extractUserId(token);
             String username = jwtUtil.extractUsername(token);
             List<String> roles = jwtUtil.extractRoles(token);
-
-            // Check if session exists and is valid
-            if (!isSessionValid(userId, token)) {
-                return TokenValidationResponse.builder()
-                        .valid(false)
-                        .message("Session expired or invalid")
-                        .validatedAt(LocalDateTime.now())
-                        .build();
-            }
 
             log.debug("Token validated successfully for user: {}", userId);
 
@@ -176,98 +169,158 @@ public class AuthenticationService implements IAuthenticationService {
 
         } catch (Exception e) {
             log.error("Token validation error: {}", e.getMessage());
-            return TokenValidationResponse.builder()
-                    .valid(false)
-                    .message("Token validation failed")
-                    .validatedAt(LocalDateTime.now())
-                    .build();
+            return buildInvalidResponse("Token validation failed");
         }
     }
 
     /**
-     * Refreshes access token using refresh token.
-     * 
-     * @param request refresh token request
-     * @return new authentication response
+     * {@inheritDoc}
      */
+    @Override
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         log.info("Processing token refresh");
 
         try {
-            String refreshToken = request.getRefreshToken();
+            String refreshTokenStr = request.getRefreshToken();
 
-            if (!jwtUtil.validateToken(refreshToken)) {
+            // 1. Validate refresh token
+            if (!jwtUtil.validateToken(refreshTokenStr)) {
                 throw new InvalidTokenException("Invalid or expired refresh token");
             }
 
-            String tokenType = jwtUtil.extractTokenType(refreshToken);
+            // 2. Check token type
+            String tokenType = jwtUtil.extractTokenType(refreshTokenStr);
             if (!"REFRESH".equals(tokenType)) {
                 throw new InvalidTokenException("Not a valid refresh token");
             }
 
-            String userId = jwtUtil.extractUserId(refreshToken);
-            String email = jwtUtil.extractUsername(refreshToken);
+            // 3. Check if refresh token exists and not used
+            RefreshToken storedToken = refreshTokenRepository
+                    .findByToken(refreshTokenStr)
+                    .orElseThrow(() -> new InvalidTokenException("Refresh token not found"));
 
-            // Get user details from User Service
+            if (storedToken.isUsed()) {
+                // Possible token reuse attack - invalidate all user tokens
+                log.warn("Refresh token reuse detected for user: {}", storedToken.getUserId());
+                logoutFromAllDevices(storedToken.getUserId());
+                throw new InvalidTokenException("Refresh token has already been used");
+            }
+
+            // 4. Mark refresh token as used (rotation)
+            storedToken.setUsed(true);
+            storedToken.setUsedAt(LocalDateTime.now());
+            refreshTokenRepository.save(storedToken);
+
+            // 5. Get user details
+            String userId = jwtUtil.extractUserId(refreshTokenStr);
             UserResponseDTO user = getUserById(userId);
 
-            // Generate new tokens
+            // 6. Generate new tokens
+            log.info("Token refreshed successfully for user: {}", userId);
             return generateAuthResponse(user);
 
         } catch (Exception e) {
             log.error("Token refresh failed: {}", e.getMessage());
-            throw new InvalidTokenException("Token refresh failed");
+            throw new InvalidTokenException("Token refresh failed: " + e.getMessage());
         }
     }
 
     /**
-     * Logs out user by invalidating session.
-     * 
-     * @param token JWT token
+     * {@inheritDoc}
+     *
+     * Blacklists the token until it expires naturally.
      */
+    @Override
     public void logout(String token) {
+        log.info("Processing logout");
+
         try {
             String userId = jwtUtil.extractUserId(token);
-            sessionRepository.deleteByUserIdAndToken(userId, token);
+            LocalDateTime expiresAt = jwtUtil.extractExpiration(token)
+                    .toInstant()
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDateTime();
+
+            // Add token to blacklist
+            BlacklistedToken blacklistedToken = BlacklistedToken.builder()
+                    .id(UUID.randomUUID().toString())
+                    .token(token)
+                    .userId(userId)
+                    .blacklistedAt(LocalDateTime.now())
+                    .expiresAt(expiresAt)
+                    .reason("USER_LOGOUT")
+                    .build();
+
+            tokenBlacklistRepository.save(blacklistedToken);
+
             log.info("User logged out successfully: {}", userId);
+
         } catch (Exception e) {
             log.error("Logout failed: {}", e.getMessage());
+            throw new AuthenticationException("Logout failed");
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * Invalidates all tokens for a user.
+     */
     @Override
     public void logoutFromAllDevices(String userId) {
+        log.info("Logging out user from all devices: {}", userId);
 
-    }
+        try {
+            // Delete all refresh tokens for user
+            refreshTokenRepository.deleteByUserId(userId);
 
-    @Override
-    public boolean isTokenBlacklisted(String token) {
-        return false;
+            // Note: Cannot blacklist all access tokens as we don't store them
+            // They will expire naturally based on JWT expiration time
+
+            log.info("User logged out from all devices: {}", userId);
+
+        } catch (Exception e) {
+            log.error("Logout from all devices failed: {}", e.getMessage());
+            throw new AuthenticationException("Logout from all devices failed");
+        }
     }
 
     /**
-     * Generates authentication response with tokens and user info.
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isTokenBlacklisted(String token) {
+        return tokenBlacklistRepository.existsByToken(token);
+    }
+
+    /**
+     * Generates authentication response with JWT tokens.
+     *
+     * Creates:
+     * - Access token (24 hours)
+     * - Refresh token (7 days)
+     * - Stores refresh token for rotation
      */
     private AuthResponse generateAuthResponse(UserResponseDTO user) {
         String userId = user.getUserId().toString();
         String email = user.getEmail();
         List<String> roles = Arrays.asList(user.getRole().toString());
 
-        // Generate tokens
+        // Generate JWT tokens
         String accessToken = jwtUtil.generateToken(userId, email, roles);
         String refreshToken = jwtUtil.generateRefreshToken(userId, email);
 
-        // Create session
-        Session session = Session.builder()
-                .sessionId(UUID.randomUUID().toString())
+        // Store refresh token for rotation tracking
+        RefreshToken refreshTokenEntity = RefreshToken.builder()
+                .id(UUID.randomUUID().toString())
+                .token(refreshToken)
                 .userId(userId)
-                .token(accessToken)
-                .refreshToken(refreshToken)
                 .createdAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusSeconds(jwtUtil.getExpirationTime() / 1000))
+                .expiresAt(LocalDateTime.now().plusSeconds(jwtUtil.getRefreshExpirationTime() / 1000))
+                .used(false)
                 .build();
 
-        sessionRepository.save(session);
+        refreshTokenRepository.save(refreshTokenEntity);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -285,32 +338,14 @@ public class AuthenticationService implements IAuthenticationService {
     }
 
     /**
-     * Manages user sessions - limits concurrent sessions per user.
+     * Builds invalid token validation response.
      */
-    private void manageUserSessions(String userId) {
-        List<Session> userSessions = sessionRepository.findByUserId(userId);
-
-        if (userSessions.size() >= maxConcurrentSessions) {
-            // Remove oldest session
-            Session oldestSession = userSessions.stream()
-                    .sorted((s1, s2) -> s1.getCreatedAt().compareTo(s2.getCreatedAt()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (oldestSession != null) {
-                sessionRepository.delete(oldestSession.getSessionId());
-                log.info("Removed oldest session for user: {}", userId);
-            }
-        }
-    }
-
-    /**
-     * Checks if session is valid.
-     */
-    private boolean isSessionValid(String userId, String token) {
-        return sessionRepository.findByUserIdAndToken(userId, token)
-                .map(session -> session.getExpiresAt().isAfter(LocalDateTime.now()))
-                .orElse(false);
+    private TokenValidationResponse buildInvalidResponse(String message) {
+        return TokenValidationResponse.builder()
+                .valid(false)
+                .message(message)
+                .validatedAt(LocalDateTime.now())
+                .build();
     }
 
     /**
@@ -325,11 +360,14 @@ public class AuthenticationService implements IAuthenticationService {
                 .block();
     }
 
-    // Inner DTOs for User Service communication
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
+    // ==========================================
+    // DTOs for User Service Communication
+    // ==========================================
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
     private static class UserRegistrationDTO {
         private String name;
         private String email;
@@ -337,24 +375,24 @@ public class AuthenticationService implements IAuthenticationService {
         private String role;
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
     private static class UserLoginDTO {
         private String email;
         private String password;
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
     private static class UserResponseDTO {
         private Long userId;
         private String name;
         private String email;
-        private Object role; // UserRole enum
+        private Object role;
         private Boolean isActive;
     }
 }
