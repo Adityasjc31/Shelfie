@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * - Statistics logged every hour
  * 
  * @author Aditya Srivastava
- * @version 2.0 - REST API Compliant
+ * @version 1.0 - REST API Compliant
  */
 @Component
 @RequiredArgsConstructor
