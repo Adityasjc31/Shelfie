@@ -1,149 +1,92 @@
 package com.book.management.review_rating.repository;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.book.management.review_rating.model.Review;
 import com.book.management.review_rating.model.Review.ReviewStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
 
 /**
- * Repository interface for Review entity.
- * Provides data access methods for review management operations.
- * Can be implemented using in-memory storage or JPA.
+ * Spring Data JPA Repository for Review entity.
+ * Provides automatic CRUD operations and custom query methods.
+ * 
+ * Microservices Architecture Benefits:
+ * - No boilerplate code needed
+ * - Transaction management handled automatically
+ * - Query optimization through JPA
+ * - Easy to test with embedded databases
  * 
  * @author Aditya Srivastava
- * @version 1.0
- * @since 2024-12-15
+ * @version 2.0
+ * @since 2024-12-16
  */
-public interface ReviewRepository {
-
-    /**
-     * Saves review record (create or update).
-     * 
-     * @param review the review to save
-     * @return the saved review
-     */
-    Review save(Review review);
-
-    /**
-     * Finds review by ID.
-     * 
-     * @param reviewId the review ID
-     * @return Optional containing the review if found
-     */
-    Optional<Review> findById(Long reviewId);
-
-    /**
-     * Finds all reviews.
-     * 
-     * @return List of all reviews
-     */
-    List<Review> findAll();
+@Repository
+public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     /**
      * Finds all reviews for a specific book.
-     * 
-     * @param bookId the book ID
-     * @return List of reviews for the book
      */
     List<Review> findByBookId(Long bookId);
 
     /**
      * Finds all reviews by a specific user.
-     * 
-     * @param userId the user ID
-     * @return List of reviews by the user
      */
     List<Review> findByUserId(Long userId);
 
     /**
      * Finds all approved reviews for a book.
-     * 
-     * @param bookId the book ID
-     * @return List of approved reviews
      */
-    List<Review> findApprovedReviewsByBookId(Long bookId);
+    List<Review> findByBookIdAndStatus(Long bookId, ReviewStatus status);
 
     /**
      * Finds all reviews by status.
-     * 
-     * @param status the review status
-     * @return List of reviews with the given status
      */
     List<Review> findByStatus(ReviewStatus status);
 
     /**
-     * Finds pending reviews (for moderation).
-     * 
-     * @return List of pending reviews
-     */
-    List<Review> findPendingReviews();
-
-    /**
-     * Finds reviews by rating.
-     * 
-     * @param rating the rating (1-5)
-     * @return List of reviews with the given rating
+     * Finds all reviews with a specific rating.
      */
     List<Review> findByRating(Integer rating);
 
     /**
-     * Calculates average rating for a book.
-     * 
-     * @param bookId the book ID
-     * @return average rating, or 0.0 if no reviews
-     */
-    Double calculateAverageRating(Long bookId);
-
-    /**
-     * Counts total reviews for a book.
-     * 
-     * @param bookId the book ID
-     * @return count of reviews
-     */
-    Long countReviewsByBookId(Long bookId);
-
-    /**
-     * Counts approved reviews for a book.
-     * 
-     * @param bookId the book ID
-     * @return count of approved reviews
-     */
-    Long countApprovedReviewsByBookId(Long bookId);
-
-    /**
      * Checks if a user has already reviewed a book.
-     * 
-     * @param userId the user ID
-     * @param bookId the book ID
-     * @return true if user has reviewed the book
      */
     boolean existsByUserIdAndBookId(Long userId, Long bookId);
 
     /**
-     * Checks if review exists by ID.
-     * 
-     * @param reviewId the review ID
-     * @return true if exists
+     * Counts total reviews for a book.
      */
-    boolean existsById(Long reviewId);
+    long countByBookId(Long bookId);
 
     /**
-     * Deletes review by ID.
-     * 
-     * @param reviewId the review ID
+     * Counts approved reviews for a book.
      */
-    void deleteById(Long reviewId);
+    long countByBookIdAndStatus(Long bookId, ReviewStatus status);
 
     /**
-     * Deletes all reviews.
+     * Calculates average rating for a book (approved reviews only).
      */
-    void deleteAll();
+    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.bookId = :bookId AND r.status = 'APPROVED'")
+    Double calculateAverageRating(@Param("bookId") Long bookId);
 
     /**
-     * Counts total reviews.
-     * 
-     * @return count of reviews
+     * Finds all approved reviews for a book.
      */
-    long count();
+    @Query("SELECT r FROM Review r WHERE r.bookId = :bookId AND r.status = 'APPROVED'")
+    List<Review> findApprovedReviewsByBookId(@Param("bookId") Long bookId);
+
+    /**
+     * Finds pending reviews for moderation.
+     */
+    @Query("SELECT r FROM Review r WHERE r.status = 'PENDING'")
+    List<Review> findPendingReviews();
+
+    /**
+     * Counts reviews by rating for a book (for distribution statistics).
+     */
+    @Query("SELECT r.rating, COUNT(r) FROM Review r WHERE r.bookId = :bookId AND r.status = 'APPROVED' GROUP BY r.rating")
+    List<Object[]> countReviewsByRating(@Param("bookId") Long bookId);
 }

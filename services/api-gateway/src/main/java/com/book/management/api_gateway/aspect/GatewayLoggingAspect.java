@@ -36,19 +36,19 @@ public class GatewayLoggingAspect {
     /**
      * Pointcut for all filter methods.
      */
-    @Pointcut("execution(* com.book.management.book.gateway.filter..*(..))")
+    @Pointcut("execution(* com.book.management.book.api_gateway.filter..*(..))")
     public void filterLayer() {}
 
     /**
      * Pointcut for all controller methods (fallback controllers).
      */
-    @Pointcut("execution(* com.book.management.book.gateway.controller..*(..))")
+    @Pointcut("execution(* com.book.management.book.api_gateway.controller..*(..))")
     public void controllerLayer() {}
 
     /**
      * Pointcut for route configuration methods.
      */
-    @Pointcut("execution(* com.book.management.book.gateway.config..*(..))")
+    @Pointcut("execution(* com.book.management.book.api_gateway.config..*(..))")
     public void configLayer() {}
 
     /**
@@ -182,7 +182,7 @@ public class GatewayLoggingAspect {
     /**
      * Pointcut for methods annotated with @LogExecutionTime.
      */
-    @Pointcut("@annotation(com.book.management.book.gateway.annotation.LogExecutionTime)")
+    @Pointcut("@annotation(com.book.management.book.api_gateway.annotation.LogExecutionTime)")
     public void logExecutionTime() {}
 
     /**

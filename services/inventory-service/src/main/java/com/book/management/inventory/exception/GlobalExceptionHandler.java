@@ -1,4 +1,5 @@
 package com.book.management.inventory.exception;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +30,7 @@ public class GlobalExceptionHandler {
     /**
      * Handles InventoryNotFoundException.
      *
-     * @param ex the exception
+     * @param ex      the exception
      * @param request the web request
      * @return ResponseEntity with error details and HTTP 404 status
      */
@@ -42,16 +43,57 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND.value(),
                 ex.getMessage(),
                 request.getDescription(false),
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
     /**
+     * Handles ResourceNotFoundException (from FeignClient 404 responses).
+     *
+     * @param ex      the exception
+     * @param request the web request
+     * @return ResponseEntity with error details and HTTP 404 status
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+            ResourceNotFoundException ex, WebRequest request) {
+        log.error("ResourceNotFoundException (HTTP {}): {}", ex.getHttpStatus(), ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Handles ServiceUnavailableException (from FeignClient 5xx responses).
+     *
+     * @param ex      the exception
+     * @param request the web request
+     * @return ResponseEntity with error details and HTTP 503 status
+     */
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleServiceUnavailableException(
+            ServiceUnavailableException ex, WebRequest request) {
+        log.error("ServiceUnavailableException (HTTP {}): {}", ex.getHttpStatus(), ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "Downstream service unavailable. Please try again later.",
+                request.getDescription(false),
+                LocalDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+    }
+
+    /**
      * Handles InventoryAlreadyExistsException.
      *
-     * @param ex the exception
+     * @param ex      the exception
      * @param request the web request
      * @return ResponseEntity with error details and HTTP 409 status
      */
@@ -64,8 +106,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
                 request.getDescription(false),
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
@@ -73,7 +114,7 @@ public class GlobalExceptionHandler {
     /**
      * Handles InsufficientStockException.
      *
-     * @param ex the exception
+     * @param ex      the exception
      * @param request the web request
      * @return ResponseEntity with error details and HTTP 400 status
      */
@@ -86,8 +127,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
                 request.getDescription(false),
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
@@ -95,7 +135,7 @@ public class GlobalExceptionHandler {
     /**
      * Handles InvalidInventoryOperationException.
      *
-     * @param ex the exception
+     * @param ex      the exception
      * @param request the web request
      * @return ResponseEntity with error details and HTTP 400 status
      */
@@ -108,8 +148,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
                 request.getDescription(false),
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
@@ -117,7 +156,7 @@ public class GlobalExceptionHandler {
     /**
      * Handles validation errors from @Valid annotations.
      *
-     * @param ex the exception
+     * @param ex      the exception
      * @param request the web request
      * @return ResponseEntity with validation error details and HTTP 400 status
      */
@@ -138,8 +177,7 @@ public class GlobalExceptionHandler {
                 "Validation failed",
                 request.getDescription(false),
                 LocalDateTime.now(),
-                errors
-        );
+                errors);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
@@ -147,7 +185,7 @@ public class GlobalExceptionHandler {
     /**
      * Handles all other uncaught exceptions.
      *
-     * @param ex the exception
+     * @param ex      the exception
      * @param request the web request
      * @return ResponseEntity with error details and HTTP 500 status
      */
@@ -160,8 +198,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "An unexpected error occurred",
                 request.getDescription(false),
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }

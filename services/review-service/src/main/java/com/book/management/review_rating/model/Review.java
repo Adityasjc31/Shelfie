@@ -1,5 +1,6 @@
 package com.book.management.review_rating.model;
 
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,84 +9,77 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Entity class representing Review.
+ * JPA Entity class representing Review.
+ * Converted to use Spring Data JPA for microservices architecture.
  * 
  * @author Aditya Srivastava
- * @version 1.0
- * @since 2024-12-15
+ * @version 2.0
+ * @since 2024-12-16
  */
+@Entity
+@Table(name = "reviews", indexes = {
+    @Index(name = "idx_book_id", columnList = "book_id"),
+    @Index(name = "idx_user_id", columnList = "user_id"),
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_rating", columnList = "rating")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Review {
 
-    /**
-     * Unique identifier for the review.
-     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "review_id")
     private Long reviewId;
 
-    /**
-     * Foreign key reference to the User entity.
-     * Represents the customer who wrote the review.
-     */
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    /**
-     * Foreign key reference to the Book entity.
-     * Represents the book being reviewed.
-     */
+    @Column(name = "book_id", nullable = false)
     private Long bookId;
 
-    /**
-     * Rating given to the book (1-5 scale).
-     * 1 = Poor, 5 = Excellent
-     */
+    @Column(name = "rating", nullable = false)
     private Integer rating;
 
-    /**
-     * Review comment/text written by the customer.
-     */
+    @Column(name = "comment", nullable = false, length = 1000)
     private String comment;
 
-    /**
-     * Review status for moderation.
-     * Values: PENDING, APPROVED, REJECTED
-     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
     private ReviewStatus status = ReviewStatus.PENDING;
 
-    /**
-     * ID of the admin who moderated this review (if moderated).
-     */
+    @Column(name = "moderated_by")
     private Long moderatedBy;
 
-    /**
-     * Reason for rejection (if status is REJECTED).
-     */
+    @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
-    /**
-     * Flag to indicate if review is helpful.
-     * Can be extended to count helpful votes.
-     */
+    @Column(name = "helpful_count")
     @Builder.Default
     private Integer helpfulCount = 0;
 
-    /**
-     * Timestamp when the review was created.
-     */
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /**
-     * Timestamp when the review was last updated.
-     */
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     /**
      * Checks if the review is approved.
-     * 
-     * @return true if approved, false otherwise
      */
     public boolean isApproved() {
         return status == ReviewStatus.APPROVED;
@@ -93,8 +87,6 @@ public class Review {
 
     /**
      * Checks if the review is pending moderation.
-     * 
-     * @return true if pending, false otherwise
      */
     public boolean isPending() {
         return status == ReviewStatus.PENDING;
@@ -102,8 +94,6 @@ public class Review {
 
     /**
      * Checks if the review is rejected.
-     * 
-     * @return true if rejected, false otherwise
      */
     public boolean isRejected() {
         return status == ReviewStatus.REJECTED;
