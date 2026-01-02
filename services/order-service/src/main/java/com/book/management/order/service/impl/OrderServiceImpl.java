@@ -1,6 +1,7 @@
 package com.book.management.order.service.impl;
 
-import com.book.management.book.exception.BookNotFoundException;
+import com.book.management.order.client.BookClient;
+import com.book.management.order.client.InventoryClient;
 import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
@@ -9,168 +10,154 @@ import com.book.management.order.exception.*;
 import com.book.management.order.model.Order;
 import com.book.management.order.repository.OrderRepository;
 import com.book.management.order.service.OrderService;
-import com.book.management.book.service.BookService;
-import com.book.management.inventory.service.InventoryService;
-import com.book.management.order.util.OrderOpsUtils;
-import com.book.management.inventory.exception.InsufficientStockException;
-
+import feign.FeignException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Service for Order Management.
+ * Service implementation for Order operations.
+ * Orchestrates cross-service calls and manages MySQL persistence.
  *
  * @author Rehan Ashraf
- * @version 1.6 (Refactored to use simplified Utility flow)
- * @since 2024-12-15
- * Service implementation for Order operations, handling orchestration of Book and Inventory services.
+ * @version 2.0
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
-    private final BookService bookService;
-    private final InventoryService inventoryService;
+    private final BookClient bookClient;
+    private final InventoryClient inventoryClient;
 
-    private static final String ONFRE = "Order not found with ID: ";
+    private static final String NOT_FOUND_MSG = "Order not found with ID: ";
 
-    @Autowired
-    public OrderServiceImpl(OrderRepository orderRepository, BookService bookService, InventoryService inventoryService) {
-        this.orderRepository = orderRepository;
-        this.bookService = bookService;
-        this.inventoryService = inventoryService;
-    }
-
-    /**
-     * Orchestrates order placement: validation, price check, stock check, stock reduction,
-     * compute total & save, then returns the OrderResponseDTO.
-     */
     @Override
-    public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException {
-        log.info("Order placement initiated for userId: {}", (request != null ? request.getUserId() : "null"));
+    @Transactional
+    public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
+        log.info("Initiating order placement for userId: {}", request.getUserId());
 
-        Order savedOrder = preProcessAndSaveOrder(request);
-        return toResponseDTO(savedOrder);
-    }
-
-    /**
-     * Phase 1: Executes the five util operations in sequence.
-     * Logic is simplified by allowing exceptions to propagate naturally.
-     */
-    private Order preProcessAndSaveOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException {
-
-        // 1) Initial validation (Directly throws IllegalArgumentException if invalid)
-        List<Long> bookIds = OrderOpsUtils.initialValidation(request);
-
-        // Access bookOrder safely after initialValidation has passed
-        final Map<Long, Integer> bookOrder = request.getBookOrder();
-
-        // 2) Price check (Propagates BookNotFoundException or OrderNotPlacedException)
-        Map<Long, Double> priceMap;
         try {
-             priceMap= OrderOpsUtils.priceCheck(bookService, bookIds);
-        } catch (BookNotFoundException ex ){
-            log.error("Price fetch failed for userId={}: {}",request.getUserId(), ex.getMessage());
-             throw ex;
-        }
-        // 3) Stock availability check (Propagates InsufficientStockException)
-        try {
-            OrderOpsUtils.stockCheck(inventoryService, bookOrder);
-        }catch (InsufficientStockException ex){
-            log.error("Stock check failed for userId={}: {}", request.getUserId(), ex.getMessage());
-            throw ex;
-        }
+            // 1. Fetch Book Prices via Feign
+            Map<Long, Double> priceMap = bookClient.getBookPrices(new ArrayList<>(request.getBookOrder().keySet()));
 
-        // 4) Stock reduction
-        try {
-            OrderOpsUtils.stockReduction(inventoryService, bookOrder);
-        } catch (InsufficientStockException ex) {
-            log.error("Stock reduction failed for userId={}: {}", request.getUserId(), ex.getMessage());
-            throw ex;
-        }
+            // 2. Calculate Total
+            double total = request.getBookOrder().entrySet().stream()
+                    .mapToDouble(entry -> priceMap.get(entry.getKey()) * entry.getValue())
+                    .sum();
 
-        // 5) Compute total & save
-        Order savedOrder;
-        try{
-        savedOrder = OrderOpsUtils.computeTotalAndSaveOrder(
-                orderRepository,
-                request.getUserId(),
-                bookOrder,
-                priceMap,
-                bookIds,
-                OrderEnum.PENDING
-        );}
-        catch (OrderNotPlacedException ex){
-            log.error("Order placing failed for bookOrder: {}", request.getBookOrder(), ex.getMessage());
-            throw ex;
-        }
+            // 3. Inventory Reduction (Implicit Stock Check) via Feign
+            inventoryClient.reduceStock(request.getBookOrder());
 
-        log.info("Order successfully persisted: orderId={}", savedOrder.getOrderId());
-        return savedOrder;
+            // 4. Persistence
+            Order order = Order.builder()
+                    .userId(request.getUserId())
+                    .items(request.getBookOrder())
+                    .orderTotalAmount(total)
+                    .orderDateTime(LocalDateTime.now())
+                    .orderStatus(OrderEnum.PENDING)
+                    .isDeleted(false)
+                    .build();
+
+            Order savedOrder = orderRepository.save(order);
+            log.info("Order successfully placed. ID: {}", savedOrder.getOrderId());
+            return toResponseDTO(savedOrder);
+
+        } catch (FeignException.NotFound ex) {
+            log.error("Downstream fail: Book/User not found. {}", ex.getMessage());
+            throw new OrderNotPlacedException("One or more items in your order do not exist.");
+        } catch (FeignException.Conflict ex) {
+            log.error("Downstream fail: Stock conflict. {}", ex.getMessage());
+            throw new OrderNotPlacedException("Insufficient stock to complete this order.");
+        } catch (Exception ex) {
+            log.error("Unexpected error during order placement: {}", ex.getMessage());
+            throw new OrderNotPlacedException("Order could not be processed due to a system error.");
+        }
     }
 
     @Override
     public List<OrderResponseDTO> getOrderAll() {
-        List<OrderResponseDTO> result = orderRepository.findAll().stream()
+        log.info("Fetching all active orders from MySQL.");
+        return orderRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .toList();
-        log.info("Fetched all orders: count={}", result.size());
-        return result;
     }
 
     @Override
     public Optional<OrderResponseDTO> getOrderById(long orderId) {
-        log.info("Fetching order by ID: {}", orderId);
+        log.info("Querying order ID: {}", orderId);
         return orderRepository.findById(orderId).map(this::toResponseDTO);
     }
 
     @Override
     public List<OrderResponseDTO> getOrderByStatus(OrderEnum status) {
-        List<OrderResponseDTO> result = orderRepository.findByStatus(status).stream()
+        log.info("Filtering orders by status: {}", status);
+        return orderRepository.findByOrderStatus(status).stream()
                 .map(this::toResponseDTO)
                 .toList();
-        log.info("Fetched orders by status: status={}, count={}", status, result.size());
-        return result;
     }
 
     @Override
-    public OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request)
-            throws OrderNotFoundException {
+    @Transactional
+    public OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request) {
+        log.info("Updating status for order {}: to {}", orderId, request.getOrderStatus());
+
         Order existing = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(ONFRE + orderId));
+                .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
 
         existing.setOrderStatus(request.getOrderStatus());
-        Order updated = orderRepository.update(existing);
-        log.info("Order status updated: orderId={}, status={}", orderId, updated.getOrderStatus());
-        return toResponseDTO(updated);
+        // Save handles update in JPA
+        return toResponseDTO(orderRepository.save(existing));
     }
 
     @Override
-    public void cancelOrder(long orderId)
-            throws OrderNotFoundException, OrderCancellationNotAllowedException {
+    @Transactional
+    public void cancelOrder(long orderId) {
+        log.info("Request to cancel order: {}", orderId);
+
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(ONFRE + orderId));
+                .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
 
         if (order.getOrderStatus() == OrderEnum.SHIPPED || order.getOrderStatus() == OrderEnum.DELIVERED) {
-            log.warn("Cancellation rejected: Order {} is already {}", orderId, order.getOrderStatus());
-            throw new OrderCancellationNotAllowedException("Order cannot be cancelled in status: " + order.getOrderStatus());
+            log.warn("Cancel denied: Order {} is already {}", orderId, order.getOrderStatus());
+            throw new OrderCancellationNotAllowedException("Cannot cancel an order that is already " + order.getOrderStatus());
         }
 
-        orderRepository.deleteById(orderId);
-        log.info("Order cancelled: orderId={}", orderId);
+        // Standard JPA delete will trigger our @SQLDelete (Soft Delete)
+        orderRepository.delete(order);
+        log.info("Order {} marked as cancelled/deleted.", orderId);
+    }
+
+    /**
+     * Logic to synchronize deletion from other services.
+     * Updates isDeleted to true for the specific order.
+     */
+    @Override
+    @Transactional
+    public void softDeleteOrder(long orderId) {
+        log.info("Synchronizing deletion for orderId: {}", orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
+
+        order.setDeleted(true);
+        orderRepository.save(order);
+        log.info("Order {} successfully synchronized as deleted.", orderId);
     }
 
     private OrderResponseDTO toResponseDTO(Order order) {
         return OrderResponseDTO.builder()
                 .orderId(order.getOrderId())
                 .userId(order.getUserId())
-                .bookIds(order.getBookId())
+                .bookIds(new ArrayList<>(order.getItems().keySet()))
                 .orderDateTime(order.getOrderDateTime())
                 .orderTotalAmount(order.getOrderTotalAmount())
                 .orderStatus(order.getOrderStatus())

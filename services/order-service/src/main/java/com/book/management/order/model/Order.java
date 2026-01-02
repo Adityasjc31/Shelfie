@@ -1,63 +1,62 @@
-
 package com.book.management.order.model;
 
 import com.book.management.order.enums.OrderEnum;
+import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Map;
 
 /**
  * Entity class representing an Order in the Digital Book Store.
- * Captures who placed the order, which books are included, when it was placed,
- * the total amount charged, and the current lifecycle status of the order.
-
- * Notes:
- * Status transitions should follow business policies (e.g., PENDING → SHIPPED → DELIVERED).
+ * * Migrated to JPA for MySQL persistence.
+ * Features:
+ * - Soft Delete: Uses @SQLDelete to set isDeleted=true instead of physical deletion.
+ * - ElementCollection: Stores order items (bookId and quantity) in a relational table.
  *
  * @author Rehan Ashraf
- * @version 1.0
- * @since 2024-12-07
+ * @version 2.0 (Microservice Migration)
+ * @since 2024-12-15
  */
+@Entity
+@Table(name = "orders")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
+@Builder
+@SQLDelete(sql = "UPDATE orders SET is_deleted = true WHERE order_id = ?")
+@SQLRestriction("is_deleted = false") // Ensures deleted records are excluded from queries
 public class Order {
 
-    /**
-     * Unique identifier for the order.
-     */
-    private long orderId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long orderId;
+
+    @Column(nullable = false)
+    private Long userId;
 
     /**
-     * Identifier for the user who placed the order.
-     * Used to validate user existence and ownership checks.
+     * Map of Book IDs to their respective quantities.
+     * Persisted in a separate 'order_items' table.
      */
-    private long userId;
+    @ElementCollection
+    @CollectionTable(name = "order_items", joinColumns = @JoinColumn(name = "order_id"))
+    @MapKeyColumn(name = "book_id")
+    @Column(name = "quantity")
+    private Map<Long, Integer> items;
 
-    /**
-     * List of book identifiers included in the order.
-     */
-    private List<Long> bookId;
-
-    /**
-     * Timestamp when the order was created/placed.
-     * Typically set by the server at order placement time.
-     */
+    @Column(nullable = false)
     private LocalDateTime orderDateTime;
 
-    /**
-     * Total amount charged for the order.
-     */
+    @Column(nullable = false)
     private double orderTotalAmount;
 
-    /**
-     * Current status of the order in its lifecycle.
-     * Possible values: {@link OrderEnum#PENDING}, {@link OrderEnum#SHIPPED}, {@link OrderEnum#DELIVERED}.
-     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private OrderEnum orderStatus;
 
+    @Column(nullable = false)
+    private boolean isDeleted = false; // Flag for soft deletion logic
 }
-

@@ -2,6 +2,7 @@
 package com.book.management.order.dto.requestdto;
 
 import com.book.management.order.enums.OrderEnum;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
@@ -31,14 +32,6 @@ import lombok.Data;
 @Data
 public class UpdateOrderStatusRequestDTO {
 
-    /**
-     * The unique identifier of the order whose status is to be updated.
-     */
-    private long orderId;
-
-    /**
-     * The new status to apply to the order.
-     * Must be a valid enum value from {@link OrderEnum}.
-     */
+    @NotNull(message = "Status cannot be null")
     private OrderEnum orderStatus;
 }

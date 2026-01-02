@@ -5,6 +5,7 @@ import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
 import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -14,10 +15,10 @@ import java.util.List;
 
 /**
  * REST Controller for Order Management.
+ * Migrated to microservice architecture with Feign-based orchestration.
  *
  * @author Rehan Ashraf
- * @version 1.5 (Cleaned for direct service invocation)
- * @since 2024-12-15
+ * @version 2.0
  */
 @RestController
 @RequestMapping("/api/v1/order")
@@ -27,25 +28,18 @@ public class OrderController {
 
     private final OrderService orderService;
 
-
     /**
-     * Places a new order. The service layer handles all external calls.
+     * Places a new order.
+     * Uses @Valid to ensure the DTO meets size and null constraints.
      */
     @PostMapping("/place")
-    public ResponseEntity<OrderResponseDTO> placeOrder(@RequestBody PlaceOrderRequestDTO request) {
-        log.info("Received place order request: userId={}, items={}",
-                request.getUserId(),
-                request.getBookOrder() == null ? 0 : request.getBookOrder().size());
+    public ResponseEntity<OrderResponseDTO> placeOrder(@Valid @RequestBody PlaceOrderRequestDTO request) {
+        log.info("Received place order request for userId={}", request.getUserId());
 
-        // Call the service directly. Exceptions are handled globally.
-        OrderResponseDTO order = orderService.placeOrder(request);
+        OrderResponseDTO response = orderService.placeOrder(request);
 
-        log.info("Order placed successfully: orderId={}, userId={}", order.getOrderId(), order.getUserId());
-
-        // Returns status CREATED (201)
-        return new ResponseEntity<>(order, HttpStatus.CREATED);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
-
     /**
      * Fetch all orders.
      */
@@ -78,9 +72,9 @@ public class OrderController {
     /**
      * Change status of an existing order.
      */
-    @PatchMapping("/change/status")
-    public ResponseEntity<OrderResponseDTO> changeOrderStatus(@RequestBody UpdateOrderStatusRequestDTO request) {
-        OrderResponseDTO updated = orderService.changeOrderStatus(request.getOrderId(), request);
+    @PatchMapping("/update/{orderId}")
+    public ResponseEntity<OrderResponseDTO> changeOrderStatus(@PathVariable long orderId,@Valid @RequestBody UpdateOrderStatusRequestDTO request) {
+        OrderResponseDTO updated = orderService.changeOrderStatus(orderId, request);
         return ResponseEntity.ok(updated);
     }
 

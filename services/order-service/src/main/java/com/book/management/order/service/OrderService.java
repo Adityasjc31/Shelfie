@@ -1,87 +1,87 @@
 package com.book.management.order.service;
 
-import com.book.management.book.exception.BookNotFoundException;
-import com.book.management.inventory.exception.InsufficientStockException;
 import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
 import com.book.management.order.enums.OrderEnum;
-import com.book.management.order.exception.OrderCancellationNotAllowedException;
-import com.book.management.order.exception.OrderInvalidStatusTransitionException;
-import com.book.management.order.exception.OrderNotFoundException;
-import com.book.management.order.exception.OrderNotPlacedException;
-// Note: We are assuming BookNotFoundException and InsufficientStockException
-// are thrown by the implementation layer, but we don't declare them here
-// unless they are specific to the Order service contract.
-// We declare OrderNotPlacedException as the final failure state.
+import com.book.management.order.exception.*;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Defines the contract for Order Management services.
- * All order-related business logic and orchestration are handled here.
+ * Defines the contract for Order Management services in a microservice architecture.
+ * This service orchestrates the order lifecycle, including placement, status management,
+ * and synchronization with external service deletion events.
  *
  * @author Rehan Ashraf
- * @version 1.5 (Updated placeOrder signature)
- * @since 2024-12-15
+ * @version 2.0 (Microservice Migration)
+ * @since 2024-12-08
  */
 public interface OrderService {
 
     /**
-     * Places a new order. The service handles fetching prices, checking stock,
-     * persisting the order, and reducing inventory internally.
+     * Orchestrates the placement of a new order.
+     * Communicates with Book Service for pricing and Inventory Service for stock reduction.
      *
-     * @param request The DTO containing userId and bookOrder map.
-     * @return The response DTO of the newly created order.
-     * @throws OrderNotPlacedException if the order fails at the persistence or stock reduction stage.
-     * @throws IllegalArgumentException for validation errors (like null request or empty book list).
-     * @throws BookNotFoundException if prices cannot be retrieved for requested items.
-     * @throws InsufficientStockException if stock checks fail.
+     * @param request The DTO containing the user ID and the map of book IDs to quantities.
+     * @return OrderResponseDTO containing the details of the successfully created order.
+     * @throws OrderNotPlacedException if stock reduction fails or downstream services are unreachable.
      */
-    OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException, IllegalArgumentException;
+    OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) throws OrderNotPlacedException;
 
     /**
-     * Retrieves all existing orders.
+     * Retrieves all active (non-deleted) orders currently stored in the system.
      *
-     * @return A list of all order response DTOs.
+     * @return A list of OrderResponseDTOs representing all active orders.
      */
     List<OrderResponseDTO> getOrderAll();
 
     /**
-     * Retrieves an order by its unique ID.
+     * Fetches a specific order by its unique identifier.
      *
-     * @param orderId The unique identifier of the order.
+     * @param orderId The unique primary key of the order in the database.
      * @return An Optional containing the OrderResponseDTO if found, otherwise empty.
      */
     Optional<OrderResponseDTO> getOrderById(long orderId);
 
     /**
-     * Retrieves all orders matching a specific status.
+     * Filters and retrieves orders based on their current lifecycle status.
      *
-     * @param status The status enum to filter by (e.g., PENDING, PLACED).
-     * @return A list of matching order response DTOs.
+     * @param status The OrderEnum value (e.g., PENDING, SHIPPED) to filter by.
+     * @return A list of orders matching the specified status.
      */
     List<OrderResponseDTO> getOrderByStatus(OrderEnum status);
 
     /**
-     * Changes the status of an existing order.
+     * Updates the status of an existing order.
+     * Transitions are typically validated in the implementation layer (e.g., PENDING to SHIPPED).
      *
-     * @param orderId The unique identifier of the order.
-     * @param request The DTO containing the new status.
-     * @return The updated order response DTO.
-     * @throws OrderNotFoundException if the order ID is not found.
-     * @throws OrderInvalidStatusTransitionException if the status change is not allowed by business rules.
+     * @param orderId The unique identifier of the order to be updated.
+     * @param request DTO containing the new target status.
+     * @return The updated OrderResponseDTO.
+     * @throws OrderNotFoundException if the specified orderId does not exist.
      */
     OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request)
-            throws OrderNotFoundException, OrderInvalidStatusTransitionException;
+            throws OrderNotFoundException;
 
     /**
-     * Cancels an existing order.
+     * Cancels an existing order if it has not yet been shipped or delivered.
+     * Performs a soft delete by marking the order as inactive in the database.
      *
      * @param orderId The unique identifier of the order to cancel.
-     * @throws OrderNotFoundException if the order ID is not found.
-     * @throws OrderCancellationNotAllowedException if the order is in a state that cannot be cancelled (e.g., DELIVERED).
+     * @throws OrderNotFoundException if the orderId is invalid.
+     * @throws OrderCancellationNotAllowedException if the order status prohibits cancellation.
      */
     void cancelOrder(long orderId) throws OrderNotFoundException, OrderCancellationNotAllowedException;
+
+    /**
+     * Synchronizes the deletion state of an order with external service events.
+     * Triggered when a User or Book associated with the order is deleted in their respective services.
+     * Sets the 'isDeleted' flag to true without performing status validation.
+     *
+     * @param orderId The unique identifier of the order to be marked as deleted.
+     * @throws OrderNotFoundException if the orderId is not found.
+     */
+    void softDeleteOrder(long orderId) throws OrderNotFoundException;
 }
