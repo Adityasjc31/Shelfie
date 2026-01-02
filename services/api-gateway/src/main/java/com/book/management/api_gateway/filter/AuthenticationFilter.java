@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -138,7 +139,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      * @return Mono<Void>
      */
     private Mono<Void> proceedWithMockUser(ServerWebExchange exchange,
-            org.springframework.cloud.gateway.filter.GatewayFilterChain chain) {
+            GatewayFilterChain chain) {
         AuthenticationProperties.Mock mockConfig = authProperties.getMock();
 
         ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
