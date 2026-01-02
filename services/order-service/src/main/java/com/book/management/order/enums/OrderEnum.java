@@ -32,7 +32,10 @@ public enum OrderEnum {
     SHIPPED(2, "Order has been shipped"),
 
     /** The order has been delivered successfully to the customer. */
-    DELIVERED(3, "Order delivered successfully");
+    DELIVERED(3, "Order delivered successfully"),
+
+    /** The order has been cancelled by the customer or the system. */
+    CANCELLED(4, "Order has been cancelled");
 
     /** Numeric code representing the status. Useful for persistence and integrations. */
     private final int statusCode;

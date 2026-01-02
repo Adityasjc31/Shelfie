@@ -1,39 +1,31 @@
 package com.book.management.order.dto.responsedto;
 
+import lombok.*;
+import java.time.LocalDateTime;
+import java.util.Map;
+
 /**
- * Data Transfer Object for standardized error responses, used by the
- * GlobalOrderExceptionHandler.
+ * Standardized Error Response DTO for the Order Service.
+ * Aggregates standard HTTP error details with specific validation metadata.
+ * * @author Rehan Ashraf
+ * @version 2.1
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ErrorResponseDTO {
 
-    private final int status;
-    private final String message;
-    private final String details;
+    private LocalDateTime timestamp;
+    private int status;
+    private String error;
+    private String message;
+    private String details;
+    private String path;
 
-    /**
-     * @param status The HTTP status code (e.g., 400, 404, 500).
-     * @param message A short, descriptive error message (usually the exception message).
-     * @param details Contextual details about the request or error origin (e.g., request URI).
+    /** * Map of field-specific validation errors.
+     * Key: Field name (e.g., "userId", "bookId")
+     * Value: Validation message (e.g., "must not be null")
      */
-    public ErrorResponseDTO(int status, String message, String details) {
-        this.status = status;
-        this.message = message;
-        this.details = details;
-    }
-
-    // Getters
-    public int getStatus() {
-        return status;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public String getDetails() {
-        return details;
-    }
-
-    // You would typically add Lombok annotations like @Getter and @AllArgsConstructor
-    // or generate toString(), equals(), and hashCode() here.
+    private Map<String, String> validationErrors;
 }
