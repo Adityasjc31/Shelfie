@@ -9,9 +9,9 @@ import com.book.management.inventory.exception.InvalidInventoryOperationExceptio
 import com.book.management.inventory.exception.InventoryAlreadyExistsException;
 import com.book.management.inventory.exception.InventoryNotFoundException;
 
-
 /**
- * Service interface defining business logic operations for Inventory Management.
+ * Service interface defining business logic operations for Inventory
+ * Management.
  * Follows the Interface Segregation Principle (ISP) from SOLID principles.
  *
  * @author Aditya Srivastava
@@ -25,7 +25,8 @@ public interface InventoryService {
      *
      * @param createDTO the inventory creation data
      * @return the created inventory response
-     * @throws InventoryAlreadyExistsException if inventory already exists for the book
+     * @throws InventoryAlreadyExistsException if inventory already exists for the
+     *                                         book
      */
     InventoryResponseDTO createInventory(InventoryCreateDTO createDTO);
 
@@ -58,7 +59,7 @@ public interface InventoryService {
      * Updates the quantity of an inventory record.
      *
      * @param inventoryId the inventory ID
-     * @param updateDTO the update data
+     * @param updateDTO   the update data
      * @return the updated inventory response
      * @throws InventoryNotFoundException if inventory not found
      */
@@ -67,18 +68,19 @@ public interface InventoryService {
     /**
      * Adjusts inventory quantity by a specified amount (increment or decrement).
      *
-     * @param inventoryId the inventory ID
+     * @param inventoryId   the inventory ID
      * @param adjustmentDTO the adjustment data
      * @return the updated inventory response
-     * @throws InventoryNotFoundException if inventory not found
-     * @throws InvalidInventoryOperationException if adjustment would result in negative quantity
+     * @throws InventoryNotFoundException         if inventory not found
+     * @throws InvalidInventoryOperationException if adjustment would result in
+     *                                            negative quantity
      */
     InventoryResponseDTO adjustInventoryQuantity(Long inventoryId, InventoryAdjustmentDTO adjustmentDTO);
 
     /**
      * Reduces inventory quantity for a book purchase.
      *
-     * @param bookId the book ID
+     * @param bookId   the book ID
      * @param quantity the quantity to reduce
      * @return the updated inventory response
      * @throws InventoryNotFoundException if inventory not found
@@ -89,7 +91,7 @@ public interface InventoryService {
     /**
      * Increases inventory quantity for a book restock.
      *
-     * @param bookId the book ID
+     * @param bookId   the book ID
      * @param quantity the quantity to add
      * @return the updated inventory response
      * @throws InventoryNotFoundException if inventory not found
@@ -99,7 +101,7 @@ public interface InventoryService {
     /**
      * Checks if a book is available in sufficient quantity.
      *
-     * @param bookId the book ID
+     * @param bookId   the book ID
      * @param quantity the required quantity
      * @return true if available, false otherwise
      */
@@ -129,7 +131,7 @@ public interface InventoryService {
     /**
      * Updates the low stock threshold for an inventory record.
      *
-     * @param inventoryId the inventory ID
+     * @param inventoryId  the inventory ID
      * @param newThreshold the new threshold value
      * @return the updated inventory response
      * @throws InventoryNotFoundException if inventory not found
@@ -143,6 +145,14 @@ public interface InventoryService {
      * @throws InventoryNotFoundException if inventory not found
      */
     void deleteInventory(Long inventoryId);
+
+    /**
+     * Deletes an inventory record by book ID.
+     *
+     * @param bookId the book ID
+     * @throws InventoryNotFoundException if inventory not found for the book
+     */
+    void deleteInventoryByBookId(Long bookId);
 
     /**
      * Checks stock availability for multiple books.
