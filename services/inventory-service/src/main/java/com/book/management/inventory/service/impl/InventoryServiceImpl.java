@@ -1,4 +1,5 @@
 package com.book.management.inventory.service.impl;
+
 import com.book.management.inventory.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,8 @@ import java.util.stream.Collectors;
 /**
  * Implementation of InventoryService interface.
  * Handles all business logic for inventory management operations.
- * Follows Single Responsibility Principle (SRP) and Dependency Inversion Principle (DIP).
+ * Follows Single Responsibility Principle (SRP) and Dependency Inversion
+ * Principle (DIP).
  *
  * @author Aditya Srivastava
  * @version 2.0
@@ -29,17 +31,16 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-//@Transactional
+// @Transactional
 public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryRepository inventoryRepository;
-    
+
     @Override
     public InventoryResponseDTO createInventory(InventoryCreateDTO createDTO) {
         Long bookId = createDTO.getBookId();
         log.info("Creating inventory for book ID: {}", bookId);
 
-        
         if (inventoryRepository.existsByBookId(bookId)) {
             log.error("Inventory already exists for book ID: {}", bookId);
             throw new InventoryAlreadyExistsException(bookId);
@@ -48,8 +49,7 @@ public class InventoryServiceImpl implements InventoryService {
         Inventory inventory = Inventory.builder()
                 .bookId(bookId)
                 .quantity(createDTO.getQuantity())
-                .lowStockThreshold(createDTO.getLowStockThreshold() != null ?
-                        createDTO.getLowStockThreshold() : 10)
+                .lowStockThreshold(createDTO.getLowStockThreshold() != null ? createDTO.getLowStockThreshold() : 10)
                 .build();
 
         Inventory savedInventory = inventoryRepository.save(inventory);
@@ -60,7 +60,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public InventoryResponseDTO getInventoryById(Long inventoryId) {
         log.info("Fetching inventory by ID: {}", inventoryId);
 
@@ -75,7 +75,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public InventoryResponseDTO getInventoryByBookId(Long bookId) {
         log.info("Fetching inventory by book ID: {}", bookId);
 
@@ -90,7 +90,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public List<InventoryResponseDTO> getAllInventory() {
         log.info("Fetching all inventory records");
 
@@ -194,7 +194,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public boolean checkAvailability(Long bookId, Integer quantity) {
         log.info("Checking availability for book ID: {} with quantity: {}", bookId, quantity);
 
@@ -208,7 +208,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public List<LowStockAlertDTO> getLowStockItems() {
         log.info("Fetching low stock items");
 
@@ -221,7 +221,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public List<InventoryResponseDTO> getOutOfStockItems() {
         log.info("Fetching out-of-stock items");
 
@@ -234,7 +234,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-//    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true)
     public List<InventoryResponseDTO> getInStockItems() {
         log.info("Fetching in-stock items");
 
@@ -275,6 +275,20 @@ public class InventoryServiceImpl implements InventoryService {
 
         inventoryRepository.deleteById(inventoryId);
         log.info("Successfully deleted inventory with ID: {}", inventoryId);
+    }
+
+    @Override
+    public void deleteInventoryByBookId(Long bookId) {
+        log.info("Deleting inventory for book ID: {}", bookId);
+
+        Inventory inventory = inventoryRepository.findByBookId(bookId)
+                .orElseThrow(() -> {
+                    log.error("Inventory not found for book ID: {}", bookId);
+                    return new InventoryNotFoundException("bookId", bookId);
+                });
+
+        inventoryRepository.delete(inventory);
+        log.info("Successfully deleted inventory for book ID: {}", bookId);
     }
 
     /**
