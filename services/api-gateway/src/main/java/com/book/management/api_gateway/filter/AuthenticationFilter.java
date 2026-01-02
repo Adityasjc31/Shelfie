@@ -65,7 +65,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            ServerHttpRequest request = exchange.getRequest();
+            ServerHttpRequest
+             request = exchange.getRequest();
             String path = request.getPath().toString();
 
             // Skip authentication for public endpoints

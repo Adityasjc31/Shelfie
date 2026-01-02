@@ -1,4 +1,4 @@
-package main.java.com.book.management.review_rating.client.dto;
+package com.book.management.review_rating.client.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-package main.java.com.book.management.review_rating.client.fallback;
+package com.book.management.review_rating.client.fallback;
 
 import com.book.management.review_rating.client.BookServiceClient;
 import com.book.management.review_rating.client.dto.BookRatingUpdateRequest;
