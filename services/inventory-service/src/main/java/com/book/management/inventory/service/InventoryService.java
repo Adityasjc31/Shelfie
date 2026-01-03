@@ -165,10 +165,10 @@ public interface InventoryService {
     /**
      * Reduces inventory for multiple books (bulk deduction).
      * Only deducts if ALL books are available in required quantities.
+     * Throws exception if any book has insufficient stock.
      *
      * @param bookQuantities map of bookId to quantity to deduct
-     * @return map of bookId to success status
      * @throws InsufficientStockException if any book has insufficient stock
      */
-    Map<Long, Boolean> reduceBulkInventory(Map<Long, Integer> bookQuantities);
+    void reduceBulkInventory(Map<Long, Integer> bookQuantities);
 }
