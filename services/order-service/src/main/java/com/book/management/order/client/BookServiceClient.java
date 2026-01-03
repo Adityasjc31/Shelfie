@@ -12,18 +12,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 /**
  * Feign Client for Book Service.
  * Fetches unit prices for the requested books via a typed request DTO.
- *
- * <p><b>Endpoint (via Gateway):</b> POST /api/v1/books/bulk/prices</p>
- *
- * <p><b>Request Body:</b></p>
- * <pre>
+
+ * Endpoint (via Gateway): POST /api/v1/books/bulk/prices
+
+ * Request Body:
  * {
  *   "bookIds": [101, 105, 110]
  * }
- * </pre>
- *
- * <p><b>Response (DTO):</b></p>
- * <pre>
+
+ * Response (DTO):
  * {
  *   "bookPrice": {
  *     "101": 399.0,
@@ -31,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestBody;
  *     "110": 799.0
  *   }
  * }
- * </pre>
  */
 @FeignClient(
         name = "book-service",

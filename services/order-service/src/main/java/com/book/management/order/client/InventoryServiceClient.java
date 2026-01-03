@@ -12,28 +12,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 /**
  * Feign Client for Inventory Service.
  * Reduces stock for multiple books using a typed request DTO.
- *
- * <p><b>Endpoint (via Gateway):</b> PATCH /api/v1/inventory/bulk/reduce</p>
- *
- * <p><b>Request Body:</b></p>
- * <pre>
+ * Endpoint (via Gateway):</b> PATCH /api/v1/inventory/bulk/reduce
+
+ * Request Body:
  * {
  *   "bookQuantities": {
  *     "101": 1,
  *     "105": 2
  *   }
  * }
- * </pre>
- *
- * <p><b>Response (DTO):</b></p>
- * <pre>
+ * Response (DTO):
  * {
  *   "bookStock": {
  *     "101": true,
  *     "105": true
  *   }
  * }
- * </pre>
  */
 @FeignClient(
         name = "inventory-service",
@@ -44,8 +38,7 @@ public interface InventoryServiceClient {
 
     @PatchMapping(
             value = "/bulk/reduce",
-            consumes = MediaType.APPLICATION_JSON_VALUE,
-            produces = MediaType.APPLICATION_JSON_VALUE
+            consumes = MediaType.APPLICATION_JSON_VALUE
     )
-    ReduceInventoryStockResponseDTO reduceStock(@RequestBody ReduceInventoryStockRequestDTO request);
+    void reduceStock(@RequestBody ReduceInventoryStockRequestDTO request);
 }

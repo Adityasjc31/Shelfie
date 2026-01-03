@@ -209,18 +209,18 @@ public class InventoryController {
                                 .build());
         }
 
-        /**
-         * Reduces inventory for multiple books (bulk deduction).
-         * Handles all validation and throws exceptions if any book has insufficient
-         * stock.
-         *
-         * @param bookQuantities map of bookId to quantity to reduce
-         */
-        @PatchMapping("/bulk/reduce")
-        public ResponseEntity<Void> reduceBulkInventory(
-                        @RequestBody Map<Long, Integer> bookQuantities) {
-                inventoryService.reduceBulkInventory(bookQuantities);
-                return ResponseEntity.ok().build();
-        }
+    /**
+     * Reduces inventory for multiple books (bulk deduction).
+     * Handles all validation and throws exceptions if any book has insufficient stock.
+     *
+     * @param request DTO containing map of bookId to quantity to reduce
+     */
+    @PatchMapping("/bulk/reduce")
+    public ResponseEntity<Void> reduceBulkInventory(
+            @RequestBody BulkStockReduceDTO request) {
+        // Pass the internal map from the DTO to the service
+        inventoryService.reduceBulkInventory(request.getBookQuantities());
+        return ResponseEntity.ok().build();
+    }
 
 }

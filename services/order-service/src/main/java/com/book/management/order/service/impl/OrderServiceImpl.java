@@ -51,52 +51,42 @@ public class OrderServiceImpl implements OrderService {
      * * @param request The order placement request details.
      * 
      * @return OrderResponseDTO for the created order.
-     * @throws OrderNotPlacedException only when error occurs in downstream
-     *                                 services.
+     * @throws OrderNotPlacedException only when error occurs in downstream services.
      */
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
+        log.info("Initiating order placement for userId: {}", request.getUserId());
         try {
-            // Collect all bookIds from incoming order
-            List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
+            // 1) Reduce stock (Inventory-service)
+            // Inventory-service validates availability and throws on insufficiency.
+            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to OrderNotPlacedException.
+            inventoryServiceClient.reduceStock(new ReduceInventoryStockRequestDTO(request.getBookOrder()));
 
-            // fetch book prices via Book-service
-            GetBookPriceRequestDTO priceReq = new GetBookPriceRequestDTO(bookIdList);
-            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(priceReq);
+            // 2) Fetch prices (Book-service)
+            // AFTER stock is confirmed reduced fetch prices
+            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to OrderNotPlacedException.
+
+            List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
+            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(new GetBookPriceRequestDTO(bookIdList));
+
             Map<Long, Double> priceMap = priceDTO.getBookPrice();
 
-            // compute order totalAmount
-            double totalAmount = 0.0;
-            for (Map.Entry<Long, Integer> entry : request.getBookOrder().entrySet()) {
-                Long bookId = entry.getKey();
-                Integer quantity = entry.getValue();
+            // 3) Compute total amount (missing price -> 0.0, warn)
+            double totalAmount = request.getBookOrder().entrySet().stream()
+                    .mapToDouble(e -> {
+                        Long bookId = e.getKey();
+                        Integer qty = e.getValue();
+                        Double unitPrice = priceMap.get(bookId);
+                        if (unitPrice == null) {
+                            log.warn("Price not found for bookId={}, defaulting contribution to 0.0", bookId);
+                            return 0.0;
+                        }
+                        return unitPrice * qty;
+                    })
+                    .sum();
 
-                if (priceMap.containsKey(bookId)) {
-                    double price = priceMap.get(bookId) * quantity;
-                    totalAmount += price;
-                } else {
-                    log.warn("Price not found for bookId={}, defaulting contribution to 0.0", bookId);
-                }
-            }
-
-            // Reduce stock via Inventory-service
-            // Inventory-service handles all validation and throws exceptions if
-            // insufficient stock
-            ReduceInventoryStockRequestDTO reduceReq = new ReduceInventoryStockRequestDTO(request.getBookOrder());
-
-            ReduceInventoryStockResponseDTO stockDTO = inventoryServiceClient.reduceStock(reduceReq);
-            Map<Long, Boolean> stockMap = stockDTO.getBookStock();
-
-            // Optional: validate stockMap (ensure all requested items are true)
-            boolean allAvailable = request.getBookOrder().keySet().stream()
-                    .allMatch(id -> Boolean.TRUE.equals(stockMap.get(id)));
-            if (!allAvailable) {
-                log.error("Insufficient stock for one or more items: {}", stockMap);
-                throw new OrderNotPlacedException("Inventory check failed: insufficient stock.");
-            }
-
-            // map and save order
+            // 4) Map and save order
             Order order = Order.builder()
                     .userId(request.getUserId())
                     .items(request.getBookOrder())
@@ -111,16 +101,13 @@ public class OrderServiceImpl implements OrderService {
                     savedOrder.getOrderId(), savedOrder.getUserId(), savedOrder.getOrderTotalAmount());
 
             return toResponseDTO(savedOrder);
-
-        } catch (OrderNotPlacedException ex) {
-            // Rethrowing mapped exception caught by CustomFeignErrorDecoder
-            throw ex;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             log.error("Internal service error during order placement: {}", ex.getMessage(), ex);
             throw new OrderNotPlacedException("Internal system error: Unable to process order.");
         }
-    }
 
+    }
     /**
      * Business logic for cancelling an order.
      * Rule: Can only cancel if PENDING or SHIPPED.
@@ -233,8 +220,7 @@ public class OrderServiceImpl implements OrderService {
      * @param request DTO containing the target status.
      * @return Updated OrderResponseDTO.
      * @throws OrderNotFoundException                if the order doesn't exist.
-     * @throws OrderInvalidStatusTransitionException if the status change is
-     *                                               logically invalid.
+     * @throws OrderInvalidStatusTransitionException if the status change is logically invalid.
      */
     @Override
     @Transactional
