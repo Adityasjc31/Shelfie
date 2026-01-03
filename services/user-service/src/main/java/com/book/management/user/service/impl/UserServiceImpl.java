@@ -1,15 +1,15 @@
 package com.book.management.user.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.book.management.user.dto.*;
 import com.book.management.user.exception.*;
 import com.book.management.user.model.User;
 import com.book.management.user.model.UserRole;
-import com.book.management.user.repository.impl.UserRepository;
+import com.book.management.user.repository.JpaUserRepository;
 import com.book.management.user.service.UserService;
 
 import java.util.List;
@@ -19,43 +19,46 @@ import java.util.stream.Collectors;
  * Implementation of UserService interface.
  * Handles all business logic for user management.
  * 
+ * Uses Spring Data JPA for persistence.
+ * Logging is handled by AOP (LoggingAspect).
+ * 
  * Following Single Responsibility and Dependency Inversion Principles (SOLID).
  * 
  * @author Abdul Ahad
- * @version 1.0
+ * @version 2.0 - Spring Data JPA
  */
 @Service
 @RequiredArgsConstructor
-@Slf4j
+@Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
+    private final JpaUserRepository userRepository;
 
     /**
      * {@inheritDoc}
      */
     @Override
+    @Transactional
     public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
-        log.info("Attempting to register user with email: {}", registrationDTO.getEmail());
-
         // Check if user already exists
-        if (userRepository.existsByEmail(registrationDTO.getEmail())) {
-            log.error("Registration failed - Email already exists: {}", registrationDTO.getEmail());
+        if (userRepository.existsByEmailIgnoreCase(registrationDTO.getEmail())) {
             throw new UserAlreadyExistsException(registrationDTO.getEmail());
         }
+
+        // Parse role from String
+        UserRole role = parseRole(registrationDTO.getRole());
 
         // Create new user entity
         User user = User.builder()
                 .name(registrationDTO.getName())
-                .email(registrationDTO.getEmail())
+                .email(registrationDTO.getEmail().toLowerCase())
                 .password(hashPassword(registrationDTO.getPassword()))
-                .role(registrationDTO.getRole())
+                .role(role)
                 .isActive(true)
                 .build();
 
-        // Save user to repository
+        // Save user to database
         User savedUser = userRepository.save(user);
-        log.info("User registered successfully with ID: {}", savedUser.getUserId());
 
         return mapToResponseDTO(savedUser);
     }
@@ -65,28 +68,20 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserResponseDTO loginUser(UserLoginDTO loginDTO) {
-        log.info("Login attempt for email: {}", loginDTO.getEmail());
-
         // Find user by email
-        User user = userRepository.findByEmail(loginDTO.getEmail())
-                .orElseThrow(() -> {
-                    log.error("Login failed - User not found: {}", loginDTO.getEmail());
-                    return new InvalidCredentialsException();
-                });
+        User user = userRepository.findByEmailIgnoreCase(loginDTO.getEmail())
+                .orElseThrow(InvalidCredentialsException::new);
 
         // Check if user is active
         if (!user.getIsActive()) {
-            log.error("Login failed - User account inactive: {}", loginDTO.getEmail());
             throw new UserInactiveException();
         }
 
         // Verify password
         if (!verifyPassword(loginDTO.getPassword(), user.getPassword())) {
-            log.error("Login failed - Invalid password for: {}", loginDTO.getEmail());
             throw new InvalidCredentialsException();
         }
 
-        log.info("User logged in successfully: {}", user.getUserId());
         return mapToResponseDTO(user);
     }
 
@@ -95,13 +90,8 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserResponseDTO getUserById(Long userId) {
-        log.info("Fetching user with ID: {}", userId);
-
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.error("User not found with ID: {}", userId);
-                    return new UserNotFoundException(userId);
-                });
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         return mapToResponseDTO(user);
     }
@@ -111,13 +101,8 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public UserResponseDTO getUserByEmail(String email) {
-        log.info("Fetching user with email: {}", email);
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    log.error("User not found with email: {}", email);
-                    return new UserNotFoundException("User not found with email: " + email);
-                });
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
 
         return mapToResponseDTO(user);
     }
@@ -127,10 +112,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public List<UserResponseDTO> getAllUsers() {
-        log.info("Fetching all users");
-
         List<User> users = userRepository.findAll();
-        log.info("Retrieved {} users", users.size());
 
         return users.stream()
                 .map(this::mapToResponseDTO)
@@ -142,10 +124,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public List<UserResponseDTO> getUsersByRole(UserRole role) {
-        log.info("Fetching users with role: {}", role);
-
         List<User> users = userRepository.findByRole(role);
-        log.info("Retrieved {} users with role: {}", users.size(), role);
 
         return users.stream()
                 .map(this::mapToResponseDTO)
@@ -156,29 +135,22 @@ public class UserServiceImpl implements UserService {
      * {@inheritDoc}
      */
     @Override
+    @Transactional
     public UserResponseDTO updateUserProfile(Long userId, UserUpdateDTO updateDTO) {
-        log.info("Updating profile for user ID: {}", userId);
-
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.error("Update failed - User not found with ID: {}", userId);
-                    return new UserNotFoundException(userId);
-                });
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         // Update name if provided
         if (updateDTO.getName() != null && !updateDTO.getName().isBlank()) {
             user.setName(updateDTO.getName());
-            log.debug("Updated name for user ID: {}", userId);
         }
 
         // Update password if provided
         if (updateDTO.getPassword() != null && !updateDTO.getPassword().isBlank()) {
             user.setPassword(hashPassword(updateDTO.getPassword()));
-            log.debug("Updated password for user ID: {}", userId);
         }
 
         User updatedUser = userRepository.save(user);
-        log.info("Profile updated successfully for user ID: {}", userId);
 
         return mapToResponseDTO(updatedUser);
     }
@@ -187,52 +159,39 @@ public class UserServiceImpl implements UserService {
      * {@inheritDoc}
      */
     @Override
+    @Transactional
     public void deactivateUser(Long userId) {
-        log.info("Deactivating user with ID: {}", userId);
-
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.error("Deactivation failed - User not found with ID: {}", userId);
-                    return new UserNotFoundException(userId);
-                });
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         user.setIsActive(false);
         userRepository.save(user);
-        log.info("User deactivated successfully: {}", userId);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
+    @Transactional
     public void reactivateUser(Long userId) {
-        log.info("Reactivating user with ID: {}", userId);
-
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.error("Reactivation failed - User not found with ID: {}", userId);
-                    return new UserNotFoundException(userId);
-                });
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         user.setIsActive(true);
         userRepository.save(user);
-        log.info("User reactivated successfully: {}", userId);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
+    @Transactional
     public void deleteUser(Long userId) {
-        log.info("Deleting user with ID: {}", userId);
-
         if (!userRepository.existsById(userId)) {
-            log.error("Deletion failed - User not found with ID: {}", userId);
             throw new UserNotFoundException(userId);
         }
 
         userRepository.deleteById(userId);
-        log.info("User deleted successfully: {}", userId);
     }
 
     /**
@@ -257,7 +216,27 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
+     * Parses a role string to UserRole enum.
+     * 
+     * @param roleStr the role string
+     * @return the UserRole enum value
+     * @throws ValidationException if role is invalid
+     */
+    private UserRole parseRole(String roleStr) {
+        if (roleStr == null || roleStr.isBlank()) {
+            throw new ValidationException("Role is required");
+        }
+
+        try {
+            return UserRole.valueOf(roleStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Invalid role: " + roleStr + ". Valid roles are: CUSTOMER, ADMIN");
+        }
+    }
+
+    /**
      * Maps a User entity to UserResponseDTO.
+     * Role is converted to String for auth-service compatibility.
      * 
      * @param user the user entity
      * @return the user response DTO
@@ -267,7 +246,7 @@ public class UserServiceImpl implements UserService {
                 .userId(user.getUserId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .role(user.getRole())
+                .role(user.getRole().name()) // Convert enum to String
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
