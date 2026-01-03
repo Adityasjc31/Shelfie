@@ -1,5 +1,6 @@
 package com.book.management.authentication.service.impl;
 
+import com.book.management.authentication.client.UserServiceClient;
 import com.book.management.authentication.dto.*;
 import com.book.management.authentication.exception.*;
 import com.book.management.authentication.model.BlacklistedToken;
@@ -10,9 +11,7 @@ import com.book.management.authentication.service.IAuthenticationService;
 import com.book.management.authentication.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -29,7 +28,7 @@ import java.util.UUID;
  * - JWT token generation and validation
  * - Token blacklist for logout
  * - Refresh token rotation
- * - Integration with User Service
+ * - Integration with User Service via FeignClient
  *
  * Storage:
  * - NO sessions stored
@@ -37,7 +36,7 @@ import java.util.UUID;
  * - Refresh tokens for rotation
  *
  * @author Aditya Srivastava
- * @version 1.0 - REST API Compliant
+ * @version 2.0 - FeignClient Integration
  */
 @Service
 @RequiredArgsConstructor
@@ -47,10 +46,7 @@ public class AuthenticationService implements IAuthenticationService {
     private final JwtUtil jwtUtil;
     private final ITokenBlacklistRepository tokenBlacklistRepository;
     private final IRefreshTokenRepository refreshTokenRepository;
-    private final WebClient.Builder webClientBuilder;
-
-    @Value("${user.service.url:lb://user-service}")
-    private String userServiceUrl;
+    private final UserServiceClient userServiceClient;
 
     /**
      * {@inheritDoc}
@@ -59,7 +55,7 @@ public class AuthenticationService implements IAuthenticationService {
     public AuthResponse register(RegisterRequest request) {
         log.info("Processing registration for email: {}", request.getEmail());
 
-        // Call User Service to register user
+        // Build registration DTO
         UserRegistrationDTO userDTO = UserRegistrationDTO.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -68,13 +64,8 @@ public class AuthenticationService implements IAuthenticationService {
                 .build();
 
         try {
-            UserResponseDTO user = webClientBuilder.build()
-                    .post()
-                    .uri(userServiceUrl + "/users/register")
-                    .bodyValue(userDTO)
-                    .retrieve()
-                    .bodyToMono(UserResponseDTO.class)
-                    .block();
+            // Call User Service via FeignClient
+            UserResponseDTO user = userServiceClient.registerUser(userDTO);
 
             if (user == null) {
                 throw new AuthenticationException("User registration failed");
@@ -85,6 +76,9 @@ public class AuthenticationService implements IAuthenticationService {
             // Generate JWT tokens (no session created)
             return generateAuthResponse(user);
 
+        } catch (UserServiceException e) {
+            log.error("User service unavailable during registration: {}", e.getMessage());
+            throw new AuthenticationException("Registration failed: " + e.getMessage());
         } catch (Exception e) {
             log.error("Registration failed: {}", e.getMessage());
             throw new AuthenticationException("Registration failed: " + e.getMessage());
@@ -98,20 +92,15 @@ public class AuthenticationService implements IAuthenticationService {
     public AuthResponse login(LoginRequest request) {
         log.info("Processing login for email: {}", request.getEmail());
 
-        // Call User Service to authenticate
+        // Build login DTO
         UserLoginDTO loginDTO = UserLoginDTO.builder()
                 .email(request.getEmail())
                 .password(request.getPassword())
                 .build();
 
         try {
-            UserResponseDTO user = webClientBuilder.build()
-                    .post()
-                    .uri(userServiceUrl + "/users/login")
-                    .bodyValue(loginDTO)
-                    .retrieve()
-                    .bodyToMono(UserResponseDTO.class)
-                    .block();
+            // Call User Service via FeignClient
+            UserResponseDTO user = userServiceClient.loginUser(loginDTO);
 
             if (user == null) {
                 throw new InvalidCredentialsException();
@@ -122,6 +111,9 @@ public class AuthenticationService implements IAuthenticationService {
             // Generate JWT tokens (stateless - no session)
             return generateAuthResponse(user);
 
+        } catch (UserServiceException e) {
+            log.error("User service unavailable during login: {}", e.getMessage());
+            throw new AuthenticationException("Login failed: User service unavailable");
         } catch (Exception e) {
             log.error("Login failed: {}", e.getMessage());
             throw new InvalidCredentialsException();
@@ -211,7 +203,7 @@ public class AuthenticationService implements IAuthenticationService {
             storedToken.setUsedAt(LocalDateTime.now());
             refreshTokenRepository.save(storedToken);
 
-            // 5. Get user details
+            // 5. Get user details via FeignClient
             String userId = jwtUtil.extractUserId(refreshTokenStr);
             UserResponseDTO user = getUserById(userId);
 
@@ -219,6 +211,8 @@ public class AuthenticationService implements IAuthenticationService {
             log.info("Token refreshed successfully for user: {}", userId);
             return generateAuthResponse(user);
 
+        } catch (InvalidTokenException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Token refresh failed: {}", e.getMessage());
             throw new InvalidTokenException("Token refresh failed: " + e.getMessage());
@@ -304,7 +298,7 @@ public class AuthenticationService implements IAuthenticationService {
     private AuthResponse generateAuthResponse(UserResponseDTO user) {
         String userId = user.getUserId().toString();
         String email = user.getEmail();
-        List<String> roles = Arrays.asList(user.getRole().toString());
+        List<String> roles = Arrays.asList(user.getRole());
 
         // Generate JWT tokens
         String accessToken = jwtUtil.generateToken(userId, email, roles);
@@ -349,50 +343,14 @@ public class AuthenticationService implements IAuthenticationService {
     }
 
     /**
-     * Gets user details from User Service.
+     * Gets user details from User Service via FeignClient.
      */
     private UserResponseDTO getUserById(String userId) {
-        return webClientBuilder.build()
-                .get()
-                .uri(userServiceUrl + "/users/" + userId)
-                .retrieve()
-                .bodyToMono(UserResponseDTO.class)
-                .block();
-    }
-
-    // ==========================================
-    // DTOs for User Service Communication
-    // ==========================================
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    private static class UserRegistrationDTO {
-        private String name;
-        private String email;
-        private String password;
-        private String role;
-    }
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    private static class UserLoginDTO {
-        private String email;
-        private String password;
-    }
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    private static class UserResponseDTO {
-        private Long userId;
-        private String name;
-        private String email;
-        private Object role;
-        private Boolean isActive;
+        try {
+            return userServiceClient.getUserById(Long.parseLong(userId));
+        } catch (UserServiceException e) {
+            log.error("Failed to get user from User Service: {}", e.getMessage());
+            throw new AuthenticationException("Failed to retrieve user details");
+        }
     }
 }

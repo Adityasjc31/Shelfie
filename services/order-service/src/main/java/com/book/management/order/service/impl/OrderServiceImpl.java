@@ -42,10 +42,13 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Orchestrates order placement.
-     * Exception handling is driven by the FeignErrorDecoder for inter-service errors.
+     * Exception handling is driven by the FeignErrorDecoder for inter-service
+     * errors.
      * * @param request The order placement request details.
+     * 
      * @return OrderResponseDTO for the created order.
-     * @throws OrderNotPlacedException only when error occurs in downstream services.
+     * @throws OrderNotPlacedException only when error occurs in downstream
+     *                                 services.
      */
     @Override
     @Transactional
@@ -68,7 +71,9 @@ public class OrderServiceImpl implements OrderService {
                 }
             }
 
-            // update stock via Inventory Service
+            // Reduce stock via Inventory Service
+            // Inventory service handles all validation and throws exceptions if
+            // insufficient stock
             inventoryServiceClient.reduceStock(request.getBookOrder());
 
             // map and save order
@@ -99,7 +104,8 @@ public class OrderServiceImpl implements OrderService {
      * Rule: Can only cancel if PENDING or SHIPPED.
      * Cannot cancel if DELIVERED or already CANCELLED.
      * * @param orderId ID of the order to cancel.
-     * @throws OrderNotFoundException if order does not exist.
+     * 
+     * @throws OrderNotFoundException               if order does not exist.
      * @throws OrderCancellationNotAllowedException if status is final.
      */
     @Override
@@ -113,7 +119,8 @@ public class OrderServiceImpl implements OrderService {
         // Logic check: Deny if Delivered or already Cancelled
         if (order.getOrderStatus() == OrderEnum.DELIVERED || order.getOrderStatus() == OrderEnum.CANCELLED) {
             log.warn("Cancellation rejected. Order {} status is {}", orderId, order.getOrderStatus());
-            throw new OrderCancellationNotAllowedException("Cannot cancel an order that is already " + order.getOrderStatus());
+            throw new OrderCancellationNotAllowedException(
+                    "Cannot cancel an order that is already " + order.getOrderStatus());
         }
 
         // Logic check: Allow only if Pending or Shipped
@@ -128,6 +135,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Administrative soft delete. Marks the isDeleted flag as true in MySQL.
      * * @param orderId ID of the order to delete.
+     * 
      * @throws OrderNotFoundException if order does not exist.
      */
     @Override
@@ -146,6 +154,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Retrieves all active orders from the database.
      * * @return List of OrderResponseDTO.
+     * 
      * @throws OrderNotFoundException if no orders exist in the system.
      */
     @Override
@@ -167,6 +176,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Retrieves a specific order by its ID.
      * * @param orderId The ID of the order to find.
+     * 
      * @return Optional containing OrderResponseDTO.
      * @throws OrderNotFoundException if the ID does not exist.
      */
@@ -183,6 +193,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Retrieves orders filtered by their current status.
      * * @param status The OrderEnum status to filter by.
+     * 
      * @return List of OrderResponseDTO.
      * @throws OrderNotFoundException if no orders match the given status.
      */
@@ -205,10 +216,12 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Updates an order's status after validating the transition logic.
      * * @param orderId ID of the order to update.
+     * 
      * @param request DTO containing the target status.
      * @return Updated OrderResponseDTO.
-     * @throws OrderNotFoundException if the order doesn't exist.
-     * @throws OrderInvalidStatusTransitionException if the status change is logically invalid.
+     * @throws OrderNotFoundException                if the order doesn't exist.
+     * @throws OrderInvalidStatusTransitionException if the status change is
+     *                                               logically invalid.
      */
     @Override
     @Transactional
@@ -221,8 +234,7 @@ public class OrderServiceImpl implements OrderService {
         // Business Logic: Prevent updates if order is already CANCELLED or DELIVERED
         if (order.getOrderStatus() == OrderEnum.CANCELLED || order.getOrderStatus() == OrderEnum.DELIVERED) {
             throw new OrderInvalidStatusTransitionException(
-                    "Cannot change status. Order is already in a final state: " + order.getOrderStatus()
-            );
+                    "Cannot change status. Order is already in a final state: " + order.getOrderStatus());
         }
 
         order.setOrderStatus(request.getOrderStatus());
@@ -233,6 +245,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Helper method to map Order Entity to OrderResponseDTO.
      * * @param order The source entity.
+     * 
      * @return Mapped Response DTO.
      */
     private OrderResponseDTO toResponseDTO(Order order) {

@@ -96,46 +96,6 @@ public class InventoryController {
         }
 
         /**
-         * Updates inventory quantity.
-         *
-         * @param inventoryId the inventory ID
-         * @param updateDTO   the update data
-         * @return ResponseEntity with updated inventory and HTTP 200 status
-         */
-        @PutMapping("/{inventoryId}/quantity")
-        public ResponseEntity<InventoryResponseDTO> updateInventoryQuantity(
-                        @PathVariable Long inventoryId,
-                        @Valid @RequestBody InventoryUpdateDTO updateDTO) {
-                log.info("PUT /api/v1/inventory/{}/quantity - Updating quantity to {}",
-                                inventoryId, updateDTO.getQuantity());
-
-                InventoryResponseDTO response = inventoryService.updateInventoryQuantity(inventoryId, updateDTO);
-
-                log.info("Successfully updated inventory ID: {} quantity", inventoryId);
-                return ResponseEntity.ok(response);
-        }
-
-        /**
-         * Adjusts inventory quantity by a specified amount.
-         *
-         * @param inventoryId   the inventory ID
-         * @param adjustmentDTO the adjustment data
-         * @return ResponseEntity with updated inventory and HTTP 200 status
-         */
-        @PatchMapping("/{inventoryId}/adjust")
-        public ResponseEntity<InventoryResponseDTO> adjustInventoryQuantity(
-                        @PathVariable Long inventoryId,
-                        @Valid @RequestBody InventoryAdjustmentDTO adjustmentDTO) {
-                log.info("PATCH /api/v1/inventory/{}/adjust - Adjusting by {} units",
-                                inventoryId, adjustmentDTO.getAdjustmentQuantity());
-
-                InventoryResponseDTO response = inventoryService.adjustInventoryQuantity(inventoryId, adjustmentDTO);
-
-                log.info("Successfully adjusted inventory ID: {}", inventoryId);
-                return ResponseEntity.ok(response);
-        }
-
-        /**
          * Reduces inventory for a book purchase.
          *
          * @param bookId   the book ID
@@ -324,34 +284,25 @@ public class InventoryController {
         }
 
         /**
+         * /**
          * Reduces inventory for multiple books (bulk deduction).
+         * Handles all validation and throws exceptions if any book has insufficient
+         * stock.
          *
-         * @param checkDTO the bulk stock deduction data
-         * @return ResponseEntity with deduction results and HTTP 200 status
+         * @param bookQuantities map of bookId to quantity to reduce
          */
-        @PostMapping("/bulk/reduce")
-        public ResponseEntity<BulkStockCheckResponseDTO> reduceBulkInventory(
-                        @Valid @RequestBody BulkStockCheckDTO checkDTO) {
+        @PatchMapping("/bulk/reduce")
+        public ResponseEntity<Void> reduceBulkInventory(
+                        @RequestBody Map<Long, Integer> bookQuantities) {
                 log.info("POST /api/v1/inventory/bulk/reduce - Reducing inventory for {} books",
-                                checkDTO.getBookQuantities().size());
+                                bookQuantities.size());
 
-                Map<Long, Boolean> deductionResults = inventoryService.reduceBulkInventory(
-                                checkDTO.getBookQuantities());
+                // Inventory service handles all validation and throws exceptions if
+                // insufficient stock
+                inventoryService.reduceBulkInventory(bookQuantities);
 
-                boolean allSuccessful = deductionResults.values().stream()
-                                .allMatch(Boolean::booleanValue);
-
-                String message = allSuccessful ? "All inventory reductions successful"
-                                : "Some inventory reductions failed";
-
-                BulkStockCheckResponseDTO response = BulkStockCheckResponseDTO.builder()
-                                .availabilityMap(deductionResults)
-                                .allAvailable(allSuccessful)
-                                .message(message)
-                                .build();
-
-                log.info("Bulk inventory reduction completed. All successful: {}", allSuccessful);
-                return ResponseEntity.ok(response);
+                log.info("Bulk inventory reduction completed successfully");
+                return ResponseEntity.ok().build();
         }
 
 }

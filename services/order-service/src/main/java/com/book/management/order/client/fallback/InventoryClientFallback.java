@@ -9,8 +9,10 @@ import java.util.Map;
 
 /**
  * Fallback implementation for InventoryClient.
- * This class is triggered when the Inventory Service is down or responding too slowly.
- * * @author Rehan Ashraf
+ * This class is triggered when the Inventory Service is down or responding too
+ * slowly.
+ *
+ * @author Rehan Ashraf
  * @version 1.0
  */
 @Component
@@ -23,10 +25,11 @@ public class InventoryClientFallback implements InventoryServiceClient {
      * we throw a specific exception to stop the order process.
      */
     @Override
-    public void reduceStock(Map<Long, Integer> items) {
-        log.error("CRITICAL: Inventory Service is unreachable. Stock reduction failed for items: {}", items);
+    public void reduceStock(Map<Long, Integer> bookQuantities) {
+        log.error("CRITICAL: Inventory Service is unreachable. Stock reduction failed for items: {}", bookQuantities);
 
-        // In a real-world scenario, you don't want to place an order if you can't confirm stock reduction.
+        // In a real-world scenario, you don't want to place an order if you can't
+        // confirm stock reduction.
         throw new OrderNotPlacedException("Inventory Service is temporarily unavailable. Please try again later.");
     }
 }

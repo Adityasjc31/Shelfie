@@ -352,7 +352,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    public Map<Long, Boolean> reduceBulkInventory(Map<Long, Integer> bookQuantities) {
+    public void reduceBulkInventory(Map<Long, Integer> bookQuantities) {
         log.info("Reducing bulk inventory for {} books", bookQuantities.size());
 
         // First, check if all books are available
@@ -372,23 +372,13 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         // All available - proceed with deduction
-        Map<Long, Boolean> deductionResults = new HashMap<>();
-
         for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
             Long bookId = entry.getKey();
             Integer quantity = entry.getValue();
-
-            try {
-                reduceInventory(bookId, quantity);
-                deductionResults.put(bookId, true);
-                log.debug("Successfully reduced {} units for book ID: {}", quantity, bookId);
-            } catch (Exception e) {
-                log.error("Failed to reduce inventory for book ID: {}", bookId, e);
-                deductionResults.put(bookId, false);
-            }
+            reduceInventory(bookId, quantity);
+            log.debug("Successfully reduced {} units for book ID: {}", quantity, bookId);
         }
 
-        log.info("Bulk inventory reduction completed. Results: {}", deductionResults);
-        return deductionResults;
+        log.info("Bulk inventory reduction completed successfully for {} books", bookQuantities.size());
     }
 }
