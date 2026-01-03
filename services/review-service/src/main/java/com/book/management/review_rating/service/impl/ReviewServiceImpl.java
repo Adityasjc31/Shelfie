@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
  * 2. Approve/Delete Review: Updates book rating in Book Service
  * 
  * @author Aditya Srivastava
- * @version 3.0 
+ * @version 3.0
  * @since 2026-01-01
  */
 @Service
@@ -82,7 +82,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .build();
 
         Review savedReview = reviewRepository.save(review);
-        log.info("Created review with ID: {} for book ID: {} by user ID: {}",
+        log.info("Created new review ID: {} for book ID: {} by user ID: {}",
                 savedReview.getReviewId(), savedReview.getBookId(), savedReview.getUserId());
 
         return mapToResponseDTO(savedReview);
@@ -105,7 +105,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDTO> getAllReviews() {
         return reviewRepository.findAll().stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -113,7 +113,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDTO> getReviewsByBookId(Long bookId) {
         return reviewRepository.findByBookId(bookId).stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -121,7 +121,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDTO> getApprovedReviewsByBookId(Long bookId) {
         return reviewRepository.findByBookIdAndStatus(bookId, ReviewStatus.APPROVED).stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -129,7 +129,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDTO> getReviewsByUserId(Long userId) {
         return reviewRepository.findByUserId(userId).stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -137,7 +137,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDTO> getReviewsByStatus(ReviewStatus status) {
         return reviewRepository.findByStatus(status).stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -145,7 +145,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponseDTO> getPendingReviews() {
         return reviewRepository.findPendingReviews().stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -156,7 +156,7 @@ public class ReviewServiceImpl implements ReviewService {
         }
         return reviewRepository.findByRating(rating).stream()
                 .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // ============================================================================
@@ -181,10 +181,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setComment(updateDTO.getComment());
         review.setStatus(ReviewStatus.PENDING);
 
-        Review updatedReview = reviewRepository.save(review);
-        log.info("Updated review with ID: {}", reviewId);
-
-        return mapToResponseDTO(updatedReview);
+        return mapToResponseDTO(reviewRepository.save(review));
     }
 
     @Override
@@ -211,7 +208,7 @@ public class ReviewServiceImpl implements ReviewService {
             updateBookServiceRating(moderatedReview.getBookId());
         }
 
-        log.info("Moderated review with ID: {} - Status: {}", reviewId, moderationDTO.getStatus());
+        log.info("Moderated review ID: {} to status: {}", reviewId, moderationDTO.getStatus());
         return mapToResponseDTO(moderatedReview);
     }
 
@@ -229,7 +226,7 @@ public class ReviewServiceImpl implements ReviewService {
         // Update book rating in Book Service
         updateBookServiceRating(approvedReview.getBookId());
 
-        log.info("Approved review with ID: {} by moderator: {}", reviewId, moderatorId);
+        log.info("Approved review ID: {} by moderator: {}", reviewId, moderatorId);
         return mapToResponseDTO(approvedReview);
     }
 
@@ -247,7 +244,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setRejectionReason(reason);
 
         Review rejectedReview = reviewRepository.save(review);
-        log.info("Rejected review with ID: {} by moderator: {}. Reason: {}",
+        log.info("Rejected review ID: {} by moderator: {}. Reason: {}",
                 reviewId, moderatorId, reason);
 
         return mapToResponseDTO(rejectedReview);
@@ -259,10 +256,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
         review.setHelpfulCount(review.getHelpfulCount() + 1);
-        Review updatedReview = reviewRepository.save(review);
-
-        log.info("Marked review {} as helpful. New count: {}", reviewId, updatedReview.getHelpfulCount());
-        return mapToResponseDTO(updatedReview);
+        return mapToResponseDTO(reviewRepository.save(review));
     }
 
     // ============================================================================
@@ -333,8 +327,6 @@ public class ReviewServiceImpl implements ReviewService {
 
         // Update book rating after deletion
         updateBookServiceRating(bookId);
-
-        log.info("Deleted review with ID: {} by user: {}", reviewId, userId);
     }
 
     @Override
@@ -350,8 +342,6 @@ public class ReviewServiceImpl implements ReviewService {
 
         // Update book rating after deletion
         updateBookServiceRating(bookId);
-
-        log.info("Admin deleted review with ID: {}", reviewId);
     }
 
     // ============================================================================

@@ -1,8 +1,6 @@
 package com.book.management.review_rating.controller;
 
-
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +15,7 @@ import java.util.List;
 /**
  * REST Controller for Review Management operations.
  * Exposes endpoints for managing book reviews, ratings, and moderation.
+ * Logging is handled automatically by LoggingAspect.
  * 
  * @author Aditya Srivastava
  * @version 1.0
@@ -25,7 +24,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/reviews")
 @RequiredArgsConstructor
-@Slf4j
 public class ReviewController {
 
     private final ReviewService reviewService;
@@ -39,13 +37,8 @@ public class ReviewController {
     @PostMapping
     public ResponseEntity<ReviewResponseDTO> createReview(
             @Valid @RequestBody ReviewCreateDTO createDTO) {
-        log.info("POST /api/v1/reviews - Creating review for book ID: {} by user ID: {}", 
-                createDTO.getBookId(), createDTO.getUserId());
-        
-        ReviewResponseDTO response = reviewService.createReview(createDTO);
-        
-        log.info("Successfully created review with ID: {}", response.getReviewId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(reviewService.createReview(createDTO));
     }
 
     /**
@@ -56,12 +49,7 @@ public class ReviewController {
      */
     @GetMapping("/{reviewId}")
     public ResponseEntity<ReviewResponseDTO> getReviewById(@PathVariable Long reviewId) {
-        log.info("GET /api/v1/reviews/{} - Fetching review", reviewId);
-        
-        ReviewResponseDTO response = reviewService.getReviewById(reviewId);
-        
-        log.info("Successfully retrieved review with ID: {}", reviewId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getReviewById(reviewId));
     }
 
     /**
@@ -71,12 +59,7 @@ public class ReviewController {
      */
     @GetMapping
     public ResponseEntity<List<ReviewResponseDTO>> getAllReviews() {
-        log.info("GET /api/v1/reviews - Fetching all reviews");
-        
-        List<ReviewResponseDTO> response = reviewService.getAllReviews();
-        
-        log.info("Successfully retrieved {} reviews", response.size());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getAllReviews());
     }
 
     /**
@@ -87,12 +70,7 @@ public class ReviewController {
      */
     @GetMapping("/book/{bookId}")
     public ResponseEntity<List<ReviewResponseDTO>> getReviewsByBookId(@PathVariable Long bookId) {
-        log.info("GET /api/v1/reviews/book/{} - Fetching reviews for book", bookId);
-        
-        List<ReviewResponseDTO> response = reviewService.getReviewsByBookId(bookId);
-        
-        log.info("Successfully retrieved {} reviews for book ID: {}", response.size(), bookId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getReviewsByBookId(bookId));
     }
 
     /**
@@ -104,13 +82,7 @@ public class ReviewController {
     @GetMapping("/book/{bookId}/approved")
     public ResponseEntity<List<ReviewResponseDTO>> getApprovedReviewsByBookId(
             @PathVariable Long bookId) {
-        log.info("GET /api/v1/reviews/book/{}/approved - Fetching approved reviews", bookId);
-        
-        List<ReviewResponseDTO> response = reviewService.getApprovedReviewsByBookId(bookId);
-        
-        log.info("Successfully retrieved {} approved reviews for book ID: {}", 
-                response.size(), bookId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getApprovedReviewsByBookId(bookId));
     }
 
     /**
@@ -121,12 +93,7 @@ public class ReviewController {
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<ReviewResponseDTO>> getReviewsByUserId(@PathVariable Long userId) {
-        log.info("GET /api/v1/reviews/user/{} - Fetching reviews by user", userId);
-        
-        List<ReviewResponseDTO> response = reviewService.getReviewsByUserId(userId);
-        
-        log.info("Successfully retrieved {} reviews by user ID: {}", response.size(), userId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getReviewsByUserId(userId));
     }
 
     /**
@@ -138,12 +105,7 @@ public class ReviewController {
     @GetMapping("/status/{status}")
     public ResponseEntity<List<ReviewResponseDTO>> getReviewsByStatus(
             @PathVariable ReviewStatus status) {
-        log.info("GET /api/v1/reviews/status/{} - Fetching reviews by status", status);
-        
-        List<ReviewResponseDTO> response = reviewService.getReviewsByStatus(status);
-        
-        log.info("Successfully retrieved {} reviews with status: {}", response.size(), status);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getReviewsByStatus(status));
     }
 
     /**
@@ -153,12 +115,7 @@ public class ReviewController {
      */
     @GetMapping("/pending")
     public ResponseEntity<List<ReviewResponseDTO>> getPendingReviews() {
-        log.info("GET /api/v1/reviews/pending - Fetching pending reviews");
-        
-        List<ReviewResponseDTO> response = reviewService.getPendingReviews();
-        
-        log.info("Successfully retrieved {} pending reviews", response.size());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getPendingReviews());
     }
 
     /**
@@ -169,19 +126,14 @@ public class ReviewController {
      */
     @GetMapping("/rating/{rating}")
     public ResponseEntity<List<ReviewResponseDTO>> getReviewsByRating(@PathVariable Integer rating) {
-        log.info("GET /api/v1/reviews/rating/{} - Fetching reviews by rating", rating);
-        
-        List<ReviewResponseDTO> response = reviewService.getReviewsByRating(rating);
-        
-        log.info("Successfully retrieved {} reviews with rating: {}", response.size(), rating);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getReviewsByRating(rating));
     }
 
     /**
      * Updates a review.
      * 
-     * @param reviewId the review ID
-     * @param userId the user ID attempting the update
+     * @param reviewId  the review ID
+     * @param userId    the user ID attempting the update
      * @param updateDTO the update data
      * @return ResponseEntity with updated review and HTTP 200 status
      */
@@ -190,18 +142,13 @@ public class ReviewController {
             @PathVariable Long reviewId,
             @RequestParam Long userId,
             @Valid @RequestBody ReviewUpdateDTO updateDTO) {
-        log.info("PUT /api/v1/reviews/{} - Updating review by user ID: {}", reviewId, userId);
-        
-        ReviewResponseDTO response = reviewService.updateReview(reviewId, userId, updateDTO);
-        
-        log.info("Successfully updated review ID: {}", reviewId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.updateReview(reviewId, userId, updateDTO));
     }
 
     /**
      * Moderates a review (approve or reject).
      * 
-     * @param reviewId the review ID
+     * @param reviewId      the review ID
      * @param moderationDTO the moderation data
      * @return ResponseEntity with moderated review and HTTP 200 status
      */
@@ -209,19 +156,13 @@ public class ReviewController {
     public ResponseEntity<ReviewResponseDTO> moderateReview(
             @PathVariable Long reviewId,
             @Valid @RequestBody ReviewModerationDTO moderationDTO) {
-        log.info("PATCH /api/v1/reviews/{}/moderate - Moderating review to status: {}", 
-                reviewId, moderationDTO.getStatus());
-        
-        ReviewResponseDTO response = reviewService.moderateReview(reviewId, moderationDTO);
-        
-        log.info("Successfully moderated review ID: {}", reviewId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.moderateReview(reviewId, moderationDTO));
     }
 
     /**
      * Approves a review.
      * 
-     * @param reviewId the review ID
+     * @param reviewId    the review ID
      * @param moderatorId the moderator user ID
      * @return ResponseEntity with approved review and HTTP 200 status
      */
@@ -229,21 +170,15 @@ public class ReviewController {
     public ResponseEntity<ReviewResponseDTO> approveReview(
             @PathVariable Long reviewId,
             @RequestParam Long moderatorId) {
-        log.info("PATCH /api/v1/reviews/{}/approve - Approving review by moderator ID: {}", 
-                reviewId, moderatorId);
-        
-        ReviewResponseDTO response = reviewService.approveReview(reviewId, moderatorId);
-        
-        log.info("Successfully approved review ID: {}", reviewId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.approveReview(reviewId, moderatorId));
     }
 
     /**
      * Rejects a review.
      * 
-     * @param reviewId the review ID
+     * @param reviewId    the review ID
      * @param moderatorId the moderator user ID
-     * @param reason the rejection reason
+     * @param reason      the rejection reason
      * @return ResponseEntity with rejected review and HTTP 200 status
      */
     @PatchMapping("/{reviewId}/reject")
@@ -251,13 +186,7 @@ public class ReviewController {
             @PathVariable Long reviewId,
             @RequestParam Long moderatorId,
             @RequestParam String reason) {
-        log.info("PATCH /api/v1/reviews/{}/reject - Rejecting review by moderator ID: {}", 
-                reviewId, moderatorId);
-        
-        ReviewResponseDTO response = reviewService.rejectReview(reviewId, moderatorId, reason);
-        
-        log.info("Successfully rejected review ID: {}", reviewId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.rejectReview(reviewId, moderatorId, reason));
     }
 
     /**
@@ -268,12 +197,7 @@ public class ReviewController {
      */
     @PatchMapping("/{reviewId}/helpful")
     public ResponseEntity<ReviewResponseDTO> markReviewAsHelpful(@PathVariable Long reviewId) {
-        log.info("PATCH /api/v1/reviews/{}/helpful - Marking review as helpful", reviewId);
-        
-        ReviewResponseDTO response = reviewService.markReviewAsHelpful(reviewId);
-        
-        log.info("Successfully marked review ID: {} as helpful", reviewId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.markReviewAsHelpful(reviewId));
     }
 
     /**
@@ -284,12 +208,7 @@ public class ReviewController {
      */
     @GetMapping("/book/{bookId}/stats")
     public ResponseEntity<BookRatingStatsDTO> getBookRatingStats(@PathVariable Long bookId) {
-        log.info("GET /api/v1/reviews/book/{}/stats - Fetching rating statistics", bookId);
-        
-        BookRatingStatsDTO response = reviewService.getBookRatingStats(bookId);
-        
-        log.info("Successfully retrieved rating stats for book ID: {}", bookId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(reviewService.getBookRatingStats(bookId));
     }
 
     /**
@@ -300,30 +219,21 @@ public class ReviewController {
      */
     @GetMapping("/book/{bookId}/average-rating")
     public ResponseEntity<Double> calculateAverageRating(@PathVariable Long bookId) {
-        log.info("GET /api/v1/reviews/book/{}/average-rating - Calculating average rating", bookId);
-        
-        Double averageRating = reviewService.calculateAverageRating(bookId);
-        
-        log.info("Average rating for book ID {}: {}", bookId, averageRating);
-        return ResponseEntity.ok(averageRating);
+        return ResponseEntity.ok(reviewService.calculateAverageRating(bookId));
     }
 
     /**
      * Deletes a review.
      * 
      * @param reviewId the review ID
-     * @param userId the user ID attempting deletion
+     * @param userId   the user ID attempting deletion
      * @return ResponseEntity with HTTP 204 No Content status
      */
     @DeleteMapping("/{reviewId}")
     public ResponseEntity<Void> deleteReview(
             @PathVariable Long reviewId,
             @RequestParam Long userId) {
-        log.info("DELETE /api/v1/reviews/{} - Deleting review by user ID: {}", reviewId, userId);
-        
         reviewService.deleteReview(reviewId, userId);
-        
-        log.info("Successfully deleted review ID: {}", reviewId);
         return ResponseEntity.noContent().build();
     }
 
@@ -335,11 +245,7 @@ public class ReviewController {
      */
     @DeleteMapping("/{reviewId}/admin")
     public ResponseEntity<Void> deleteReviewByAdmin(@PathVariable Long reviewId) {
-        log.info("DELETE /api/v1/reviews/{}/admin - Admin deleting review", reviewId);
-        
         reviewService.deleteReviewByAdmin(reviewId);
-        
-        log.info("Successfully deleted review ID: {} by admin", reviewId);
         return ResponseEntity.noContent().build();
     }
 }
