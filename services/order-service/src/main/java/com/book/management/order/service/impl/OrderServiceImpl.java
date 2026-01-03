@@ -2,8 +2,12 @@ package com.book.management.order.service.impl;
 
 import com.book.management.order.client.BookServiceClient;
 import com.book.management.order.client.InventoryServiceClient;
+import com.book.management.order.dto.requestdto.GetBookPriceRequestDTO;
 import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
+import com.book.management.order.dto.requestdto.ReduceInventoryStockRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
+import com.book.management.order.dto.responsedto.GetBookPriceResponseDTO;
+import com.book.management.order.dto.responsedto.ReduceInventoryStockResponseDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
 import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.exception.*;
@@ -50,14 +54,18 @@ public class OrderServiceImpl implements OrderService {
      * @throws OrderNotPlacedException only when error occurs in downstream
      *                                 services.
      */
-    @Override
+
     @Transactional
     public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
         log.info("Initiating order placement for userId: {}", request.getUserId());
         try {
-            // fetch book prices via Book Service
+            // Collect all bookIds from incoming order
             List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
-            Map<Long, Double> priceMap = bookServiceClient.getBookPrices(bookIdList);
+
+            // fetch book prices via Book-service
+            GetBookPriceRequestDTO priceReq = new GetBookPriceRequestDTO(bookIdList);
+            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(priceReq);
+            Map<Long, Double> priceMap = priceDTO.getBookPrice();
 
             // compute order totalAmount
             double totalAmount = 0.0;
@@ -68,13 +76,26 @@ public class OrderServiceImpl implements OrderService {
                 if (priceMap.containsKey(bookId)) {
                     double price = priceMap.get(bookId) * quantity;
                     totalAmount += price;
+                } else {
+                    log.warn("Price not found for bookId={}, defaulting contribution to 0.0", bookId);
                 }
             }
 
-            // Reduce stock via Inventory Service
-            // Inventory service handles all validation and throws exceptions if
-            // insufficient stock
-            inventoryServiceClient.reduceStock(request.getBookOrder());
+            // Reduce stock via Inventory-service
+            // Inventory-service handles all validation and throws exceptions if insufficient stock
+            ReduceInventoryStockRequestDTO reduceReq =
+                    new ReduceInventoryStockRequestDTO(request.getBookOrder());
+
+            ReduceInventoryStockResponseDTO stockDTO = inventoryServiceClient.reduceStock(reduceReq);
+            Map<Long, Boolean> stockMap = stockDTO.getBookStock();
+
+            // Optional: validate stockMap (ensure all requested items are true)
+            boolean allAvailable = request.getBookOrder().keySet().stream()
+                    .allMatch(id -> Boolean.TRUE.equals(stockMap.get(id)));
+            if (!allAvailable) {
+                log.error("Insufficient stock for one or more items: {}", stockMap);
+                throw new OrderNotPlacedException("Inventory check failed: insufficient stock.");
+            }
 
             // map and save order
             Order order = Order.builder()
@@ -88,16 +109,18 @@ public class OrderServiceImpl implements OrderService {
 
             Order savedOrder = orderRepository.save(order);
             log.info("Order successfully placed. ID: {}", savedOrder.getOrderId());
+
             return toResponseDTO(savedOrder);
 
         } catch (OrderNotPlacedException ex) {
             // Rethrowing mapped exception caught by CustomFeignErrorDecoder
             throw ex;
         } catch (Exception ex) {
-            log.error("Internal service error during order placement: {}", ex.getMessage());
+            log.error("Internal service error during order placement: {}", ex.getMessage(), ex);
             throw new OrderNotPlacedException("Internal system error: Unable to process order.");
         }
     }
+
 
     /**
      * Business logic for cancelling an order.
