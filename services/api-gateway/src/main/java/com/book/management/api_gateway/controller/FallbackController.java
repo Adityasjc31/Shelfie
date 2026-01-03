@@ -1,5 +1,6 @@
 package com.book.management.api_gateway.controller;
 
+import com.book.management.api_gateway.annotation.LogExecutionTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -29,108 +30,108 @@ public class FallbackController {
     /**
      * Fallback for Authentication Service.
      */
+    @LogExecutionTime
     @GetMapping("/auth")
     public ResponseEntity<FallbackResponse> authServiceFallback() {
         log.warn("⚠ Authentication service fallback triggered");
-        
+
         FallbackResponse response = new FallbackResponse(
                 "Authentication Service Unavailable",
                 "The authentication service is temporarily unavailable. Please try again later.",
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "authentication-service",
-                LocalDateTime.now()
-        );
-        
+                LocalDateTime.now());
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     /**
      * Fallback for Book Service.
      */
+    @LogExecutionTime
     @GetMapping("/books")
     public ResponseEntity<FallbackResponse> bookServiceFallback() {
         log.warn("⚠ Book service fallback triggered");
-        
+
         FallbackResponse response = new FallbackResponse(
                 "Book Service Unavailable",
                 "The book service is temporarily unavailable. Please try again later.",
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "book-service",
-                LocalDateTime.now()
-        );
-        
+                LocalDateTime.now());
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     /**
      * Fallback for Inventory Service.
      */
+    @LogExecutionTime
     @GetMapping("/inventory")
     public ResponseEntity<FallbackResponse> inventoryServiceFallback() {
         log.warn("⚠ Inventory service fallback triggered");
-        
+
         FallbackResponse response = new FallbackResponse(
                 "Inventory Service Unavailable",
                 "The inventory service is temporarily unavailable. Please try again later.",
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "inventory-service",
-                LocalDateTime.now()
-        );
-        
+                LocalDateTime.now());
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     /**
      * Fallback for Order Service.
      */
+    @LogExecutionTime
     @GetMapping("/orders")
     public ResponseEntity<FallbackResponse> orderServiceFallback() {
         log.warn("⚠ Order service fallback triggered");
-        
+
         FallbackResponse response = new FallbackResponse(
                 "Order Service Unavailable",
                 "The order service is temporarily unavailable. Please try again later.",
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "order-service",
-                LocalDateTime.now()
-        );
-        
+                LocalDateTime.now());
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     /**
      * Fallback for Review Service.
      */
+    @LogExecutionTime
     @GetMapping("/reviews")
     public ResponseEntity<FallbackResponse> reviewServiceFallback() {
         log.warn("⚠ Review service fallback triggered");
-        
+
         FallbackResponse response = new FallbackResponse(
                 "Review Service Unavailable",
                 "The review service is temporarily unavailable. Please try again later.",
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "review-service",
-                LocalDateTime.now()
-        );
-        
+                LocalDateTime.now());
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     /**
      * Fallback for User Service.
      */
+    @LogExecutionTime
     @GetMapping("/users")
     public ResponseEntity<FallbackResponse> userServiceFallback() {
         log.warn("⚠ User service fallback triggered");
-        
+
         FallbackResponse response = new FallbackResponse(
                 "User Service Unavailable",
                 "The user service is temporarily unavailable. Please try again later.",
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "user-service",
-                LocalDateTime.now()
-        );
-        
+                LocalDateTime.now());
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 

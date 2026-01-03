@@ -1,7 +1,5 @@
 package com.book.management.api_gateway.exception;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.webflux.error.DefaultErrorAttributes;
