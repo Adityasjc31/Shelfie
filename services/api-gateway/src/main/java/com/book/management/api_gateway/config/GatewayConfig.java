@@ -113,7 +113,7 @@ public class GatewayConfig {
                                 // BOOK SERVICE ROUTES
                                 // ==========================================
                                 .route("book-service", r -> r
-                                                .path("/api/v1/books/**")
+                                                .path("/api/v1/book/**")
                                                 .filters(f -> applyStandardFilters(f, "bookCircuitBreaker",
                                                                 "forward:/fallback/books"))
                                                 .uri("lb://book-service"))
@@ -131,7 +131,7 @@ public class GatewayConfig {
                                 // ORDER SERVICE ROUTES
                                 // ==========================================
                                 .route("order-service", r -> r
-                                                .path("/api/v1/orders/**")
+                                                .path("/api/v1/order/**")
                                                 .filters(f -> applyStandardFilters(f, "orderCircuitBreaker",
                                                                 "forward:/fallback/orders"))
                                                 .uri("lb://order-service"))
@@ -140,7 +140,7 @@ public class GatewayConfig {
                                 // REVIEW SERVICE ROUTES
                                 // ==========================================
                                 .route("review-service", r -> r
-                                                .path("/api/v1/reviews/**")
+                                                .path("/api/v1/review/**")
                                                 .filters(f -> applyStandardFilters(f, "reviewCircuitBreaker",
                                                                 "forward:/fallback/reviews"))
                                                 .uri("lb://review-service"))
@@ -149,7 +149,7 @@ public class GatewayConfig {
                                 // USER SERVICE ROUTES
                                 // ==========================================
                                 .route("user-service", r -> r
-                                                .path("/api/v1/users/**")
+                                                .path("/api/v1/user/**")
                                                 .filters(f -> applyStandardFilters(f, "userCircuitBreaker",
                                                                 "forward:/fallback/users"))
                                                 .uri("lb://user-service"))

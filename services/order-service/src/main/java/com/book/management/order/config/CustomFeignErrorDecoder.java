@@ -43,7 +43,7 @@ public class CustomFeignErrorDecoder implements ErrorDecoder {
 
         return switch (response.status()) {
             case 400 -> new OrderNotPlacedException("Inventory Issue: " + downstreamMessage);
-            case 404 -> new OrderNotPlacedException("Catalog Issue: " + downstreamMessage);
+            case 404 -> new OrderNotPlacedException("BookItem Issue: " + downstreamMessage);
             default -> new OrderNotPlacedException("Order process failed due to: " + downstreamMessage);
         };
     }
