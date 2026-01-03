@@ -5,19 +5,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.book.management.user.model.UserRole;
-
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
  * Data Transfer Object for user registration requests.
  * Contains validation constraints for input data.
  * 
+ * Used by authentication-service via FeignClient.
+ * Role is String type for compatibility with auth-service.
+ * 
  * @author Abdul Ahad
- * @version 1.0
+ * @version 2.0 - Auth-Service Compatible
  */
 @Data
 @NoArgsConstructor
@@ -37,6 +37,6 @@ public class UserRegistrationDTO {
     @Size(min = 6, max = 50, message = "Password must be between 6 and 50 characters")
     private String password;
 
-    @NotNull(message = "Role is required")
-    private UserRole role;
+    @NotBlank(message = "Role is required")
+    private String role;
 }

@@ -12,7 +12,7 @@ import com.book.management.user.model.UserRole;
  * Following Interface Segregation Principle (SOLID).
  * 
  * @author Abdul Ahad
- * @version 1.0
+ * @version 2.0 - Microservice Architecture
  */
 public interface UserService {
 
@@ -21,7 +21,10 @@ public interface UserService {
      * 
      * @param registrationDTO the registration details
      * @return the created user details
-     * @throws com.book.management.book.user.exception.UserAlreadyExistsException if email already exists
+     * @throws com.book.management.user.exception.UserAlreadyExistsException if
+     *                                                                       email
+     *                                                                       already
+     *                                                                       exists
      */
     UserResponseDTO registerUser(UserRegistrationDTO registrationDTO);
 
@@ -30,8 +33,15 @@ public interface UserService {
      * 
      * @param loginDTO the login credentials
      * @return the authenticated user details
-     * @throws com.book.management.book.user.exception.InvalidCredentialsException if credentials are invalid
-     * @throws com.book.management.book.user.exception.UserInactiveException if user account is inactive
+     * @throws com.book.management.user.exception.InvalidCredentialsException if
+     *                                                                        credentials
+     *                                                                        are
+     *                                                                        invalid
+     * @throws com.book.management.user.exception.UserInactiveException       if
+     *                                                                        user
+     *                                                                        account
+     *                                                                        is
+     *                                                                        inactive
      */
     UserResponseDTO loginUser(UserLoginDTO loginDTO);
 
@@ -40,7 +50,8 @@ public interface UserService {
      * 
      * @param userId the user ID
      * @return the user details
-     * @throws com.book.management.book.user.exception.UserNotFoundException if user not found
+     * @throws com.book.management.user.exception.UserNotFoundException if user not
+     *                                                                  found
      */
     UserResponseDTO getUserById(Long userId);
 
@@ -49,7 +60,8 @@ public interface UserService {
      * 
      * @param email the user email
      * @return the user details
-     * @throws com.book.management.book.user.exception.UserNotFoundException if user not found
+     * @throws com.book.management.user.exception.UserNotFoundException if user not
+     *                                                                  found
      */
     UserResponseDTO getUserByEmail(String email);
 
@@ -74,7 +86,8 @@ public interface UserService {
      * @param userId    the user ID
      * @param updateDTO the updated profile data
      * @return the updated user details
-     * @throws com.book.management.book.user.exception.UserNotFoundException if user not found
+     * @throws com.book.management.user.exception.UserNotFoundException if user not
+     *                                                                  found
      */
     UserResponseDTO updateUserProfile(Long userId, UserUpdateDTO updateDTO);
 
@@ -82,7 +95,8 @@ public interface UserService {
      * Deactivates a user account.
      * 
      * @param userId the user ID
-     * @throws com.book.management.book.user.exception.UserNotFoundException if user not found
+     * @throws com.book.management.user.exception.UserNotFoundException if user not
+     *                                                                  found
      */
     void deactivateUser(Long userId);
 
@@ -90,7 +104,8 @@ public interface UserService {
      * Reactivates a user account.
      * 
      * @param userId the user ID
-     * @throws com.book.management.book.user.exception.UserNotFoundException if user not found
+     * @throws com.book.management.user.exception.UserNotFoundException if user not
+     *                                                                  found
      */
     void reactivateUser(Long userId);
 
@@ -98,7 +113,8 @@ public interface UserService {
      * Deletes a user from the system.
      * 
      * @param userId the user ID
-     * @throws com.book.management.book.user.exception.UserNotFoundException if user not found
+     * @throws com.book.management.user.exception.UserNotFoundException if user not
+     *                                                                  found
      */
     void deleteUser(Long userId);
 }

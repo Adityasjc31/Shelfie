@@ -2,7 +2,6 @@ package com.book.management.inventory.controller;
 
 import com.book.management.inventory.dto.*;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +15,7 @@ import java.util.Map;
 /**
  * REST Controller for Inventory Management operations.
  * Exposes endpoints for managing book inventory, stock levels, and alerts.
+ * Logging is handled automatically by LoggingAspect.
  *
  * @author Aditya Srivastava
  * @version 2.0
@@ -24,7 +24,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/inventory")
 @RequiredArgsConstructor
-@Slf4j
 public class InventoryController {
 
         private final InventoryService inventoryService;
@@ -38,12 +37,7 @@ public class InventoryController {
         @PostMapping("/create")
         public ResponseEntity<InventoryResponseDTO> createInventory(
                         @Valid @RequestBody InventoryCreateDTO createDTO) {
-                log.info("POST /api/v1/inventory - Creating inventory for book ID: {}", createDTO.getBookId());
-
-                InventoryResponseDTO response = inventoryService.createInventory(createDTO);
-
-                log.info("Successfully created inventory with ID: {}", response.getInventoryId());
-                return ResponseEntity.status(HttpStatus.CREATED).body(response);
+                return ResponseEntity.status(HttpStatus.CREATED).body(inventoryService.createInventory(createDTO));
         }
 
         /**
@@ -55,12 +49,7 @@ public class InventoryController {
         @GetMapping("/{inventoryId}")
         public ResponseEntity<InventoryResponseDTO> getInventoryById(
                         @PathVariable Long inventoryId) {
-                log.info("GET /api/v1/inventory/{} - Fetching inventory", inventoryId);
-
-                InventoryResponseDTO response = inventoryService.getInventoryById(inventoryId);
-
-                log.info("Successfully retrieved inventory with ID: {}", inventoryId);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.getInventoryById(inventoryId));
         }
 
         /**
@@ -72,12 +61,7 @@ public class InventoryController {
         @GetMapping("/book/{bookId}")
         public ResponseEntity<InventoryResponseDTO> getInventoryByBookId(
                         @PathVariable Long bookId) {
-                log.info("GET /api/v1/inventory/book/{} - Fetching inventory by book ID", bookId);
-
-                InventoryResponseDTO response = inventoryService.getInventoryByBookId(bookId);
-
-                log.info("Successfully retrieved inventory for book ID: {}", bookId);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.getInventoryByBookId(bookId));
         }
 
         /**
@@ -87,12 +71,7 @@ public class InventoryController {
          */
         @GetMapping
         public ResponseEntity<List<InventoryResponseDTO>> getAllInventory() {
-                log.info("GET /api/v1/inventory - Fetching all inventory records");
-
-                List<InventoryResponseDTO> response = inventoryService.getAllInventory();
-
-                log.info("Successfully retrieved {} inventory records", response.size());
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.getAllInventory());
         }
 
         /**
@@ -106,13 +85,7 @@ public class InventoryController {
         public ResponseEntity<InventoryResponseDTO> reduceInventory(
                         @PathVariable Long bookId,
                         @RequestParam Integer quantity) {
-                log.info("PATCH /api/v1/inventory/book/{}/reduce?quantity={} - Reducing inventory",
-                                bookId, quantity);
-
-                InventoryResponseDTO response = inventoryService.reduceInventory(bookId, quantity);
-
-                log.info("Successfully reduced inventory for book ID: {}", bookId);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.reduceInventory(bookId, quantity));
         }
 
         /**
@@ -126,13 +99,7 @@ public class InventoryController {
         public ResponseEntity<InventoryResponseDTO> restockInventory(
                         @PathVariable Long bookId,
                         @RequestParam Integer quantity) {
-                log.info("PATCH /api/v1/inventory/book/{}/restock?quantity={} - Restocking inventory",
-                                bookId, quantity);
-
-                InventoryResponseDTO response = inventoryService.restockInventory(bookId, quantity);
-
-                log.info("Successfully restocked inventory for book ID: {}", bookId);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.restockInventory(bookId, quantity));
         }
 
         /**
@@ -146,13 +113,7 @@ public class InventoryController {
         public ResponseEntity<Boolean> checkAvailability(
                         @PathVariable Long bookId,
                         @RequestParam Integer quantity) {
-                log.info("GET /api/v1/inventory/book/{}/availability?quantity={} - Checking availability",
-                                bookId, quantity);
-
-                boolean available = inventoryService.checkAvailability(bookId, quantity);
-
-                log.info("Availability check for book ID: {} - Available: {}", bookId, available);
-                return ResponseEntity.ok(available);
+                return ResponseEntity.ok(inventoryService.checkAvailability(bookId, quantity));
         }
 
         /**
@@ -162,12 +123,7 @@ public class InventoryController {
          */
         @GetMapping("/alerts/low-stock")
         public ResponseEntity<List<LowStockAlertDTO>> getLowStockItems() {
-                log.info("GET /api/v1/inventory/alerts/low-stock - Fetching low stock items");
-
-                List<LowStockAlertDTO> response = inventoryService.getLowStockItems();
-
-                log.info("Successfully retrieved {} low stock alerts", response.size());
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.getLowStockItems());
         }
 
         /**
@@ -177,12 +133,7 @@ public class InventoryController {
          */
         @GetMapping("/status/out-of-stock")
         public ResponseEntity<List<InventoryResponseDTO>> getOutOfStockItems() {
-                log.info("GET /api/v1/inventory/status/out-of-stock - Fetching out-of-stock items");
-
-                List<InventoryResponseDTO> response = inventoryService.getOutOfStockItems();
-
-                log.info("Successfully retrieved {} out-of-stock items", response.size());
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.getOutOfStockItems());
         }
 
         /**
@@ -192,12 +143,7 @@ public class InventoryController {
          */
         @GetMapping("/status/in-stock")
         public ResponseEntity<List<InventoryResponseDTO>> getInStockItems() {
-                log.info("GET /api/v1/inventory/status/in-stock - Fetching in-stock items");
-
-                List<InventoryResponseDTO> response = inventoryService.getInStockItems();
-
-                log.info("Successfully retrieved {} in-stock items", response.size());
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.getInStockItems());
         }
 
         /**
@@ -211,13 +157,7 @@ public class InventoryController {
         public ResponseEntity<InventoryResponseDTO> updateLowStockThreshold(
                         @PathVariable Long inventoryId,
                         @RequestParam Integer threshold) {
-                log.info("PATCH /api/v1/inventory/{}/threshold?threshold={} - Updating threshold",
-                                inventoryId, threshold);
-
-                InventoryResponseDTO response = inventoryService.updateLowStockThreshold(inventoryId, threshold);
-
-                log.info("Successfully updated threshold for inventory ID: {}", inventoryId);
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(inventoryService.updateLowStockThreshold(inventoryId, threshold));
         }
 
         /**
@@ -228,11 +168,7 @@ public class InventoryController {
          */
         @DeleteMapping("/{inventoryId}")
         public ResponseEntity<Void> deleteInventory(@PathVariable Long inventoryId) {
-                log.info("DELETE /api/v1/inventory/{} - Deleting inventory", inventoryId);
-
                 inventoryService.deleteInventory(inventoryId);
-
-                log.info("Successfully deleted inventory with ID: {}", inventoryId);
                 return ResponseEntity.noContent().build();
         }
 
@@ -244,11 +180,7 @@ public class InventoryController {
          */
         @DeleteMapping("/book/{bookId}")
         public ResponseEntity<Void> deleteInventoryByBookId(@PathVariable Long bookId) {
-                log.info("DELETE /api/v1/inventory/book/{} - Deleting inventory by book ID", bookId);
-
                 inventoryService.deleteInventoryByBookId(bookId);
-
-                log.info("Successfully deleted inventory for book ID: {}", bookId);
                 return ResponseEntity.noContent().build();
         }
 
@@ -261,9 +193,6 @@ public class InventoryController {
         @PostMapping("/bulk/check-availability")
         public ResponseEntity<BulkStockCheckResponseDTO> checkBulkAvailability(
                         @Valid @RequestBody BulkStockCheckDTO checkDTO) {
-                log.info("POST /api/v1/inventory/bulk/check-availability - Checking {} books",
-                                checkDTO.getBookQuantities().size());
-
                 Map<Long, Boolean> availabilityMap = inventoryService.checkBulkAvailability(
                                 checkDTO.getBookQuantities());
 
@@ -273,18 +202,14 @@ public class InventoryController {
                 String message = allAvailable ? "All books are available in required quantities"
                                 : "Some books are not available in required quantities";
 
-                BulkStockCheckResponseDTO response = BulkStockCheckResponseDTO.builder()
+                return ResponseEntity.ok(BulkStockCheckResponseDTO.builder()
                                 .availabilityMap(availabilityMap)
                                 .allAvailable(allAvailable)
                                 .message(message)
-                                .build();
-
-                log.info("Bulk availability check completed. All available: {}", allAvailable);
-                return ResponseEntity.ok(response);
+                                .build());
         }
 
         /**
-         * /**
          * Reduces inventory for multiple books (bulk deduction).
          * Handles all validation and throws exceptions if any book has insufficient
          * stock.
@@ -294,14 +219,7 @@ public class InventoryController {
         @PatchMapping("/bulk/reduce")
         public ResponseEntity<Void> reduceBulkInventory(
                         @RequestBody Map<Long, Integer> bookQuantities) {
-                log.info("POST /api/v1/inventory/bulk/reduce - Reducing inventory for {} books",
-                                bookQuantities.size());
-
-                // Inventory service handles all validation and throws exceptions if
-                // insufficient stock
                 inventoryService.reduceBulkInventory(bookQuantities);
-
-                log.info("Bulk inventory reduction completed successfully");
                 return ResponseEntity.ok().build();
         }
 
