@@ -54,10 +54,9 @@ public class OrderServiceImpl implements OrderService {
      * @throws OrderNotPlacedException only when error occurs in downstream
      *                                 services.
      */
-
+    @Override
     @Transactional
     public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
-        log.info("Initiating order placement for userId: {}", request.getUserId());
         try {
             // Collect all bookIds from incoming order
             List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
@@ -82,9 +81,9 @@ public class OrderServiceImpl implements OrderService {
             }
 
             // Reduce stock via Inventory-service
-            // Inventory-service handles all validation and throws exceptions if insufficient stock
-            ReduceInventoryStockRequestDTO reduceReq =
-                    new ReduceInventoryStockRequestDTO(request.getBookOrder());
+            // Inventory-service handles all validation and throws exceptions if
+            // insufficient stock
+            ReduceInventoryStockRequestDTO reduceReq = new ReduceInventoryStockRequestDTO(request.getBookOrder());
 
             ReduceInventoryStockResponseDTO stockDTO = inventoryServiceClient.reduceStock(reduceReq);
             Map<Long, Boolean> stockMap = stockDTO.getBookStock();
@@ -108,7 +107,8 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             Order savedOrder = orderRepository.save(order);
-            log.info("Order successfully placed. ID: {}", savedOrder.getOrderId());
+            log.info("Order placed successfully. ID: {}, UserId: {}, Total: {}",
+                    savedOrder.getOrderId(), savedOrder.getUserId(), savedOrder.getOrderTotalAmount());
 
             return toResponseDTO(savedOrder);
 
@@ -120,7 +120,6 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderNotPlacedException("Internal system error: Unable to process order.");
         }
     }
-
 
     /**
      * Business logic for cancelling an order.
@@ -134,8 +133,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void cancelOrder(long orderId) {
-        log.info("Processing business cancellation for order: {}", orderId);
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
 
@@ -152,7 +149,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Also perform soft delete (sets isDeleted=true via @SQLDelete)
         orderRepository.delete(order);
-        log.info("Order {} successfully cancelled and soft-deleted.", orderId);
+        log.info("Order {} cancelled and soft-deleted", orderId);
     }
 
     /**
@@ -164,14 +161,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void softDeleteOrder(long orderId) {
-        log.info("Soft-deleting orderId: {}", orderId);
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
 
         // The @SQLDelete annotation in the Order entity handles the UPDATE logic
         orderRepository.delete(order);
-        log.info("Order {} marked as deleted.", orderId);
     }
 
     /**
@@ -182,7 +176,6 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderResponseDTO> getOrderAll() {
-        log.info("Fetching all orders.");
         List<Order> orders = orderRepository.findAll();
 
         if (orders.isEmpty()) {
@@ -205,8 +198,6 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public Optional<OrderResponseDTO> getOrderById(long orderId) {
-        log.info("Fetching order by ID: {}", orderId);
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
 
@@ -222,7 +213,6 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderResponseDTO> getOrderByStatus(OrderEnum status) {
-        log.info("Fetching orders with status: {}", status);
         List<Order> orders = orderRepository.findByOrderStatus(status);
 
         if (orders.isEmpty()) {
@@ -249,8 +239,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request) {
-        log.info("Attempting status change for order ID: {} to {}", orderId, request.getOrderStatus());
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(NOT_FOUND_MSG + orderId));
 
@@ -261,8 +249,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setOrderStatus(request.getOrderStatus());
-        Order updatedOrder = orderRepository.save(order);
-        return toResponseDTO(updatedOrder);
+        return toResponseDTO(orderRepository.save(order));
     }
 
     /**

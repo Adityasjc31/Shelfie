@@ -7,7 +7,6 @@ import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +16,7 @@ import java.util.List;
  * REST Controller for Order Management.
  * Provides endpoints for order lifecycle management, including placement,
  * retrieval, status updates, and cancellation.
+ * Logging is handled automatically by LoggingAspect.
  *
  * @author Rehan Ashraf
  * @version 2.1
@@ -24,26 +24,26 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/order")
 @RequiredArgsConstructor
-@Slf4j
 public class OrderController {
 
     private final OrderService orderService;
 
     /**
      * Places a new order by orchestrating calls to Book and Inventory services.
-     * * @param request Validated DTO containing user ID and items.
+     * 
+     * @param request Validated DTO containing user ID and items.
      * @return ResponseEntity containing the created OrderResponseDTO.
      */
     @PostMapping("/place")
     public ResponseEntity<OrderResponseDTO> placeOrder(@Valid @RequestBody PlaceOrderRequestDTO request) {
-        log.info("Received place order request for userId={}", request.getUserId());
-        OrderResponseDTO response = orderService.placeOrder(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(orderService.placeOrder(request));
     }
 
     /**
      * Retrieves all active (non-deleted) orders.
-     * * @return List of all orders.
+     * 
+     * @return List of all orders.
      */
     @GetMapping("/getAll")
     public ResponseEntity<List<OrderResponseDTO>> getAllOrders() {
@@ -52,7 +52,8 @@ public class OrderController {
 
     /**
      * Retrieves a specific order by its unique identifier.
-     * * @param orderId Primary key of the order.
+     * 
+     * @param orderId Primary key of the order.
      * @return Order details or 404 if not found.
      */
     @GetMapping("/getById/{orderId}")
@@ -64,7 +65,8 @@ public class OrderController {
 
     /**
      * Filters orders by their current status.
-     * * @param status The OrderEnum value to filter by.
+     * 
+     * @param status The OrderEnum value to filter by.
      * @return List of matching orders.
      */
     @GetMapping("/status/{status}")
@@ -74,19 +76,23 @@ public class OrderController {
 
     /**
      * Updates the status of an existing order.
-     * * @param orderId ID of the order to update.
+     * 
+     * @param orderId ID of the order to update.
      * @param request DTO containing the new status.
      * @return Updated order details.
      */
     @PatchMapping("/update/{orderId}")
-    public ResponseEntity<OrderResponseDTO> changeOrderStatus(@PathVariable long orderId, @Valid @RequestBody UpdateOrderStatusRequestDTO request) {
+    public ResponseEntity<OrderResponseDTO> changeOrderStatus(
+            @PathVariable long orderId,
+            @Valid @RequestBody UpdateOrderStatusRequestDTO request) {
         return ResponseEntity.ok(orderService.changeOrderStatus(orderId, request));
     }
 
     /**
      * Triggers the business logic for order cancellation.
      * Only allowed for PENDING and SHIPPED orders.
-     * * @param orderId ID of the order to cancel.
+     * 
+     * @param orderId ID of the order to cancel.
      * @return 204 No Content on success.
      */
     @DeleteMapping("/cancel/{orderId}")
@@ -97,7 +103,8 @@ public class OrderController {
 
     /**
      * Performs a soft delete on an order (marking isDeleted as true).
-     * * @param orderId ID of the order to soft delete.
+     * 
+     * @param orderId ID of the order to soft delete.
      * @return 204 No Content.
      */
     @DeleteMapping("/delete/{orderId}")

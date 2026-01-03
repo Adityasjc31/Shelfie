@@ -1,11 +1,12 @@
 package com.book.management.order.client.fallback;
 
 import com.book.management.order.client.BookServiceClient;
+import com.book.management.order.dto.requestdto.GetBookPriceRequestDTO;
+import com.book.management.order.dto.responsedto.GetBookPriceResponseDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Fallback implementation for BookClient.
@@ -16,9 +17,10 @@ import java.util.Map;
 public class BookClientFallback implements BookServiceClient {
 
     @Override
-    public Map<Long, Double> getBookPrices(List<Long> bookIds) {
-        log.error("Book Service is currently unavailable. Returning empty price map.");
-        // We return an empty map; the ServiceImpl will catch this or throw an exception
-        return Collections.emptyMap();
+    public GetBookPriceResponseDTO getBookPrices(GetBookPriceRequestDTO request) {
+        log.error("Book Service is currently unavailable. Returning empty price map for books: {}",
+                request.getBookIds());
+        // Return empty price map - ServiceImpl will handle this appropriately
+        return new GetBookPriceResponseDTO(Collections.emptyMap());
     }
 }
