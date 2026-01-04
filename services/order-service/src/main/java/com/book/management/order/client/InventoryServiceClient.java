@@ -1,7 +1,7 @@
 
 package com.book.management.order.client;
 
-import com.book.management.order.client.fallback.InventoryClientFallback;
+import com.book.management.order.client.fallback.InventoryClientFallbackFactory;
 import com.book.management.order.dto.requestdto.ReduceInventoryStockRequestDTO;
 import com.book.management.order.dto.responsedto.ReduceInventoryStockResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -13,32 +13,25 @@ import org.springframework.web.bind.annotation.RequestBody;
  * Feign Client for Inventory Service.
  * Reduces stock for multiple books using a typed request DTO.
  * Endpoint (via Gateway):</b> PATCH /api/v1/inventory/bulk/reduce
-
+ * 
  * Request Body:
  * {
- *   "bookQuantities": {
- *     "101": 1,
- *     "105": 2
- *   }
+ * "bookQuantities": {
+ * "101": 1,
+ * "105": 2
+ * }
  * }
  * Response (DTO):
  * {
- *   "bookStock": {
- *     "101": true,
- *     "105": true
- *   }
+ * "bookStock": {
+ * "101": true,
+ * "105": true
+ * }
  * }
  */
-@FeignClient(
-        name = "inventory-service",
-        path = "/api/v1/inventory",
-        fallback = InventoryClientFallback.class
-)
+@FeignClient(name = "inventory-service", path = "/api/v1/inventory", fallbackFactory = InventoryClientFallbackFactory.class)
 public interface InventoryServiceClient {
 
-    @PatchMapping(
-            value = "/bulk/reduce",
-            consumes = MediaType.APPLICATION_JSON_VALUE
-    )
-    void reduceStock(@RequestBody ReduceInventoryStockRequestDTO request);
+        @PatchMapping(value = "/bulk/reduce", consumes = MediaType.APPLICATION_JSON_VALUE)
+        void reduceStock(@RequestBody ReduceInventoryStockRequestDTO request);
 }
