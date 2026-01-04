@@ -35,7 +35,7 @@ public class GatewaySecretRequestInterceptor implements RequestInterceptor {
             String maskedToken = token.length() > 8 ? token.substring(0, 8) + "..." : token;
             log.info("Inter-service call to: {} | Header: {} | Token prefix: {}",
                     template.feignTarget().name(),
-                    securityProperties.getHeaderName(),
+                        securityProperties.getHeaderName(),
                     maskedToken);
         } else {
             log.warn(
