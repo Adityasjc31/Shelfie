@@ -9,11 +9,11 @@ import java.util.Map;
  */
 @Data
 public class BookPriceResponseDTO {
-    private Map<Long, Double> prices;
+    private Map<Long, Double> bookPrice;
 
     public BookPriceResponseDTO() {}
 
-    public BookPriceResponseDTO(Map<Long, Double> prices) {
-        this.prices = prices;
+    public BookPriceResponseDTO(Map<Long, Double> bookPrice) {
+        this.bookPrice = bookPrice;
     }
 }

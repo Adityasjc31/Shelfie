@@ -1,5 +1,8 @@
 package com.book.management.book.dto.requestdto;
 
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.util.List;
@@ -10,5 +13,6 @@ import java.util.List;
  */
 @Data
 public class BookPriceRequestDTO {
-    private List<Long> bookIds;
+    @NotEmpty
+    private List<@NotNull @Positive Long> bookIds;
 }

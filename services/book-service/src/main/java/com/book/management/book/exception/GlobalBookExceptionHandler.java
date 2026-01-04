@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Global exception handler for the Book Management module.
@@ -48,32 +50,20 @@ import java.time.LocalDateTime;
 public class GlobalBookExceptionHandler {
 
     /**
-     * Handles BookNotFoundException.
-     * 
-     * Triggered when:
-     * - A book with the specified ID does not exist
-     * - Search or filter operations return no results (depending on implementation)
-     * 
-     * HTTP Status: 404 Not Found
-     * 
-     * @param ex the BookNotFoundException
-     * @param request the web request context
-     * @return ResponseEntity with error details and 404 status
+     * Catches BookNotFoundException thrown by the service layer.
+     * Returns a 404 Status which the FeignErrorDecoder maps to OrderNotPlacedException.
      */
     @ExceptionHandler(BookNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleBookNotFoundException(
-            BookNotFoundException ex, WebRequest request) {
-        
-        log.error("BookNotFoundException occurred: {}", ex.getMessage());
-        
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
-        
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    public ResponseEntity<Map<String, Object>> handleBookNotFoundException(BookNotFoundException ex) {
+        log.error("Mapping exception to 404 response: {}", ex.getMessage());
+
+        Map<String, Object> errorBody = new LinkedHashMap<>();
+        errorBody.put("timestamp", LocalDateTime.now().toString());
+        errorBody.put("status", HttpStatus.NOT_FOUND.value());
+        errorBody.put("error", "Not Found");
+        errorBody.put("message", ex.getMessage()); // The key used by your Feign Decoder
+
+        return new ResponseEntity<>(errorBody, HttpStatus.NOT_FOUND);
     }
 
     /**

@@ -11,21 +11,21 @@ import com.book.management.book.dto.responsedto.BookResponseDTO;
 public interface BookService {
 
     // Create
-    BookResponseDTO addBook(AddBookRequestDTO request);
+    //BookResponseDTO addBook(AddBookRequestDTO request);
 
     // Read
-    List<BookResponseDTO> getBooksAll();
-    Optional<BookResponseDTO> getBookById(long bookId);
-    List<BookResponseDTO> getBooksByAuthor(String authorId);
-    List<BookResponseDTO> getBooksByCategory(String categoryId);
-    List<BookResponseDTO> searchBooksByTitle(String titlePart);
+   // List<BookResponseDTO> getBooksAll();
+   // Optional<BookResponseDTO> getBookById(long bookId);
+   // List<BookResponseDTO> getBooksByAuthor(String authorId);
+   // List<BookResponseDTO> getBooksByCategory(String categoryId);
+   // List<BookResponseDTO> searchBooksByTitle(String titlePart);
 
     BookPriceResponseDTO getBookPricesMap(List<Long> bookIds);
 
 
     // Update
-    BookResponseDTO updateBook(long bookId, UpdateBookRequestDTO request);
+   // BookResponseDTO updateBook(long bookId, UpdateBookRequestDTO request);
 
     // Delete
-    void deleteBook(long bookId);
+   // void deleteBook(long bookId);
 }

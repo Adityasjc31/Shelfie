@@ -1,16 +1,26 @@
 package com.book.management.book.model;
 
+import jakarta.persistence.*;
 import lombok.*;
 
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
+@Builder
+@Entity
+@Table(name="books")
 public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long bookId;
+    @Column(nullable = false)
     private String bookTitle;
+    @Column(nullable = false)
     private String bookAuthorId;
+    @Column(nullable = false)
     private String bookCategoryId; // canonical ID like "CAT-FIC"
+    @Column(nullable = false)
     private double bookPrice;
 
     public long getBookId() {
