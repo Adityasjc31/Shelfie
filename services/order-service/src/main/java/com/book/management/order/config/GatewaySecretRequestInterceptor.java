@@ -27,10 +27,19 @@ public class GatewaySecretRequestInterceptor implements RequestInterceptor {
     @Override
     public void apply(RequestTemplate template) {
         if (securityProperties.isEnabled() && securityProperties.getExpectedToken() != null) {
+            String token = securityProperties.getExpectedToken();
             template.header(
                     securityProperties.getHeaderName(),
-                    securityProperties.getExpectedToken());
-            log.debug("Injected gateway secret header for inter-service call to: {}",
+                    token);
+            // Debug logging - show first 8 chars of token for troubleshooting
+            String maskedToken = token.length() > 8 ? token.substring(0, 8) + "..." : token;
+            log.info("Inter-service call to: {} | Header: {} | Token prefix: {}",
+                    template.feignTarget().name(),
+                    securityProperties.getHeaderName(),
+                    maskedToken);
+        } else {
+            log.warn(
+                    "Gateway security disabled or no token configured - NOT injecting header for inter-service call to: {}",
                     template.feignTarget().name());
         }
     }

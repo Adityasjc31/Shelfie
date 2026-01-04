@@ -64,6 +64,17 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
 
         // Validate gateway secret header
         String gatewaySecret = request.getHeader(securityProperties.getHeaderName());
+        String expectedToken = securityProperties.getExpectedToken();
+
+        // Debug logging - show token prefixes for troubleshooting
+        String receivedPrefix = (gatewaySecret != null && gatewaySecret.length() > 8)
+                ? gatewaySecret.substring(0, 8) + "..."
+                : gatewaySecret;
+        String expectedPrefix = (expectedToken != null && expectedToken.length() > 8)
+                ? expectedToken.substring(0, 8) + "..."
+                : expectedToken;
+        log.info("Gateway validation for {} | Received token prefix: {} | Expected token prefix: {}",
+                requestPath, receivedPrefix, expectedPrefix);
 
         if (gatewaySecret == null || gatewaySecret.isEmpty()) {
             log.warn("🚫 Direct access attempt blocked - Missing gateway secret header: {} from IP: {}",
@@ -72,8 +83,9 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!gatewaySecret.equals(securityProperties.getExpectedToken())) {
-            log.warn("🚫 Invalid gateway secret - Path: {}, IP: {}", requestPath, request.getRemoteAddr());
+        if (!gatewaySecret.equals(expectedToken)) {
+            log.warn("🚫 Invalid gateway secret - Path: {}, IP: {} | Token mismatch detected!",
+                    requestPath, request.getRemoteAddr());
             sendForbiddenResponse(response, "Invalid gateway credentials.");
             return;
         }
