@@ -51,7 +51,8 @@ public class OrderServiceImpl implements OrderService {
      * * @param request The order placement request details.
      * 
      * @return OrderResponseDTO for the created order.
-     * @throws OrderNotPlacedException only when error occurs in downstream services.
+     * @throws OrderNotPlacedException only when error occurs in downstream
+     *                                 services.
      */
     @Override
     @Transactional
@@ -60,12 +61,14 @@ public class OrderServiceImpl implements OrderService {
         try {
             // 1) Reduce stock (Inventory-service)
             // Inventory-service validates availability and throws on insufficiency.
-            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to OrderNotPlacedException.
+            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to
+            // OrderNotPlacedException.
             inventoryServiceClient.reduceStock(new ReduceInventoryStockRequestDTO(request.getBookOrder()));
 
             // 2) Fetch prices (Book-service)
             // AFTER stock is confirmed reduced fetch prices
-            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to OrderNotPlacedException.
+            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to
+            // OrderNotPlacedException.
 
             List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
             GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(new GetBookPriceRequestDTO(bookIdList));
@@ -101,13 +104,18 @@ public class OrderServiceImpl implements OrderService {
                     savedOrder.getOrderId(), savedOrder.getUserId(), savedOrder.getOrderTotalAmount());
 
             return toResponseDTO(savedOrder);
-        }
-        catch (Exception ex) {
-            log.error("Internal service error during order placement: {}", ex.getMessage(), ex);
-            throw new OrderNotPlacedException("Internal system error: Unable to process order.");
+        } catch (OrderNotPlacedException ex) {
+            // Re-throw with original message from Feign error decoder
+            log.error("Downstream service error during order placement: {}", ex.getMessage());
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Unexpected error during order placement: {}", ex.getMessage(), ex);
+            throw new OrderNotPlacedException(
+                    "Internal system error: Unable to process order. Cause: " + ex.getMessage());
         }
 
     }
+
     /**
      * Business logic for cancelling an order.
      * Rule: Can only cancel if PENDING or SHIPPED.
@@ -220,7 +228,8 @@ public class OrderServiceImpl implements OrderService {
      * @param request DTO containing the target status.
      * @return Updated OrderResponseDTO.
      * @throws OrderNotFoundException                if the order doesn't exist.
-     * @throws OrderInvalidStatusTransitionException if the status change is logically invalid.
+     * @throws OrderInvalidStatusTransitionException if the status change is
+     *                                               logically invalid.
      */
     @Override
     @Transactional

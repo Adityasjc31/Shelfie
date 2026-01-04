@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,7 +30,7 @@ public class FallbackController {
      * Fallback for Authentication Service.
      */
     @LogExecutionTime
-    @GetMapping("/auth")
+    @RequestMapping("/auth")
     public ResponseEntity<FallbackResponse> authServiceFallback() {
         log.warn("⚠ Authentication service fallback triggered");
 
@@ -49,7 +48,7 @@ public class FallbackController {
      * Fallback for Book Service.
      */
     @LogExecutionTime
-    @GetMapping("/books")
+    @RequestMapping("/books")
     public ResponseEntity<FallbackResponse> bookServiceFallback() {
         log.warn("⚠ Book service fallback triggered");
 
@@ -67,7 +66,7 @@ public class FallbackController {
      * Fallback for Inventory Service.
      */
     @LogExecutionTime
-    @GetMapping("/inventory")
+    @RequestMapping("/inventory")
     public ResponseEntity<FallbackResponse> inventoryServiceFallback() {
         log.warn("⚠ Inventory service fallback triggered");
 
@@ -85,7 +84,7 @@ public class FallbackController {
      * Fallback for Order Service.
      */
     @LogExecutionTime
-    @GetMapping("/orders")
+    @RequestMapping("/orders")
     public ResponseEntity<FallbackResponse> orderServiceFallback() {
         log.warn("⚠ Order service fallback triggered");
 
@@ -103,7 +102,7 @@ public class FallbackController {
      * Fallback for Review Service.
      */
     @LogExecutionTime
-    @GetMapping("/reviews")
+    @RequestMapping("/reviews")
     public ResponseEntity<FallbackResponse> reviewServiceFallback() {
         log.warn("⚠ Review service fallback triggered");
 
@@ -121,7 +120,7 @@ public class FallbackController {
      * Fallback for User Service.
      */
     @LogExecutionTime
-    @GetMapping("/users")
+    @RequestMapping("/users")
     public ResponseEntity<FallbackResponse> userServiceFallback() {
         log.warn("⚠ User service fallback triggered");
 

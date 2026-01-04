@@ -1,26 +1,36 @@
 package com.book.management.book.repository;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.book.management.book.model.Book;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
-public interface BookRepository {
+import java.util.List;
 
-    // Create
-    Book save(Book book);
+/**
+ * JPA Repository for Book entity.
+ * Provides CRUD operations via Spring Data JPA.
+ * 
+ * @author Aditya Srivastava
+ * @version 2.0 - Converted from in-memory to JPA
+ */
+@Repository
+public interface BookRepository extends JpaRepository<Book, Long> {
 
-    // Read
-    List<Book> findAll();
-    Optional<Book> findById(long bookId);
-    List<Book> findByAuthorId(String authorId);
-    List<Book> findByCategoryId(String categoryId);
-    List<Book> searchByTitle(String titlePart);
+    /**
+     * Find books by author ID.
+     */
+    List<Book> findByBookAuthorId(String authorId);
 
-    // Update
-    Book update(Book book);
+    /**
+     * Find books by category ID.
+     */
+    List<Book> findByBookCategoryId(String categoryId);
 
-    // Delete
-    void deleteById(long bookId);
-
+    /**
+     * Search books by title (case-insensitive partial match).
+     */
+    @Query("SELECT b FROM Book b WHERE LOWER(b.bookTitle) LIKE LOWER(CONCAT('%', :titlePart, '%'))")
+    List<Book> searchByTitle(@Param("titlePart") String titlePart);
 }

@@ -2,9 +2,7 @@ package com.book.management.order.config;
 
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * Feign Request Interceptor that injects the Gateway Secret header
@@ -18,11 +16,13 @@ import org.springframework.stereotype.Component;
  * @since 2026-01-04
  */
 @Slf4j
-@Component
-@RequiredArgsConstructor
 public class GatewaySecretRequestInterceptor implements RequestInterceptor {
 
     private final GatewaySecurityProperties securityProperties;
+
+    public GatewaySecretRequestInterceptor(GatewaySecurityProperties securityProperties) {
+        this.securityProperties = securityProperties;
+    }
 
     @Override
     public void apply(RequestTemplate template) {
