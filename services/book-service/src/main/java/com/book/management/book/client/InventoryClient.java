@@ -1,7 +1,6 @@
 package com.book.management.book.client;
 
 import com.book.management.book.client.fallback.InventoryClientFallbackFactory;
-
 import com.book.management.book.dto.requestdto.InventoryCreateDTO;
 import com.book.management.book.dto.responsedto.InventoryResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -20,6 +19,12 @@ public interface InventoryClient {
     @GetMapping("/book/{bookId}")
     InventoryResponseDTO getInventoryByBookId(@PathVariable("bookId") Long bookId);
 
+    // New Delete Endpoint
+    @DeleteMapping("/book/{bookId}")
+    void deleteInventoryByBookId(@PathVariable("bookId") Long bookId);
+
+    // Note: If you uncomment the update method later, ensure
+    // InventoryUpdateDTO is imported from your dto package.
 //    @PutMapping("/update/{bookId}")
 //    void updateInventoryQuantity(@PathVariable("bookId") Long bookId, @RequestBody InventoryUpdateDTO request);
 }

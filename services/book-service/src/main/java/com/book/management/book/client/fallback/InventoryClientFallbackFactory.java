@@ -17,12 +17,11 @@ public class InventoryClientFallbackFactory implements FallbackFactory<Inventory
         return new InventoryClient() {
             @Override
             public InventoryResponseDTO createInventory(InventoryCreateDTO request) {
-                log.error("Inventory Service is down or forbidden. Fallback triggered for create. Error: {}", cause.getMessage());
+                logError("create", cause);
 
-                // Using Builder as your DTO has @Builder
                 return InventoryResponseDTO.builder()
                         .bookId(request.getBookId())
-                        .quantity(0) // Default to 0 stock
+                        .quantity(0)
                         .lowStockThreshold(request.getLowStockThreshold())
                         .isLowStock(true)
                         .isOutOfStock(true)
@@ -32,7 +31,7 @@ public class InventoryClientFallbackFactory implements FallbackFactory<Inventory
 
             @Override
             public InventoryResponseDTO getInventoryByBookId(Long bookId) {
-                log.error("Inventory Service is down or forbidden. Fallback triggered for get. Error: {}", cause.getMessage());
+                logError("get", cause);
 
                 return InventoryResponseDTO.builder()
                         .bookId(bookId)
@@ -43,6 +42,24 @@ public class InventoryClientFallbackFactory implements FallbackFactory<Inventory
                         .updatedAt(LocalDateTime.now())
                         .build();
             }
+
+            @Override
+            public void deleteInventoryByBookId(Long bookId) {
+                logError("delete", cause);
+                // No return needed for void method
+            }
         };
+    }
+
+    // Helper to keep logs clean and identify Security vs Connection issues
+    private void logError(String operation, Throwable cause) {
+        if (cause.getMessage() != null && cause.getMessage().contains("401")) {
+            log.error("Fallback triggered for {}: Authentication failure (401 Unauthorized).", operation);
+        } else if (cause.getMessage() != null && cause.getMessage().contains("403")) {
+            log.error("Fallback triggered for {}: Permission denied (403 Forbidden).", operation);
+        } else {
+            log.error("Fallback triggered for {}: Inventory Service is unreachable. Error: {}",
+                    operation, cause.getMessage());
+        }
     }
 }

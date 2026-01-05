@@ -198,7 +198,26 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public void deleteBook(long bookId) {
+        log.info("Attempting to delete book with ID: {}", bookId);
+
+        // 1. Check if the book exists before attempting deletion
+        if (!bookRepository.existsById(bookId)) {
+            throw new BookNotFoundException("Cannot delete. Book not found with ID: " + bookId);
+        }
+
+        // 2. Delete the book from the local database
         bookRepository.deleteById(bookId);
+        log.info("Book {} deleted from Book Repository", bookId);
+
+        // 3. Sync with Inventory Service (External Call)
+        try {
+            log.info("Notifying Inventory Service to delete records for book: {}", bookId);
+            inventoryClient.deleteInventoryByBookId(bookId);
+        } catch (Exception e) {
+            // We log the error but don't throw an exception.
+            // This ensures the book stays deleted locally even if the inventory cleanup fails.
+            log.error("Failed to delete inventory for book {}. Error: {}", bookId, e.getMessage());
+        }
     }
 
     // Helper Methods
