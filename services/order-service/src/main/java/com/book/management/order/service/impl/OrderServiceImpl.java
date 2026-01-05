@@ -49,31 +49,29 @@ public class OrderServiceImpl implements OrderService {
      * Exception handling is driven by the FeignErrorDecoder for inter-service
      * errors.
      * * @param request The order placement request details.
-     * 
-     * @return OrderResponseDTO for the created order.
+     * * @return OrderResponseDTO for the created order.
      * @throws OrderNotPlacedException only when error occurs in downstream
-     *                                 services.
+     * services.
      */
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
         log.info("Initiating order placement for userId: {}", request.getUserId());
         try {
-            // 1) Reduce stock (Inventory-service)
+            // 1) Fetch prices and validate existence (Book-service)
+            // First, check if the books exist and get their current pricing.
+            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to
+            // OrderNotPlacedException.
+            List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
+            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(new GetBookPriceRequestDTO(bookIdList));
+            Map<Long, Double> priceMap = priceDTO.getBookPrice();
+
+            // 2) Reduce stock (Inventory-service)
+            // AFTER book existence is validated, proceed to reduce stock.
             // Inventory-service validates availability and throws on insufficiency.
             // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to
             // OrderNotPlacedException.
             inventoryServiceClient.reduceStock(new ReduceInventoryStockRequestDTO(request.getBookOrder()));
-
-            // 2) Fetch prices (Book-service)
-            // AFTER stock is confirmed reduced fetch prices
-            // If this Feign call fails (4xx/5xx), CustomFeignErrorDecoder maps it to
-            // OrderNotPlacedException.
-
-            List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
-            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(new GetBookPriceRequestDTO(bookIdList));
-
-            Map<Long, Double> priceMap = priceDTO.getBookPrice();
 
             // 3) Compute total amount (missing price -> 0.0, warn)
             double totalAmount = request.getBookOrder().entrySet().stream()
@@ -121,8 +119,7 @@ public class OrderServiceImpl implements OrderService {
      * Rule: Can only cancel if PENDING or SHIPPED.
      * Cannot cancel if DELIVERED or already CANCELLED.
      * * @param orderId ID of the order to cancel.
-     * 
-     * @throws OrderNotFoundException               if order does not exist.
+     * * @throws OrderNotFoundException               if order does not exist.
      * @throws OrderCancellationNotAllowedException if status is final.
      */
     @Override
@@ -150,8 +147,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Administrative soft delete. Marks the isDeleted flag as true in MySQL.
      * * @param orderId ID of the order to delete.
-     * 
-     * @throws OrderNotFoundException if order does not exist.
+     * * @throws OrderNotFoundException if order does not exist.
      */
     @Override
     @Transactional
@@ -166,8 +162,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Retrieves all active orders from the database.
      * * @return List of OrderResponseDTO.
-     * 
-     * @throws OrderNotFoundException if no orders exist in the system.
+     * * @throws OrderNotFoundException if no orders exist in the system.
      */
     @Override
     public List<OrderResponseDTO> getOrderAll() {
@@ -187,8 +182,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Retrieves a specific order by its ID.
      * * @param orderId The ID of the order to find.
-     * 
-     * @return Optional containing OrderResponseDTO.
+     * * @return Optional containing OrderResponseDTO.
      * @throws OrderNotFoundException if the ID does not exist.
      */
     @Override
@@ -202,8 +196,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Retrieves orders filtered by their current status.
      * * @param status The OrderEnum status to filter by.
-     * 
-     * @return List of OrderResponseDTO.
+     * * @return List of OrderResponseDTO.
      * @throws OrderNotFoundException if no orders match the given status.
      */
     @Override
@@ -224,12 +217,11 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Updates an order's status after validating the transition logic.
      * * @param orderId ID of the order to update.
-     * 
-     * @param request DTO containing the target status.
+     * * @param request DTO containing the target status.
      * @return Updated OrderResponseDTO.
      * @throws OrderNotFoundException                if the order doesn't exist.
      * @throws OrderInvalidStatusTransitionException if the status change is
-     *                                               logically invalid.
+     * logically invalid.
      */
     @Override
     @Transactional
@@ -250,8 +242,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Helper method to map Order Entity to OrderResponseDTO.
      * * @param order The source entity.
-     * 
-     * @return Mapped Response DTO.
+     * * @return Mapped Response DTO.
      */
     private OrderResponseDTO toResponseDTO(Order order) {
         return OrderResponseDTO.builder()
