@@ -13,7 +13,7 @@ import lombok.*;
 public class Book {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long bookId;
+    private Long bookId;
     @Column(nullable = false)
     private String bookTitle;
     @Column(nullable = false)
@@ -23,11 +23,11 @@ public class Book {
     @Column(nullable = false)
     private double bookPrice;
 
-    public long getBookId() {
+    public Long getBookId() {
         return bookId;
     }
 
-    public void setBookId(long bookId) {
+    public void setBookId(Long bookId) {
         this.bookId = bookId;
     }
 

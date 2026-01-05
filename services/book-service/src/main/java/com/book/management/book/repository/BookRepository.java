@@ -33,4 +33,6 @@ public interface BookRepository extends JpaRepository<Book, Long> {
      */
     @Query("SELECT b FROM Book b WHERE LOWER(b.bookTitle) LIKE LOWER(CONCAT('%', :titlePart, '%'))")
     List<Book> searchByTitle(@Param("titlePart") String titlePart);
+
+    List<Book> findByBookTitleContainingIgnoreCase(String title);
 }
