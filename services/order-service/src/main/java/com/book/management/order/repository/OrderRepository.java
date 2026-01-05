@@ -20,4 +20,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * Note: Hibernate @SQLRestriction handles the isDeleted filter automatically.
      */
     List<Order> findByOrderStatus(OrderEnum orderStatus);
+
+    /**
+     * Finds orders based on userId.
+     * Note: Hibernate @SQLRestriction handles the isDeleted filter automatically.
+     */
+    List<Order> findByUserId(Long userId);
 }

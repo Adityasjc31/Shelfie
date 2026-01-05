@@ -22,9 +22,11 @@ public interface OrderService {
 
     List<OrderResponseDTO> getOrderByStatus(OrderEnum status);
 
-    OrderResponseDTO changeOrderStatus(long orderId, UpdateOrderStatusRequestDTO request);
+    OrderResponseDTO updateOrderStatus(long orderId, UpdateOrderStatusRequestDTO request);
 
-    void cancelOrder(long orderId);
+    OrderResponseDTO cancelOrder(long orderId);
 
     void softDeleteOrder(long orderId);
+
+    void softDeleteUserOrder(long userId);
 }
