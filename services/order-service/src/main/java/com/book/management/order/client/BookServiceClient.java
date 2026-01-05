@@ -1,7 +1,7 @@
 
 package com.book.management.order.client;
 
-import com.book.management.order.client.fallback.BookClientFallback;
+import com.book.management.order.client.fallback.BookClientFallbackFactory;
 import com.book.management.order.dto.requestdto.GetBookPriceRequestDTO;
 import com.book.management.order.dto.responsedto.GetBookPriceResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(
         name = "book-service",
         path = "/api/v1/book",
-        fallback = BookClientFallback.class
+        fallbackFactory = BookClientFallbackFactory.class
 )
 public interface BookServiceClient {
 
