@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -57,7 +58,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             "/swagger-ui",
             "/api-docs");
 
-    public AuthenticationFilter(WebClient.Builder webClientBuilder, AuthenticationProperties authProperties) {
+    public AuthenticationFilter(@Qualifier("loadBalancedWebClientBuilder") WebClient.Builder webClientBuilder, AuthenticationProperties authProperties) {
         super(Config.class);
         this.webClientBuilder = webClientBuilder;
         this.authProperties = authProperties;
