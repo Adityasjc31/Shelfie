@@ -12,7 +12,7 @@ import java.util.List;
  * JPA Repository for Book entity.
  * Provides CRUD operations via Spring Data JPA.
  * 
- * @author Aditya Srivastava
+ * @author Aditya Srivastava + Shashwat Srivastava
  * @version 2.0 - Converted from in-memory to JPA
  */
 @Repository
