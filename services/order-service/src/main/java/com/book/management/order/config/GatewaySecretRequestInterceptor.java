@@ -31,13 +31,15 @@ public class GatewaySecretRequestInterceptor implements RequestInterceptor {
             template.header(
                     securityProperties.getHeaderName(),
                     token);
-            // Debug logging - show first 8 chars of token for troubleshooting
-            String maskedToken = token.length() > 8 ? token.substring(0, 8) + "..." : token;
-            log.info("Inter-service call to: {} | Header: {} | Token prefix: {}",
-                    template.feignTarget().name(),
+            // Only perform string operations when DEBUG is enabled to reduce I/O overhead
+            if (log.isDebugEnabled()) {
+                String maskedToken = token.length() > 8 ? token.substring(0, 8) + "..." : token;
+                log.debug("Inter-service call to: {} | Header: {} | Token prefix: {}",
+                        template.feignTarget().name(),
                         securityProperties.getHeaderName(),
-                    maskedToken);
-        } else {
+                        maskedToken);
+            }
+        } else if (log.isWarnEnabled()) {
             log.warn(
                     "Gateway security disabled or no token configured - NOT injecting header for inter-service call to: {}",
                     template.feignTarget().name());

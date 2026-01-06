@@ -65,23 +65,4 @@ public class WebClientConfig {
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient));
     }
-
-    /**
-     * Creates a standard WebClient builder (non-load balanced).
-     * Used for external API calls.
-     * 
-     * @return WebClient.Builder
-     */
-    @Bean
-    public WebClient.Builder webClientBuilder() {
-        HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
-                .responseTimeout(Duration.ofSeconds(5))
-                .doOnConnected(conn -> conn
-                        .addHandlerLast(new ReadTimeoutHandler(5, TimeUnit.SECONDS))
-                        .addHandlerLast(new WriteTimeoutHandler(5, TimeUnit.SECONDS)));
-
-        return WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(httpClient));
-    }
 }
