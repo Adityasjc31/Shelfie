@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  * @author Aditya Srivastava
  * @version 1.0
  */
-@FeignClient(name = "user-service", path = "/users", fallback = UserServiceClientFallback.class)
+@FeignClient(name = "user-service", path = "/api/v1/users", fallback = UserServiceClientFallback.class)
 public interface UserServiceClient {
 
     /**
