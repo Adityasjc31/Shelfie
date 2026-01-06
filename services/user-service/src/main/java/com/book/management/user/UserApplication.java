@@ -3,6 +3,7 @@ package com.book.management.user;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 /**
@@ -18,12 +19,14 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
  * - AOP-based logging
  * - Eureka service discovery
  * - Spring Cloud Config integration
+ * - Feign clients for inter-service communication (Order, Review services)
  * 
  * @author Abdul Ahad
  * @version 2.0 - Microservice Architecture
  */
 @SpringBootApplication
 @EnableDiscoveryClient
+@EnableFeignClients
 @EnableAspectJAutoProxy
 public class UserApplication {
 
