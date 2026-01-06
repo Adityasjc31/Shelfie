@@ -15,7 +15,7 @@ import com.book.management.user.dto.*;
 import com.book.management.user.exception.*;
 import com.book.management.user.model.User;
 import com.book.management.user.model.UserRole;
-import com.book.management.user.repository.impl.UserRepository;
+import com.book.management.user.repository.JpaUserRepository;
 import com.book.management.user.service.impl.UserServiceImpl;
 
 import java.time.LocalDateTime;
@@ -43,7 +43,7 @@ import static org.mockito.Mockito.*;
 class UserServiceImplTest {
 
     @Mock
-    private UserRepository userRepository;
+    private JpaUserRepository userRepository;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -70,7 +70,7 @@ class UserServiceImplTest {
                 .name("John Doe")
                 .email("john@example.com")
                 .password("password123")
-                .role(UserRole.CUSTOMER)
+                .role("CUSTOMER")
                 .build();
 
         loginDTO = UserLoginDTO.builder()
@@ -89,7 +89,7 @@ class UserServiceImplTest {
     @Test
     @DisplayName("Should register user successfully")
     void testRegisterUser_Success() {
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
         UserResponseDTO response = userService.registerUser(registrationDTO);
@@ -97,23 +97,23 @@ class UserServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.getEmail()).isEqualTo("john@example.com");
         assertThat(response.getName()).isEqualTo("John Doe");
-        assertThat(response.getRole()).isEqualTo(UserRole.CUSTOMER);
+        assertThat(response.getRole()).isEqualTo("CUSTOMER");
         assertThat(response.getIsActive()).isTrue();
 
-        verify(userRepository, times(1)).existsByEmail(anyString());
+        verify(userRepository, times(1)).existsByEmailIgnoreCase(anyString());
         verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
     @DisplayName("Should throw exception when email already exists")
     void testRegisterUser_EmailExists() {
-        when(userRepository.existsByEmail(anyString())).thenReturn(true);
+        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(true);
 
         assertThatThrownBy(() -> userService.registerUser(registrationDTO))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("john@example.com");
 
-        verify(userRepository, times(1)).existsByEmail(anyString());
+        verify(userRepository, times(1)).existsByEmailIgnoreCase(anyString());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -122,11 +122,11 @@ class UserServiceImplTest {
     @Test
     @DisplayName("Should login user successfully with valid credentials")
     void testLoginUser_Success() {
-        String hashedPassword = org.mindrot.jbcrypt.BCrypt.hashpw("password123", 
-                                org.mindrot.jbcrypt.BCrypt.gensalt());
+        String hashedPassword = org.mindrot.jbcrypt.BCrypt.hashpw("password123",
+                org.mindrot.jbcrypt.BCrypt.gensalt());
         testUser.setPassword(hashedPassword);
-        
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
 
         UserResponseDTO response = userService.loginUser(loginDTO);
 
@@ -134,48 +134,48 @@ class UserServiceImplTest {
         assertThat(response.getEmail()).isEqualTo("john@example.com");
         assertThat(response.getUserId()).isEqualTo(1L);
 
-        verify(userRepository, times(1)).findByEmail(anyString());
+        verify(userRepository, times(1)).findByEmailIgnoreCase(anyString());
     }
 
     @Test
     @DisplayName("Should throw exception when user not found during login")
     void testLoginUser_UserNotFound() {
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.loginUser(loginDTO))
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid email or password");
 
-        verify(userRepository, times(1)).findByEmail(anyString());
+        verify(userRepository, times(1)).findByEmailIgnoreCase(anyString());
     }
 
     @Test
     @DisplayName("Should throw exception when user account is inactive")
     void testLoginUser_InactiveAccount() {
         testUser.setIsActive(false);
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
 
         assertThatThrownBy(() -> userService.loginUser(loginDTO))
                 .isInstanceOf(UserInactiveException.class)
                 .hasMessageContaining("inactive");
 
-        verify(userRepository, times(1)).findByEmail(anyString());
+        verify(userRepository, times(1)).findByEmailIgnoreCase(anyString());
     }
 
     @Test
     @DisplayName("Should throw exception when password is incorrect")
     void testLoginUser_InvalidPassword() {
-        String wrongHashedPassword = org.mindrot.jbcrypt.BCrypt.hashpw("wrongPassword", 
-                                     org.mindrot.jbcrypt.BCrypt.gensalt());
+        String wrongHashedPassword = org.mindrot.jbcrypt.BCrypt.hashpw("wrongPassword",
+                org.mindrot.jbcrypt.BCrypt.gensalt());
         testUser.setPassword(wrongHashedPassword);
-        
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
 
         assertThatThrownBy(() -> userService.loginUser(loginDTO))
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid email or password");
 
-        verify(userRepository, times(1)).findByEmail(anyString());
+        verify(userRepository, times(1)).findByEmailIgnoreCase(anyString());
     }
 
     // ========== GET USER BY ID TESTS ==========
@@ -211,26 +211,26 @@ class UserServiceImplTest {
     @Test
     @DisplayName("Should get user by email successfully")
     void testGetUserByEmail_Success() {
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
 
         UserResponseDTO response = userService.getUserByEmail("john@example.com");
 
         assertThat(response).isNotNull();
         assertThat(response.getEmail()).isEqualTo("john@example.com");
 
-        verify(userRepository, times(1)).findByEmail("john@example.com");
+        verify(userRepository, times(1)).findByEmailIgnoreCase("john@example.com");
     }
 
     @Test
     @DisplayName("Should throw exception when email not found")
     void testGetUserByEmail_NotFound() {
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getUserByEmail("notfound@example.com"))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("notfound@example.com");
 
-        verify(userRepository, times(1)).findByEmail("notfound@example.com");
+        verify(userRepository, times(1)).findByEmailIgnoreCase("notfound@example.com");
     }
 
     // ========== GET ALL USERS TESTS ==========
@@ -284,7 +284,7 @@ class UserServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
-        assertThat(response.get(0).getRole()).isEqualTo(UserRole.CUSTOMER);
+        assertThat(response.get(0).getRole()).isEqualTo("CUSTOMER");
 
         verify(userRepository, times(1)).findByRole(UserRole.CUSTOMER);
     }

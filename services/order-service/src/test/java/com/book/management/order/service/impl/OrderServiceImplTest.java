@@ -97,6 +97,14 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).save(any(Order.class));
     }
 
+<<<<<<< HEAD
+=======
+    /**
+     * Tests order placement failure when Book Service is unavailable.
+     * Verifies OrderNotPlacedException is thrown and no inventory/save operations
+     * occur.
+     */
+>>>>>>> 83471c75d4d72a52c8347305ecd178e2aeee7d8d
     @Test
     void placeOrder_BookServiceFails_ThrowsOrderNotPlacedException() {
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class)))
@@ -109,6 +117,14 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
+<<<<<<< HEAD
+=======
+    /**
+     * Tests order placement failure when Inventory Service reports insufficient
+     * stock.
+     * Verifies OrderNotPlacedException is thrown and order is not saved.
+     */
+>>>>>>> 83471c75d4d72a52c8347305ecd178e2aeee7d8d
     @Test
     void placeOrder_InventoryServiceFails_ThrowsOrderNotPlacedException() {
         GetBookPriceResponseDTO priceResponse = new GetBookPriceResponseDTO();
@@ -147,6 +163,69 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findById(999L);
     }
 
+<<<<<<< HEAD
+=======
+
+
+    // ==================== getAllOrders Tests ====================
+
+    /**
+     * Tests successful retrieval of all orders.
+     * Verifies list is returned with correct size.
+     */
+    @Test
+    void getAllOrders_Success() {
+        List<Order> orders = List.of(order);
+        when(orderRepository.findAll()).thenReturn(orders);
+
+        List<OrderResponseDTO> result = orderService.getOrderAll();
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        verify(orderRepository, times(1)).findAll();
+    }
+
+    /**
+     * Tests retrieval when no orders exist in the system.
+     * Verifies empty list is returned.
+     */
+    @Test
+    void getAllOrders_EmptyList() {
+        when(orderRepository.findAll()).thenReturn(Collections.emptyList());
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.getOrderAll());
+
+        verify(orderRepository, times(1)).findAll();
+    }
+
+    // ==================== getOrdersByStatus Tests ====================
+
+    /**
+     * Tests successful retrieval of orders filtered by status.
+     * Verifies returned orders have the requested status.
+     */
+    @Test
+    void getOrdersByStatus_Success() {
+        List<Order> orders = List.of(order);
+        when(orderRepository.findByOrderStatus(OrderEnum.PENDING)).thenReturn(orders);
+
+        List<OrderResponseDTO> result = orderService.getOrderByStatus(OrderEnum.PENDING);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(OrderEnum.PENDING, result.get(0).getOrderStatus());
+
+        verify(orderRepository, times(1)).findByOrderStatus(OrderEnum.PENDING);
+    }
+
+    // ==================== updateOrderStatus Tests ====================
+
+    /**
+     * Tests valid status transition from PENDING to SHIPPED.
+     * Verifies order status is updated and saved correctly.
+     */
+>>>>>>> 83471c75d4d72a52c8347305ecd178e2aeee7d8d
     @Test
     void updateOrderStatus_PendingToShipped_Success() {
         UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
