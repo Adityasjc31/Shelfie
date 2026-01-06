@@ -13,6 +13,7 @@ import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.exception.*;
 import com.book.management.order.model.Order;
 import com.book.management.order.repository.OrderRepository;
+import com.book.management.order.service.AsyncFeignService;
 import com.book.management.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,14 +25,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of OrderService.
  * Manages the business logic for order processing and persistence.
  * Orchestrates cross-service calls via Feign and manages MySQL persistence.
+ * 
+ * Per LLD Section 4.3 - Order Management Module:
+ * - Enables users to place, track, and manage orders.
+ * - Uses Order entity (OrderID, UserID, OrderDate, TotalAmount, Status).
+ * 
+ * OPTIMIZED: Uses parallel Feign calls to reduce order placement latency.
  *
  * @author Rehan Ashraf
- * @version 2.1
+ * @version 2.2
  */
 @Service
 @Slf4j
@@ -41,48 +51,71 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final BookServiceClient bookServiceClient;
     private final InventoryServiceClient inventoryServiceClient;
+    private final AsyncFeignService asyncFeignService;
 
     private static final String NOT_FOUND_MSG = "Order not found with ID: ";
+    private static final int ASYNC_TIMEOUT_SECONDS = 5;
 
     /**
-     * Orchestrates order placement.
-     * Exception handling is driven by the FeignErrorDecoder for inter-service errors.
+     * Orchestrates order placement with PARALLEL Feign calls.
+     * 
+     * Flow:
+     * 1. Start book price fetch AND inventory check in PARALLEL
+     * 2. Wait for both responses
+     * 3. Validate inventory availability
+     * 4. Reduce inventory stock (Inventory entity: Quantity)
+     * 5. Calculate TotalAmount and save Order
+     * 
+     * Per LLD Section 4.3 - Order Management:
+     * - Order entity: OrderID, UserID, OrderDate, TotalAmount, Status
+     * 
      * @param request The order placement request details.
      * @return OrderResponseDTO for the created order.
-     * @throws OrderNotPlacedException only when error occurs in downstream
-     * services.
+     * @throws OrderNotPlacedException when error occurs in downstream services.
      */
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
         log.info("Initiating order placement for userId: {}", request.getUserId());
+        long startTime = System.currentTimeMillis();
+        
         try {
-            // 1) Fetch prices and validate existence (Book-service)
             List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
-            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(new GetBookPriceRequestDTO(bookIdList));
+            Map<Long, Integer> bookOrder = request.getBookOrder();
+            
+            // 1) Start PARALLEL async calls - Price fetch AND Inventory check
+            CompletableFuture<GetBookPriceResponseDTO> priceFuture = 
+                asyncFeignService.getBookPricesAsync(new GetBookPriceRequestDTO(bookIdList));
+            
+            CompletableFuture<Map<Long, Boolean>> inventoryFuture = 
+                asyncFeignService.checkInventoryAsync(bookOrder);
+            
+            // 2) Wait for BOTH to complete (parallel execution)
+            CompletableFuture.allOf(priceFuture, inventoryFuture)
+                .orTimeout(ASYNC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .join();
+            
+            // 3) Get results
+            GetBookPriceResponseDTO priceDTO = priceFuture.join();
+            Map<Long, Boolean> availabilityMap = inventoryFuture.join();
+            
             Map<Long, Double> priceMap = priceDTO.getBookPrice();
-
-            // 2) Reduce stock (Inventory-service)
-            inventoryServiceClient.reduceStock(new ReduceInventoryStockRequestDTO(request.getBookOrder()));
-
-            // 3) Compute total amount (missing price -> 0.0, warn)
-            double totalAmount = request.getBookOrder().entrySet().stream()
-                    .mapToDouble(e -> {
-                        Long bookId = e.getKey();
-                        Integer qty = e.getValue();
-                        Double unitPrice = priceMap.get(bookId);
-                        if (unitPrice == null) {
-                            log.warn("Price not found for bookId={}, defaulting contribution to 0.0", bookId);
-                            return 0.0;
-                        }
-                        return unitPrice * qty;
-                    })
-                    .sum();
-
-            // 4) Map and save order
+            log.debug("Parallel calls completed - Prices: {} items, Availability: {} items", 
+                    priceMap.size(), availabilityMap.size());
+            
+            // 4) Validate inventory availability
+            validateInventoryAvailability(availabilityMap, bookOrder);
+            
+            // 5) Reduce stock - must be after validation
+            inventoryServiceClient.reduceStock(new ReduceInventoryStockRequestDTO(bookOrder));
+            log.debug("Inventory reduced for {} items", bookOrder.size());
+            
+            // 6) Compute TotalAmount and save Order
+            double totalAmount = calculateTotalAmount(bookOrder, priceMap);
+            
             Order order = Order.builder()
                     .userId(request.getUserId())
-                    .items(request.getBookOrder())
+                    .items(bookOrder)
                     .orderTotalAmount(totalAmount)
                     .orderDateTime(LocalDateTime.now())
                     .orderStatus(OrderEnum.PENDING)
@@ -90,19 +123,73 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             Order savedOrder = orderRepository.save(order);
-            log.info("Order placed successfully. orderId: {}, userId: {}, totalAmount: {}",
-                    savedOrder.getOrderId(), savedOrder.getUserId(), savedOrder.getOrderTotalAmount());
+            
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("Order placed successfully in {} ms. orderId: {}, userId: {}, totalAmount: {}",
+                    duration, savedOrder.getOrderId(), savedOrder.getUserId(), savedOrder.getOrderTotalAmount());
 
             return toResponseDTO(savedOrder);
+            
+        } catch (CompletionException ex) {
+            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+            log.error("Parallel call failed during order placement: {}", cause.getMessage());
+            throw new OrderNotPlacedException("Service call failed: " + cause.getMessage());
         } catch (OrderNotPlacedException ex) {
-            // Re-throw with original message from Feign error decoder
-            log.error("Downstream service error during order placement: {}", ex.getMessage());
+            log.error("Order placement failed: {}", ex.getMessage());
             throw ex;
         } catch (Exception ex) {
             log.error("Unexpected error during order placement: {}", ex.getMessage(), ex);
             throw new OrderNotPlacedException(
                     "Internal system error: Unable to process order. Cause: " + ex.getMessage());
         }
+    }
+
+    /**
+     * Validates that all items are available in inventory.
+     * Per LLD Section 4.4 - Inventory Management:
+     * - Tracks stock levels and prevents out-of-stock purchases.
+     *
+     * @param availabilityMap map of BookID to availability
+     * @param bookOrder requested book quantities
+     * @throws OrderNotPlacedException if any item is unavailable
+     */
+    private void validateInventoryAvailability(Map<Long, Boolean> availabilityMap, Map<Long, Integer> bookOrder) {
+        List<Long> unavailableBooks = new ArrayList<>();
+        
+        for (Long bookId : bookOrder.keySet()) {
+            Boolean available = availabilityMap.get(bookId);
+            if (available == null || !available) {
+                unavailableBooks.add(bookId);
+            }
+        }
+        
+        if (!unavailableBooks.isEmpty()) {
+            throw new OrderNotPlacedException(
+                    "Insufficient stock for BookIDs: " + unavailableBooks);
+        }
+    }
+
+    /**
+     * Calculates TotalAmount from book quantities and prices.
+     * Per LLD: Order.TotalAmount = Sum of (Book.Price * Quantity)
+     *
+     * @param bookOrder map of BookID to Quantity
+     * @param priceMap map of BookID to Price
+     * @return total order amount
+     */
+    private double calculateTotalAmount(Map<Long, Integer> bookOrder, Map<Long, Double> priceMap) {
+        return bookOrder.entrySet().stream()
+                .mapToDouble(e -> {
+                    Long bookId = e.getKey();
+                    Integer qty = e.getValue();
+                    Double unitPrice = priceMap.get(bookId);
+                    if (unitPrice == null) {
+                        log.warn("Price not found for BookID={}, defaulting contribution to 0.0", bookId);
+                        return 0.0;
+                    }
+                    return unitPrice * qty;
+                })
+                .sum();
     }
 
     /**

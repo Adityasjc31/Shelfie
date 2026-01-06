@@ -223,4 +223,23 @@ public class InventoryController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Checks bulk availability without modifying stock.
+     * Simple endpoint that returns map of BookID to availability status.
+     * Enables parallel validation in Order Service.
+     * 
+     * Per LLD Section 4.4 - Inventory Management Module:
+     * - Tracks stock levels and prevents out-of-stock purchases.
+     * - Uses Inventory entity (InventoryID, BookID, Quantity).
+     *
+     * @param bookQuantities map of BookID to requested Quantity
+     * @return map of BookID to availability status (true if available)
+     */
+    @PostMapping("/bulk/check")
+    public ResponseEntity<Map<Long, Boolean>> checkBulkAvailabilitySimple(
+            @RequestBody Map<Long, Integer> bookQuantities) {
+        Map<Long, Boolean> availability = inventoryService.checkBulkAvailability(bookQuantities);
+        return ResponseEntity.ok(availability);
+    }
+
 }

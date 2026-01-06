@@ -250,4 +250,52 @@ public class BookServiceImpl implements BookService {
         if (req.getBookPrice() == null || req.getBookPrice() < 0) throw new InvalidBookDataException("Invalid price");
         if (req.getBookStockQuantity() == null || req.getBookStockQuantity() < 0) throw new InvalidBookDataException("Invalid stock");
     }
+
+    /**
+     * Updates book rating statistics.
+     * Called by Review Service to sync rating data.
+     * 
+     * Per LLD Section 4.5 - Review & Rating Module:
+     * - Ratings are managed by Review Service.
+     * - This endpoint allows Review Service to notify Book Service of rating changes.
+     * 
+     * Note: Since LLD Book entity doesn't include rating fields,
+     * this is a placeholder that logs the update. In production,
+     * you could add rating columns to the Book table or use a cache.
+     * 
+     * @param bookId the BookID to update
+     * @param request the rating update containing average rating and total reviews
+     * @return updated book response
+     */
+    @Override
+    public BookResponseDTO updateBookRating(long bookId, com.book.management.book.dto.requestdto.BookRatingUpdateRequest request) {
+        log.info("Received rating update for BookID: {} - Average: {}, Total: {}",
+                bookId, request.getAverageRating(), request.getTotalReviews());
+        
+        Optional<Book> bookOpt = bookRepository.findById(bookId);
+        if (bookOpt.isEmpty()) {
+            throw new BookNotFoundException((int) bookId);
+        }
+        
+        // Note: Book entity per LLD doesn't have rating fields.
+        // Log the update for now - can add rating columns if needed.
+        log.debug("Rating sync completed for BookID: {}", bookId);
+        
+        return toResponseDTOWithInventoryLookup(bookOpt.get());
+    }
+
+    /**
+     * Checks if a book exists by BookID.
+     * Lightweight validation for Review Service.
+     * 
+     * Per LLD Section 4.5 - Review & Rating Module:
+     * - Reviews must be linked to valid BookIDs.
+     * 
+     * @param bookId the BookID to check
+     * @return true if book exists
+     */
+    @Override
+    public boolean existsById(long bookId) {
+        return bookRepository.existsById(bookId);
+    }
 }
