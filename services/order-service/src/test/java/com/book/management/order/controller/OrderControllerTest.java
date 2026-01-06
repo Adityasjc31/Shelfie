@@ -14,13 +14,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -46,285 +47,290 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(GlobalOrderExceptionHandler.class)
 class OrderControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @MockitoBean
-    private OrderService orderService;
+        @MockitoBean
+        private OrderService orderService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private PlaceOrderRequestDTO validPlaceOrderRequest;
-    private OrderResponseDTO successfulOrderResponse;
-    private Map<Long, Integer> bookOrder;
+        private final ObjectMapper objectMapper = new ObjectMapper();
+        private PlaceOrderRequestDTO validPlaceOrderRequest;
+        private OrderResponseDTO successfulOrderResponse;
+        private Map<Long, Integer> bookOrder;
 
-    /**
-     * Sets up test fixtures before each test method.
-     * Initializes sample request and response DTOs for order operations.
-     */
-    @BeforeEach
-    void setUp() {
-        bookOrder = Map.of(101L, 2, 102L, 1);
+        /**
+         * Sets up test fixtures before each test method.
+         * Initializes sample request and response DTOs for order operations.
+         */
+        @BeforeEach
+        void setUp() {
+                bookOrder = Map.of(101L, 2, 102L, 1);
 
-        validPlaceOrderRequest = new PlaceOrderRequestDTO();
-        validPlaceOrderRequest.setUserId(99L);
-        validPlaceOrderRequest.setBookOrder(bookOrder);
+                validPlaceOrderRequest = new PlaceOrderRequestDTO();
+                validPlaceOrderRequest.setUserId(99L);
+                validPlaceOrderRequest.setBookOrder(bookOrder);
 
-        successfulOrderResponse = OrderResponseDTO.builder()
-                .orderId(1L)
-                .userId(99L)
-                .items(bookOrder)
-                .orderDate(LocalDateTime.now())
-                .totalAmount(1047.5)
-                .orderStatus(OrderEnum.PENDING)
-                .build();
-    }
+                successfulOrderResponse = OrderResponseDTO.builder()
+                                .orderId(1L)
+                                .userId(99L)
+                                .bookIds(new ArrayList<>(bookOrder.keySet()))
+                                .orderDateTime(LocalDateTime.now())
+                                .orderTotalAmount(1047.5)
+                                .orderStatus(OrderEnum.PENDING)
+                                .build();
+        }
 
-    // ==================== POST /api/v1/order/place ====================
+        // ==================== POST /api/v1/order/place ====================
 
-    /**
-     * Tests successful order placement.
-     * Verifies HTTP 201 Created response with order details.
-     */
-    @Test
-    void placeOrder_Success_Returns201Created() throws Exception {
-        when(orderService.placeOrder(any(PlaceOrderRequestDTO.class))).thenReturn(successfulOrderResponse);
+        /**
+         * Tests successful order placement.
+         * Verifies HTTP 201 Created response with order details.
+         */
+        @Test
+        void placeOrder_Success_Returns201Created() throws Exception {
+                when(orderService.placeOrder(any(PlaceOrderRequestDTO.class))).thenReturn(successfulOrderResponse);
 
-        mockMvc.perform(post("/api/v1/order/place")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validPlaceOrderRequest)))
-                .andExpect(status().isCreated())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.orderId").value(1L))
-                .andExpect(jsonPath("$.userId").value(99L))
-                .andExpect(jsonPath("$.orderStatus").value("PENDING"));
+                mockMvc.perform(post("/api/v1/order/place")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(validPlaceOrderRequest)))
+                                .andExpect(status().isCreated())
+                                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(jsonPath("$.orderId").value(1L))
+                                .andExpect(jsonPath("$.userId").value(99L))
+                                .andExpect(jsonPath("$.orderStatus").value("PENDING"));
 
-        verify(orderService, times(1)).placeOrder(any(PlaceOrderRequestDTO.class));
-    }
+                verify(orderService, times(1)).placeOrder(any(PlaceOrderRequestDTO.class));
+        }
 
-    /**
-     * Tests order placement failure due to service error.
-     * Verifies HTTP 400 Bad Request with ORDER_PLACEMENT_FAILED error code.
-     */
-    @Test
-    void placeOrder_ServiceFailure_Returns400BadRequest() throws Exception {
-        when(orderService.placeOrder(any(PlaceOrderRequestDTO.class)))
-                .thenThrow(new OrderNotPlacedException("Insufficient stock available."));
+        /**
+         * Tests order placement failure due to service error.
+         * Verifies HTTP 400 Bad Request with ORDER_PLACEMENT_FAILED error code.
+         */
+        @Test
+        void placeOrder_ServiceFailure_Returns400BadRequest() throws Exception {
+                when(orderService.placeOrder(any(PlaceOrderRequestDTO.class)))
+                                .thenThrow(new OrderNotPlacedException("Insufficient stock available."));
 
-        mockMvc.perform(post("/api/v1/order/place")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validPlaceOrderRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("ORDER_PLACEMENT_FAILED"));
+                mockMvc.perform(post("/api/v1/order/place")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(validPlaceOrderRequest)))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value("ORDER_PLACEMENT_FAILED"));
 
-        verify(orderService, times(1)).placeOrder(any(PlaceOrderRequestDTO.class));
-    }
+                verify(orderService, times(1)).placeOrder(any(PlaceOrderRequestDTO.class));
+        }
 
-    // ==================== GET /api/v1/order/getAll ====================
+        // ==================== GET /api/v1/order/getAll ====================
 
-    /**
-     * Tests successful retrieval of all orders.
-     * Verifies HTTP 200 OK with order list.
-     */
-    @Test
-    void getAllOrders_Success_Returns200Ok() throws Exception {
-        when(orderService.getOrderAll()).thenReturn(List.of(successfulOrderResponse));
+        /**
+         * Tests successful retrieval of all orders.
+         * Verifies HTTP 200 OK with order list.
+         */
+        @Test
+        void getAllOrders_Success_Returns200Ok() throws Exception {
+                when(orderService.getOrderAll()).thenReturn(List.of(successfulOrderResponse));
 
-        mockMvc.perform(get("/api/v1/order/getAll"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].orderId").value(1L));
+                mockMvc.perform(get("/api/v1/order/getAll"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].orderId").value(1L));
 
-        verify(orderService, times(1)).getOrderAll();
-    }
+                verify(orderService, times(1)).getOrderAll();
+        }
 
-    /**
-     * Tests retrieval when no orders exist.
-     * Verifies HTTP 200 OK with empty array.
-     */
-    @Test
-    void getAllOrders_Empty_Returns200Ok() throws Exception {
-        when(orderService.getOrderAll()).thenReturn(Collections.emptyList());
+        /**
+         * Tests retrieval when no orders exist.
+         * Verifies HTTP 200 OK with empty array.
+         */
+        @Test
+        void getAllOrders_Empty_Returns200Ok() throws Exception {
+                when(orderService.getOrderAll()).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/v1/order/getAll"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                mockMvc.perform(get("/api/v1/order/getAll"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$").isEmpty());
 
-        verify(orderService, times(1)).getOrderAll();
-    }
+                verify(orderService, times(1)).getOrderAll();
+        }
 
-    // ==================== GET /api/v1/order/getById/{orderId} ====================
+        // ==================== GET /api/v1/order/getById/{orderId} ====================
 
-    /**
-     * Tests successful order retrieval by ID.
-     * Verifies HTTP 200 OK with order details.
-     */
-    @Test
-    void getOrderById_Found_Returns200Ok() throws Exception {
-        when(orderService.getOrderById(1L)).thenReturn(Optional.of(successfulOrderResponse));
+        /**
+         * Tests successful order retrieval by ID.
+         * Verifies HTTP 200 OK with order details.
+         */
+        @Test
+        void getOrderById_Found_Returns200Ok() throws Exception {
+                when(orderService.getOrderById(1L)).thenReturn(Optional.of(successfulOrderResponse));
 
-        mockMvc.perform(get("/api/v1/order/getById/{orderId}", 1L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderId").value(1L));
+                mockMvc.perform(get("/api/v1/order/getById/{orderId}", 1L))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.orderId").value(1L));
 
-        verify(orderService, times(1)).getOrderById(1L);
-    }
+                verify(orderService, times(1)).getOrderById(1L);
+        }
 
-    /**
-     * Tests order retrieval when order does not exist.
-     * Verifies HTTP 404 Not Found response.
-     */
-    @Test
-    void getOrderById_NotFound_Returns404NotFound() throws Exception {
-        when(orderService.getOrderById(99L)).thenReturn(Optional.empty());
+        /**
+         * Tests order retrieval when order does not exist.
+         * Verifies HTTP 404 Not Found response.
+         */
+        @Test
+        void getOrderById_NotFound_Returns404NotFound() throws Exception {
+                when(orderService.getOrderById(99L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/v1/order/getById/{orderId}", 99L))
-                .andExpect(status().isNotFound());
+                mockMvc.perform(get("/api/v1/order/getById/{orderId}", 99L))
+                                .andExpect(status().isNotFound());
 
-        verify(orderService, times(1)).getOrderById(99L);
-    }
+                verify(orderService, times(1)).getOrderById(99L);
+        }
 
-    // ==================== GET /api/v1/order/status/{status} ====================
+        // ==================== GET /api/v1/order/status/{status} ====================
 
-    /**
-     * Tests successful retrieval of orders by status.
-     * Verifies HTTP 200 OK with filtered orders.
-     */
-    @Test
-    void getOrdersByStatus_Success_Returns200Ok() throws Exception {
-        when(orderService.getOrderByStatus(OrderEnum.PENDING)).thenReturn(List.of(successfulOrderResponse));
+        /**
+         * Tests successful retrieval of orders by status.
+         * Verifies HTTP 200 OK with filtered orders.
+         */
+        @Test
+        void getOrdersByStatus_Success_Returns200Ok() throws Exception {
+                when(orderService.getOrderByStatus(OrderEnum.PENDING)).thenReturn(List.of(successfulOrderResponse));
 
-        mockMvc.perform(get("/api/v1/order/status/{status}", "PENDING"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].orderStatus").value("PENDING"));
+                mockMvc.perform(get("/api/v1/order/status/{status}", "PENDING"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].orderStatus").value("PENDING"));
 
-        verify(orderService, times(1)).getOrderByStatus(OrderEnum.PENDING);
-    }
+                verify(orderService, times(1)).getOrderByStatus(OrderEnum.PENDING);
+        }
 
-    // ==================== PATCH /api/v1/order/update/{orderId} ====================
+        // ==================== PATCH /api/v1/order/update/{orderId}
+        // ====================
 
-    /**
-     * Tests successful order status update.
-     * Verifies HTTP 200 OK with updated order status.
-     */
-    @Test
-    void changeOrderStatus_Success_Returns200Ok() throws Exception {
-        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
-        updateRequest.setOrderStatus(OrderEnum.SHIPPED);
+        /**
+         * Tests successful order status update.
+         * Verifies HTTP 200 OK with updated order status.
+         */
+        @Test
+        void changeOrderStatus_Success_Returns200Ok() throws Exception {
+                UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+                updateRequest.setOrderStatus(OrderEnum.SHIPPED);
 
-        OrderResponseDTO updatedResponse = OrderResponseDTO.builder()
-                .orderId(1L)
-                .userId(99L)
-                .orderStatus(OrderEnum.SHIPPED)
-                .build();
+                OrderResponseDTO updatedResponse = OrderResponseDTO.builder()
+                                .orderId(1L)
+                                .userId(99L)
+                                .orderStatus(OrderEnum.SHIPPED)
+                                .build();
 
-        when(orderService.updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class)))
-                .thenReturn(updatedResponse);
+                when(orderService.updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class)))
+                                .thenReturn(updatedResponse);
 
-        mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderStatus").value("SHIPPED"));
+                mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(updateRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.orderStatus").value("SHIPPED"));
 
-        verify(orderService, times(1)).updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class));
-    }
+                verify(orderService, times(1)).updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class));
+        }
 
-    /**
-     * Tests invalid status transition attempt.
-     * Verifies HTTP 422 Unprocessable Entity with INVALID_ORDER_STATUS_TRANSITION error.
-     */
-    @Test
-    void changeOrderStatus_InvalidTransition_Returns422() throws Exception {
-        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
-        updateRequest.setOrderStatus(OrderEnum.DELIVERED);
+        /**
+         * Tests invalid status transition attempt.
+         * Verifies HTTP 422 Unprocessable Entity with INVALID_ORDER_STATUS_TRANSITION
+         * error.
+         */
+        @Test
+        void changeOrderStatus_InvalidTransition_Returns422() throws Exception {
+                UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+                updateRequest.setOrderStatus(OrderEnum.DELIVERED);
 
-        when(orderService.updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class)))
-                .thenThrow(new OrderInvalidStatusTransitionException("Invalid transition"));
+                when(orderService.updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class)))
+                                .thenThrow(new OrderInvalidStatusTransitionException("Invalid transition"));
 
-        mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.error").value("INVALID_ORDER_STATUS_TRANSITION"));
-    }
+                mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(updateRequest)))
+                                .andExpect(status().isUnprocessableEntity())
+                                .andExpect(jsonPath("$.error").value("INVALID_ORDER_STATUS_TRANSITION"));
+        }
 
-    // ==================== DELETE /api/v1/order/cancel/{orderId} ====================
+        // ==================== DELETE /api/v1/order/cancel/{orderId}
+        // ====================
 
-    /**
-     * Tests successful order cancellation.
-     * Verifies HTTP 200 OK with CANCELLED status.
-     */
-    @Test
-    void cancelOrder_Success_Returns200Ok() throws Exception {
-        OrderResponseDTO cancelledResponse = OrderResponseDTO.builder()
-                .orderId(1L)
-                .orderStatus(OrderEnum.CANCELLED)
-                .build();
+        /**
+         * Tests successful order cancellation.
+         * Verifies HTTP 200 OK with CANCELLED status.
+         */
+        @Test
+        void cancelOrder_Success_Returns200Ok() throws Exception {
+                OrderResponseDTO cancelledResponse = OrderResponseDTO.builder()
+                                .orderId(1L)
+                                .orderStatus(OrderEnum.CANCELLED)
+                                .build();
 
-        when(orderService.cancelOrder(1L)).thenReturn(cancelledResponse);
+                when(orderService.cancelOrder(1L)).thenReturn(cancelledResponse);
 
-        mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 1L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderStatus").value("CANCELLED"));
+                mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 1L))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.orderStatus").value("CANCELLED"));
 
-        verify(orderService, times(1)).cancelOrder(1L);
-    }
+                verify(orderService, times(1)).cancelOrder(1L);
+        }
 
-    /**
-     * Tests cancellation denial for delivered orders.
-     * Verifies HTTP 409 Conflict with ORDER_CANCELLATION_DENIED error.
-     */
-    @Test
-    void cancelOrder_NotAllowed_Returns409Conflict() throws Exception {
-        when(orderService.cancelOrder(1L))
-                .thenThrow(new OrderCancellationNotAllowedException("Order already delivered"));
+        /**
+         * Tests cancellation denial for delivered orders.
+         * Verifies HTTP 409 Conflict with ORDER_CANCELLATION_DENIED error.
+         */
+        @Test
+        void cancelOrder_NotAllowed_Returns409Conflict() throws Exception {
+                when(orderService.cancelOrder(1L))
+                                .thenThrow(new OrderCancellationNotAllowedException("Order already delivered"));
 
-        mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 1L))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("ORDER_CANCELLATION_DENIED"));
-    }
+                mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 1L))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.error").value("ORDER_CANCELLATION_DENIED"));
+        }
 
-    /**
-     * Tests cancellation of non-existent order.
-     * Verifies HTTP 404 Not Found response.
-     */
-    @Test
-    void cancelOrder_NotFound_Returns404() throws Exception {
-        when(orderService.cancelOrder(99L))
-                .thenThrow(new OrderNotFoundException("Order not found"));
+        /**
+         * Tests cancellation of non-existent order.
+         * Verifies HTTP 404 Not Found response.
+         */
+        @Test
+        void cancelOrder_NotFound_Returns404() throws Exception {
+                when(orderService.cancelOrder(99L))
+                                .thenThrow(new OrderNotFoundException("Order not found"));
 
-        mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 99L))
-                .andExpect(status().isNotFound());
-    }
+                mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 99L))
+                                .andExpect(status().isNotFound());
+        }
 
-    // ==================== DELETE /api/v1/order/delete/{orderId} ====================
+        // ==================== DELETE /api/v1/order/delete/{orderId}
+        // ====================
 
-    /**
-     * Tests successful soft deletion of an order.
-     * Verifies HTTP 204 No Content response.
-     */
-    @Test
-    void deleteOrder_Success_Returns204NoContent() throws Exception {
-        doNothing().when(orderService).softDeleteOrder(1L);
+        /**
+         * Tests successful soft deletion of an order.
+         * Verifies HTTP 204 No Content response.
+         */
+        @Test
+        void deleteOrder_Success_Returns204NoContent() throws Exception {
+                doNothing().when(orderService).softDeleteOrder(1L);
 
-        mockMvc.perform(delete("/api/v1/order/delete/{orderId}", 1L))
-                .andExpect(status().isNoContent());
+                mockMvc.perform(delete("/api/v1/order/delete/{orderId}", 1L))
+                                .andExpect(status().isNoContent());
 
-        verify(orderService, times(1)).softDeleteOrder(1L);
-    }
+                verify(orderService, times(1)).softDeleteOrder(1L);
+        }
 
-    // ==================== DELETE /api/v1/order/deleteByUser/{userId} ====================
+        // ==================== DELETE /api/v1/order/deleteByUser/{userId}
+        // ====================
 
-    /**
-     * Tests successful soft deletion of all orders for a user.
-     * Verifies HTTP 204 No Content response.
-     */
-    @Test
-    void deleteUserOrder_Success_Returns204NoContent() throws Exception {
-        doNothing().when(orderService).softDeleteUserOrder(100L);
+        /**
+         * Tests successful soft deletion of all orders for a user.
+         * Verifies HTTP 204 No Content response.
+         */
+        @Test
+        void deleteUserOrder_Success_Returns204NoContent() throws Exception {
+                doNothing().when(orderService).softDeleteUserOrder(100L);
 
-        mockMvc.perform(delete("/api/v1/order/deleteByUser/{userId}", 100L))
-                .andExpect(status().isNoContent());
+                mockMvc.perform(delete("/api/v1/order/deleteByUser/{userId}", 100L))
+                                .andExpect(status().isNoContent());
 
-        verify(orderService, times(1)).softDeleteUserOrder(100L);
-    }
+                verify(orderService, times(1)).softDeleteUserOrder(100L);
+        }
 }

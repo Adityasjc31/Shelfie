@@ -1,15 +1,13 @@
-package com.book.management.review_rating.Controller;
+package com.book.management.review_rating.controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import tools.jackson.databind.ObjectMapper;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.book.management.review_rating.controller.ReviewController;
 import com.book.management.review_rating.dto.BookRatingStatsDTO;
 import com.book.management.review_rating.dto.ReviewCreateDTO;
 import com.book.management.review_rating.dto.ReviewModerationDTO;
@@ -21,6 +19,8 @@ import com.book.management.review_rating.service.ReviewService;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @since 2024-12-15
  */
 @WebMvcTest(ReviewController.class)
-public class ReviewControllerTest {
+class ReviewControllerTest {
 
         @Autowired
         private MockMvc mockMvc;
@@ -370,7 +370,7 @@ public class ReviewControllerTest {
                 // Arrange
                 ReviewModerationDTO moderationDTO = ReviewModerationDTO.builder()
                                 .status(ReviewStatus.APPROVED)
-                                .moderatorId(2001L)
+                                .moderatedBy(2001L)
                                 .build();
                 ReviewResponseDTO moderatedReview = ReviewResponseDTO.builder()
                                 .reviewId(1L)

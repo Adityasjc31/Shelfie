@@ -1,4 +1,4 @@
-package com.book.management.inventory.impl;
+package com.book.management.inventory.service.impl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

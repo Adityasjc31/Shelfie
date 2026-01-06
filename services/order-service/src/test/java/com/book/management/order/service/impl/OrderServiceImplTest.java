@@ -8,8 +8,7 @@ import com.book.management.order.dto.requestdto.ReduceInventoryStockRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.GetBookPriceResponseDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
-import com.book.management.order.dto.responsedto.ReduceInventoryStockResponseDTO;
-import com.book.management.order.entity.Order;
+import com.book.management.order.model.Order;
 import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.exception.OrderCancellationNotAllowedException;
 import com.book.management.order.exception.OrderInvalidStatusTransitionException;
@@ -79,15 +78,15 @@ class OrderServiceImplTest {
 
         placeOrderRequest = new PlaceOrderRequestDTO();
         placeOrderRequest.setUserId(100L);
-        placeOrderRequest.setItems(items);
+        placeOrderRequest.setBookOrder(items);
 
         order = Order.builder()
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.PENDING)
-                .orderDate(LocalDateTime.now())
+                .orderDateTime(LocalDateTime.now())
                 .build();
     }
 
@@ -102,10 +101,8 @@ class OrderServiceImplTest {
         GetBookPriceResponseDTO priceResponse = new GetBookPriceResponseDTO();
         priceResponse.setBookPrice(bookPrices);
 
-        ReduceInventoryStockResponseDTO stockResponse = new ReduceInventoryStockResponseDTO();
-
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class))).thenReturn(priceResponse);
-        when(inventoryServiceClient.reduceStock(any(ReduceInventoryStockRequestDTO.class))).thenReturn(stockResponse);
+        doNothing().when(inventoryServiceClient).reduceStock(any(ReduceInventoryStockRequestDTO.class));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
         OrderResponseDTO result = orderService.placeOrder(placeOrderRequest);
@@ -113,7 +110,7 @@ class OrderServiceImplTest {
         assertNotNull(result);
         assertEquals(order.getOrderId(), result.getOrderId());
         assertEquals(order.getUserId(), result.getUserId());
-        assertEquals(80.0, result.getTotalAmount());
+        assertEquals(80.0, result.getOrderTotalAmount());
         assertEquals(OrderEnum.PENDING, result.getOrderStatus());
 
         verify(bookServiceClient, times(1)).getBookPrices(any(GetBookPriceRequestDTO.class));
@@ -123,7 +120,8 @@ class OrderServiceImplTest {
 
     /**
      * Tests order placement failure when Book Service is unavailable.
-     * Verifies OrderNotPlacedException is thrown and no inventory/save operations occur.
+     * Verifies OrderNotPlacedException is thrown and no inventory/save operations
+     * occur.
      */
     @Test
     void placeOrder_BookServiceFails_ThrowsOrderNotPlacedException() {
@@ -138,7 +136,8 @@ class OrderServiceImplTest {
     }
 
     /**
-     * Tests order placement failure when Inventory Service reports insufficient stock.
+     * Tests order placement failure when Inventory Service reports insufficient
+     * stock.
      * Verifies OrderNotPlacedException is thrown and order is not saved.
      */
     @Test
@@ -147,8 +146,8 @@ class OrderServiceImplTest {
         priceResponse.setBookPrice(bookPrices);
 
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class))).thenReturn(priceResponse);
-        when(inventoryServiceClient.reduceStock(any(ReduceInventoryStockRequestDTO.class)))
-                .thenThrow(new OrderNotPlacedException("Insufficient stock"));
+        doThrow(new OrderNotPlacedException("Insufficient stock"))
+                .when(inventoryServiceClient).reduceStock(any(ReduceInventoryStockRequestDTO.class));
 
         assertThrows(OrderNotPlacedException.class, () -> orderService.placeOrder(placeOrderRequest));
 
@@ -167,11 +166,11 @@ class OrderServiceImplTest {
     void getOrderById_Success() {
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        OrderResponseDTO result = orderService.getOrderById(1L);
+        Optional<OrderResponseDTO> result = orderService.getOrderById(1L);
 
-        assertNotNull(result);
-        assertEquals(order.getOrderId(), result.getOrderId());
-        assertEquals(order.getUserId(), result.getUserId());
+        assertTrue(result.isPresent());
+        assertEquals(order.getOrderId(), result.get().getOrderId());
+        assertEquals(order.getUserId(), result.get().getUserId());
 
         verify(orderRepository, times(1)).findById(1L);
     }
@@ -189,41 +188,7 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findById(999L);
     }
 
-    // ==================== getOrdersByUserId Tests ====================
 
-    /**
-     * Tests successful retrieval of orders by user ID.
-     * Verifies list contains expected order data.
-     */
-    @Test
-    void getOrdersByUserId_Success() {
-        List<Order> orders = List.of(order);
-        when(orderRepository.findByUserId(100L)).thenReturn(orders);
-
-        List<OrderResponseDTO> result = orderService.getOrdersByUserId(100L);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(order.getOrderId(), result.get(0).getOrderId());
-
-        verify(orderRepository, times(1)).findByUserId(100L);
-    }
-
-    /**
-     * Tests retrieval of orders for a user with no orders.
-     * Verifies empty list is returned without errors.
-     */
-    @Test
-    void getOrdersByUserId_EmptyList() {
-        when(orderRepository.findByUserId(999L)).thenReturn(Collections.emptyList());
-
-        List<OrderResponseDTO> result = orderService.getOrdersByUserId(999L);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        verify(orderRepository, times(1)).findByUserId(999L);
-    }
 
     // ==================== getAllOrders Tests ====================
 
@@ -236,7 +201,7 @@ class OrderServiceImplTest {
         List<Order> orders = List.of(order);
         when(orderRepository.findAll()).thenReturn(orders);
 
-        List<OrderResponseDTO> result = orderService.getAllOrders();
+        List<OrderResponseDTO> result = orderService.getOrderAll();
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -252,10 +217,7 @@ class OrderServiceImplTest {
     void getAllOrders_EmptyList() {
         when(orderRepository.findAll()).thenReturn(Collections.emptyList());
 
-        List<OrderResponseDTO> result = orderService.getAllOrders();
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
+        assertThrows(OrderNotFoundException.class, () -> orderService.getOrderAll());
 
         verify(orderRepository, times(1)).findAll();
     }
@@ -271,7 +233,7 @@ class OrderServiceImplTest {
         List<Order> orders = List.of(order);
         when(orderRepository.findByOrderStatus(OrderEnum.PENDING)).thenReturn(orders);
 
-        List<OrderResponseDTO> result = orderService.getOrdersByStatus(OrderEnum.PENDING);
+        List<OrderResponseDTO> result = orderService.getOrderByStatus(OrderEnum.PENDING);
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -295,9 +257,9 @@ class OrderServiceImplTest {
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.SHIPPED)
-                .orderDate(order.getOrderDate())
+                .orderDateTime(order.getOrderDateTime())
                 .build();
 
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
@@ -326,9 +288,9 @@ class OrderServiceImplTest {
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.DELIVERED)
-                .orderDate(order.getOrderDate())
+                .orderDateTime(order.getOrderDateTime())
                 .build();
 
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
@@ -386,9 +348,9 @@ class OrderServiceImplTest {
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.CANCELLED)
-                .orderDate(order.getOrderDate())
+                .orderDateTime(order.getOrderDateTime())
                 .build();
 
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
