@@ -31,7 +31,7 @@ import java.util.List;
  * @version 2.0 - Microservice Architecture
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
 public class UserController {
 
