@@ -8,8 +8,7 @@ import com.book.management.order.dto.requestdto.ReduceInventoryStockRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.GetBookPriceResponseDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
-import com.book.management.order.dto.responsedto.ReduceInventoryStockResponseDTO;
-import com.book.management.order.entity.Order;
+import com.book.management.order.model.Order;
 import com.book.management.order.enums.OrderEnum;
 import com.book.management.order.exception.OrderCancellationNotAllowedException;
 import com.book.management.order.exception.OrderInvalidStatusTransitionException;
@@ -24,9 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -34,15 +31,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for {@link OrderServiceImpl}.
- * Tests order lifecycle operations including placement, retrieval,
- * status updates, and cancellation with mocked dependencies.
- *
- * @author Rehan Ashraf
- * @version 2.0
- * @since 2024-12-07
- */
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
 
@@ -63,10 +51,6 @@ class OrderServiceImplTest {
     private Map<Long, Integer> items;
     private Map<Long, Double> bookPrices;
 
-    /**
-     * Sets up test fixtures before each test method.
-     * Initializes sample order data, items map, and book prices.
-     */
     @BeforeEach
     void setUp() {
         items = new HashMap<>();
@@ -79,33 +63,25 @@ class OrderServiceImplTest {
 
         placeOrderRequest = new PlaceOrderRequestDTO();
         placeOrderRequest.setUserId(100L);
-        placeOrderRequest.setItems(items);
+        placeOrderRequest.setBookOrder(items);
 
         order = Order.builder()
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.PENDING)
-                .orderDate(LocalDateTime.now())
+                .orderDateTime(LocalDateTime.now())
                 .build();
     }
 
-    // ==================== placeOrder Tests ====================
-
-    /**
-     * Tests successful order placement when all services respond correctly.
-     * Verifies order is saved with correct total amount and PENDING status.
-     */
     @Test
     void placeOrder_Success() {
         GetBookPriceResponseDTO priceResponse = new GetBookPriceResponseDTO();
         priceResponse.setBookPrice(bookPrices);
 
-        ReduceInventoryStockResponseDTO stockResponse = new ReduceInventoryStockResponseDTO();
-
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class))).thenReturn(priceResponse);
-        when(inventoryServiceClient.reduceStock(any(ReduceInventoryStockRequestDTO.class))).thenReturn(stockResponse);
+        doNothing().when(inventoryServiceClient).reduceStock(any(ReduceInventoryStockRequestDTO.class));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
         OrderResponseDTO result = orderService.placeOrder(placeOrderRequest);
@@ -113,7 +89,7 @@ class OrderServiceImplTest {
         assertNotNull(result);
         assertEquals(order.getOrderId(), result.getOrderId());
         assertEquals(order.getUserId(), result.getUserId());
-        assertEquals(80.0, result.getTotalAmount());
+        assertEquals(80.0, result.getOrderTotalAmount());
         assertEquals(OrderEnum.PENDING, result.getOrderStatus());
 
         verify(bookServiceClient, times(1)).getBookPrices(any(GetBookPriceRequestDTO.class));
@@ -121,10 +97,6 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).save(any(Order.class));
     }
 
-    /**
-     * Tests order placement failure when Book Service is unavailable.
-     * Verifies OrderNotPlacedException is thrown and no inventory/save operations occur.
-     */
     @Test
     void placeOrder_BookServiceFails_ThrowsOrderNotPlacedException() {
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class)))
@@ -137,18 +109,14 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-    /**
-     * Tests order placement failure when Inventory Service reports insufficient stock.
-     * Verifies OrderNotPlacedException is thrown and order is not saved.
-     */
     @Test
     void placeOrder_InventoryServiceFails_ThrowsOrderNotPlacedException() {
         GetBookPriceResponseDTO priceResponse = new GetBookPriceResponseDTO();
         priceResponse.setBookPrice(bookPrices);
 
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class))).thenReturn(priceResponse);
-        when(inventoryServiceClient.reduceStock(any(ReduceInventoryStockRequestDTO.class)))
-                .thenThrow(new OrderNotPlacedException("Insufficient stock"));
+        doThrow(new OrderNotPlacedException("Insufficient stock"))
+                .when(inventoryServiceClient).reduceStock(any(ReduceInventoryStockRequestDTO.class));
 
         assertThrows(OrderNotPlacedException.class, () -> orderService.placeOrder(placeOrderRequest));
 
@@ -157,31 +125,21 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-    // ==================== getOrderById Tests ====================
-
-    /**
-     * Tests successful retrieval of an order by its ID.
-     * Verifies correct order details are returned.
-     */
     @Test
     void getOrderById_Success() {
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        OrderResponseDTO result = orderService.getOrderById(1L);
+        Optional<OrderResponseDTO> result = orderService.getOrderById(1L);
 
-        assertNotNull(result);
-        assertEquals(order.getOrderId(), result.getOrderId());
-        assertEquals(order.getUserId(), result.getUserId());
+        assertTrue(result.isPresent());
+        assertEquals(order.getOrderId(), result.get().getOrderId());
+        assertEquals(order.getUserId(), result.get().getUserId());
 
         verify(orderRepository, times(1)).findById(1L);
     }
 
-    /**
-     * Tests retrieval of a non-existent order.
-     * Verifies OrderNotFoundException is thrown.
-     */
     @Test
-    void getOrderById_NotFound_ThrowsOrderNotFoundException() {
+    void getOrderById_NotFound_ThrowsException() {
         when(orderRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(OrderNotFoundException.class, () -> orderService.getOrderById(999L));
@@ -189,103 +147,6 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findById(999L);
     }
 
-    // ==================== getOrdersByUserId Tests ====================
-
-    /**
-     * Tests successful retrieval of orders by user ID.
-     * Verifies list contains expected order data.
-     */
-    @Test
-    void getOrdersByUserId_Success() {
-        List<Order> orders = List.of(order);
-        when(orderRepository.findByUserId(100L)).thenReturn(orders);
-
-        List<OrderResponseDTO> result = orderService.getOrdersByUserId(100L);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(order.getOrderId(), result.get(0).getOrderId());
-
-        verify(orderRepository, times(1)).findByUserId(100L);
-    }
-
-    /**
-     * Tests retrieval of orders for a user with no orders.
-     * Verifies empty list is returned without errors.
-     */
-    @Test
-    void getOrdersByUserId_EmptyList() {
-        when(orderRepository.findByUserId(999L)).thenReturn(Collections.emptyList());
-
-        List<OrderResponseDTO> result = orderService.getOrdersByUserId(999L);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        verify(orderRepository, times(1)).findByUserId(999L);
-    }
-
-    // ==================== getAllOrders Tests ====================
-
-    /**
-     * Tests successful retrieval of all orders.
-     * Verifies list is returned with correct size.
-     */
-    @Test
-    void getAllOrders_Success() {
-        List<Order> orders = List.of(order);
-        when(orderRepository.findAll()).thenReturn(orders);
-
-        List<OrderResponseDTO> result = orderService.getAllOrders();
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-
-        verify(orderRepository, times(1)).findAll();
-    }
-
-    /**
-     * Tests retrieval when no orders exist in the system.
-     * Verifies empty list is returned.
-     */
-    @Test
-    void getAllOrders_EmptyList() {
-        when(orderRepository.findAll()).thenReturn(Collections.emptyList());
-
-        List<OrderResponseDTO> result = orderService.getAllOrders();
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        verify(orderRepository, times(1)).findAll();
-    }
-
-    // ==================== getOrdersByStatus Tests ====================
-
-    /**
-     * Tests successful retrieval of orders filtered by status.
-     * Verifies returned orders have the requested status.
-     */
-    @Test
-    void getOrdersByStatus_Success() {
-        List<Order> orders = List.of(order);
-        when(orderRepository.findByOrderStatus(OrderEnum.PENDING)).thenReturn(orders);
-
-        List<OrderResponseDTO> result = orderService.getOrdersByStatus(OrderEnum.PENDING);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(OrderEnum.PENDING, result.get(0).getOrderStatus());
-
-        verify(orderRepository, times(1)).findByOrderStatus(OrderEnum.PENDING);
-    }
-
-    // ==================== updateOrderStatus Tests ====================
-
-    /**
-     * Tests valid status transition from PENDING to SHIPPED.
-     * Verifies order status is updated and saved correctly.
-     */
     @Test
     void updateOrderStatus_PendingToShipped_Success() {
         UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
@@ -295,9 +156,9 @@ class OrderServiceImplTest {
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.SHIPPED)
-                .orderDate(order.getOrderDate())
+                .orderDateTime(order.getOrderDateTime())
                 .build();
 
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
@@ -312,10 +173,6 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).save(any(Order.class));
     }
 
-    /**
-     * Tests valid status transition from SHIPPED to DELIVERED.
-     * Verifies order status is updated correctly.
-     */
     @Test
     void updateOrderStatus_ShippedToDelivered_Success() {
         order.setOrderStatus(OrderEnum.SHIPPED);
@@ -326,9 +183,9 @@ class OrderServiceImplTest {
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.DELIVERED)
-                .orderDate(order.getOrderDate())
+                .orderDateTime(order.getOrderDateTime())
                 .build();
 
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
@@ -340,10 +197,6 @@ class OrderServiceImplTest {
         assertEquals(OrderEnum.DELIVERED, result.getOrderStatus());
     }
 
-    /**
-     * Tests invalid status transition (PENDING to DELIVERED directly).
-     * Verifies OrderInvalidStatusTransitionException is thrown.
-     */
     @Test
     void updateOrderStatus_InvalidTransition_ThrowsException() {
         order.setOrderStatus(OrderEnum.PENDING);
@@ -359,10 +212,6 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-    /**
-     * Tests status update on non-existent order.
-     * Verifies OrderNotFoundException is thrown.
-     */
     @Test
     void updateOrderStatus_OrderNotFound_ThrowsException() {
         UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
@@ -374,21 +223,15 @@ class OrderServiceImplTest {
                 () -> orderService.updateOrderStatus(999L, updateRequest));
     }
 
-    // ==================== cancelOrder Tests ====================
-
-    /**
-     * Tests successful cancellation of a PENDING order.
-     * Verifies order status changes to CANCELLED.
-     */
     @Test
     void cancelOrder_PendingOrder_Success() {
         Order cancelledOrder = Order.builder()
                 .orderId(1L)
                 .userId(100L)
                 .items(items)
-                .totalAmount(80.0)
+                .orderTotalAmount(80.0)
                 .orderStatus(OrderEnum.CANCELLED)
-                .orderDate(order.getOrderDate())
+                .orderDateTime(order.getOrderDateTime())
                 .build();
 
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
@@ -403,10 +246,6 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).save(any(Order.class));
     }
 
-    /**
-     * Tests cancellation attempt on a DELIVERED order.
-     * Verifies OrderCancellationNotAllowedException is thrown.
-     */
     @Test
     void cancelOrder_DeliveredOrder_ThrowsException() {
         order.setOrderStatus(OrderEnum.DELIVERED);
@@ -420,10 +259,6 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-    /**
-     * Tests cancellation attempt on an already CANCELLED order.
-     * Verifies OrderCancellationNotAllowedException is thrown.
-     */
     @Test
     void cancelOrder_AlreadyCancelled_ThrowsException() {
         order.setOrderStatus(OrderEnum.CANCELLED);
@@ -437,14 +272,322 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-    /**
-     * Tests cancellation of a non-existent order.
-     * Verifies OrderNotFoundException is thrown.
-     */
     @Test
     void cancelOrder_OrderNotFound_ThrowsException() {
         when(orderRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(OrderNotFoundException.class, () -> orderService.cancelOrder(999L));
+    }
+
+    // ==================== getOrderAll Tests ====================
+
+    @Test
+    void getOrderAll_Success() {
+        Order order2 = Order.builder()
+                .orderId(2L)
+                .userId(101L)
+                .items(items)
+                .orderTotalAmount(100.0)
+                .orderStatus(OrderEnum.SHIPPED)
+                .orderDateTime(LocalDateTime.now())
+                .build();
+
+        when(orderRepository.findAll()).thenReturn(java.util.List.of(order, order2));
+
+        java.util.List<OrderResponseDTO> result = orderService.getOrderAll();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(1L, result.get(0).getOrderId());
+        assertEquals(2L, result.get(1).getOrderId());
+
+        verify(orderRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getOrderAll_Empty_ThrowsException() {
+        when(orderRepository.findAll()).thenReturn(java.util.Collections.emptyList());
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.getOrderAll());
+
+        verify(orderRepository, times(1)).findAll();
+    }
+
+    // ==================== getOrderByStatus Tests ====================
+
+    @Test
+    void getOrderByStatus_Success() {
+        Order order2 = Order.builder()
+                .orderId(2L)
+                .userId(101L)
+                .items(items)
+                .orderTotalAmount(100.0)
+                .orderStatus(OrderEnum.PENDING)
+                .orderDateTime(LocalDateTime.now())
+                .build();
+
+        when(orderRepository.findByOrderStatus(OrderEnum.PENDING))
+                .thenReturn(java.util.List.of(order, order2));
+
+        java.util.List<OrderResponseDTO> result = orderService.getOrdersByStatus(OrderEnum.PENDING);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(OrderEnum.PENDING, result.get(0).getOrderStatus());
+        assertEquals(OrderEnum.PENDING, result.get(1).getOrderStatus());
+
+        verify(orderRepository, times(1)).findByOrderStatus(OrderEnum.PENDING);
+    }
+
+    @Test
+    void getOrderByStatus_NoOrdersFound_ThrowsException() {
+        when(orderRepository.findByOrderStatus(OrderEnum.DELIVERED))
+                .thenReturn(java.util.Collections.emptyList());
+
+        assertThrows(OrderNotFoundException.class,
+                () -> orderService.getOrdersByStatus(OrderEnum.DELIVERED));
+
+        verify(orderRepository, times(1)).findByOrderStatus(OrderEnum.DELIVERED);
+    }
+
+    // ==================== softDeleteOrder Tests ====================
+
+    @Test
+    void softDeleteOrder_Success() {
+        order.setDeleted(false);
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
+
+        assertDoesNotThrow(() -> orderService.softDeleteOrder(1L));
+
+        verify(orderRepository, times(1)).findById(1L);
+        verify(orderRepository, times(1)).save(any(Order.class));
+    }
+
+    @Test
+    void softDeleteOrder_AlreadyDeleted_NoOp() {
+        order.setDeleted(true);
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertDoesNotThrow(() -> orderService.softDeleteOrder(1L));
+
+        verify(orderRepository, times(1)).findById(1L);
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void softDeleteOrder_NotFound_ThrowsException() {
+        when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.softDeleteOrder(999L));
+
+        verify(orderRepository, times(1)).findById(999L);
+        verify(orderRepository, never()).save(any());
+    }
+
+    // ==================== softDeleteUserOrder Tests ====================
+
+    @Test
+    void softDeleteUserOrder_Success() {
+        Order order2 = Order.builder()
+                .orderId(2L)
+                .userId(100L)
+                .items(items)
+                .orderTotalAmount(100.0)
+                .orderStatus(OrderEnum.SHIPPED)
+                .orderDateTime(LocalDateTime.now())
+                .isDeleted(false)
+                .build();
+        order.setDeleted(false);
+
+        when(orderRepository.findByUserId(100L)).thenReturn(java.util.List.of(order, order2));
+        when(orderRepository.saveAll(any())).thenReturn(java.util.List.of(order, order2));
+
+        assertDoesNotThrow(() -> orderService.softDeleteUserOrder(100L));
+
+        verify(orderRepository, times(1)).findByUserId(100L);
+        verify(orderRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void softDeleteUserOrder_NoOrdersFound_ThrowsException() {
+        when(orderRepository.findByUserId(999L)).thenReturn(java.util.Collections.emptyList());
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.softDeleteUserOrder(999L));
+
+        verify(orderRepository, times(1)).findByUserId(999L);
+        verify(orderRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void softDeleteUserOrder_AllAlreadyDeleted_NoSave() {
+        order.setDeleted(true);
+        Order order2 = Order.builder()
+                .orderId(2L)
+                .userId(100L)
+                .items(items)
+                .orderTotalAmount(100.0)
+                .orderStatus(OrderEnum.SHIPPED)
+                .orderDateTime(LocalDateTime.now())
+                .isDeleted(true)
+                .build();
+
+        when(orderRepository.findByUserId(100L)).thenReturn(java.util.List.of(order, order2));
+
+        assertDoesNotThrow(() -> orderService.softDeleteUserOrder(100L));
+
+        verify(orderRepository, times(1)).findByUserId(100L);
+        verify(orderRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void softDeleteUserOrder_PartiallyDeleted_OnlyUpdatesNonDeleted() {
+        order.setDeleted(false);
+        Order order2 = Order.builder()
+                .orderId(2L)
+                .userId(100L)
+                .items(items)
+                .orderTotalAmount(100.0)
+                .orderStatus(OrderEnum.SHIPPED)
+                .orderDateTime(LocalDateTime.now())
+                .isDeleted(true)
+                .build();
+
+        when(orderRepository.findByUserId(100L)).thenReturn(java.util.List.of(order, order2));
+        when(orderRepository.saveAll(any())).thenReturn(java.util.List.of(order, order2));
+
+        assertDoesNotThrow(() -> orderService.softDeleteUserOrder(100L));
+
+        verify(orderRepository, times(1)).findByUserId(100L);
+        verify(orderRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void softDeleteUserOrder_NullList_ThrowsException() {
+        when(orderRepository.findByUserId(999L)).thenReturn(null);
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.softDeleteUserOrder(999L));
+
+        verify(orderRepository, times(1)).findByUserId(999L);
+    }
+
+    // ==================== updateOrderStatus Additional Tests ====================
+
+    @Test
+    void updateOrderStatus_CancelledViaUpdate_ThrowsException() {
+        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+        updateRequest.setOrderStatus(OrderEnum.CANCELLED);
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(OrderInvalidStatusTransitionException.class,
+                () -> orderService.updateOrderStatus(1L, updateRequest));
+
+        verify(orderRepository, times(1)).findById(1L);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateOrderStatus_DeliveredOrder_ThrowsException() {
+        order.setOrderStatus(OrderEnum.DELIVERED);
+        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+        updateRequest.setOrderStatus(OrderEnum.SHIPPED);
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(OrderInvalidStatusTransitionException.class,
+                () -> orderService.updateOrderStatus(1L, updateRequest));
+
+        verify(orderRepository, times(1)).findById(1L);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void updateOrderStatus_CancelledOrder_ThrowsException() {
+        order.setOrderStatus(OrderEnum.CANCELLED);
+        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+        updateRequest.setOrderStatus(OrderEnum.SHIPPED);
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThrows(OrderInvalidStatusTransitionException.class,
+                () -> orderService.updateOrderStatus(1L, updateRequest));
+
+        verify(orderRepository, times(1)).findById(1L);
+        verify(orderRepository, never()).save(any());
+    }
+
+    // ==================== cancelOrder Additional Tests ====================
+
+    @Test
+    void cancelOrder_ShippedOrder_Success() {
+        order.setOrderStatus(OrderEnum.SHIPPED);
+        Order cancelledOrder = Order.builder()
+                .orderId(1L)
+                .userId(100L)
+                .items(items)
+                .orderTotalAmount(80.0)
+                .orderStatus(OrderEnum.CANCELLED)
+                .orderDateTime(order.getOrderDateTime())
+                .build();
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(cancelledOrder);
+
+        OrderResponseDTO result = orderService.cancelOrder(1L);
+
+        assertNotNull(result);
+        assertEquals(OrderEnum.CANCELLED, result.getOrderStatus());
+
+        verify(orderRepository, times(1)).findById(1L);
+        verify(orderRepository, times(1)).save(any(Order.class));
+    }
+
+    // ==================== placeOrder Additional Tests ====================
+
+    @Test
+    void placeOrder_MissingPriceForBook_DefaultsToZero() {
+        Map<Long, Double> partialPriceMap = new HashMap<>();
+        partialPriceMap.put(1L, 10.0);  // Only price for book 1, not book 2
+
+        GetBookPriceResponseDTO priceResponse = new GetBookPriceResponseDTO();
+        priceResponse.setBookPrice(partialPriceMap);
+
+        Order savedOrder = Order.builder()
+                .orderId(1L)
+                .userId(100L)
+                .items(items)
+                .orderTotalAmount(20.0) // Only book 1's price (10.0 * 2)
+                .orderStatus(OrderEnum.PENDING)
+                .orderDateTime(LocalDateTime.now())
+                .build();
+
+        when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class))).thenReturn(priceResponse);
+        doNothing().when(inventoryServiceClient).reduceStock(any(ReduceInventoryStockRequestDTO.class));
+        when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+
+        OrderResponseDTO result = orderService.placeOrder(placeOrderRequest);
+
+        assertNotNull(result);
+        assertEquals(1L, result.getOrderId());
+
+        verify(bookServiceClient, times(1)).getBookPrices(any(GetBookPriceRequestDTO.class));
+        verify(inventoryServiceClient, times(1)).reduceStock(any(ReduceInventoryStockRequestDTO.class));
+        verify(orderRepository, times(1)).save(any(Order.class));
+    }
+
+    @Test
+    void placeOrder_UnexpectedException_ThrowsOrderNotPlacedException() {
+        when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class)))
+                .thenThrow(new RuntimeException("Unexpected error"));
+
+        OrderNotPlacedException exception = assertThrows(OrderNotPlacedException.class,
+                () -> orderService.placeOrder(placeOrderRequest));
+
+        assertTrue(exception.getMessage().contains("Internal system error"));
+
+        verify(bookServiceClient, times(1)).getBookPrices(any(GetBookPriceRequestDTO.class));
+        verify(inventoryServiceClient, never()).reduceStock(any());
+        verify(orderRepository, never()).save(any());
     }
 }

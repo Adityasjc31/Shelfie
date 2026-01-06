@@ -1,5 +1,6 @@
 package com.book.management.order.controller;
 
+import com.book.management.order.config.GatewaySecurityProperties;
 import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
@@ -9,12 +10,17 @@ import com.book.management.order.exception.OrderCancellationNotAllowedException;
 import com.book.management.order.exception.OrderInvalidStatusTransitionException;
 import com.book.management.order.exception.OrderNotFoundException;
 import com.book.management.order.exception.OrderNotPlacedException;
+import com.book.management.order.filter.GatewayAuthenticationFilter;
 import com.book.management.order.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -42,9 +48,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @version 2.0
  * @since 2024-12-07
  */
-@WebMvcTest(OrderController.class)
-@Import(GlobalOrderExceptionHandler.class)
+@WebMvcTest(value = OrderController.class,
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                classes = GatewayAuthenticationFilter.class))
+@Import({GlobalOrderExceptionHandler.class, OrderControllerTest.TestConfig.class})
 class OrderControllerTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public GatewaySecurityProperties gatewaySecurityProperties() {
+            GatewaySecurityProperties props = new GatewaySecurityProperties();
+            props.setEnabled(false);
+            return props;
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -72,9 +90,9 @@ class OrderControllerTest {
         successfulOrderResponse = OrderResponseDTO.builder()
                 .orderId(1L)
                 .userId(99L)
-                .items(bookOrder)
-                .orderDate(LocalDateTime.now())
-                .totalAmount(1047.5)
+                .bookIds(List.of(101L, 102L))
+                .orderDateTime(LocalDateTime.now())
+                .orderTotalAmount(1047.5)
                 .orderStatus(OrderEnum.PENDING)
                 .build();
     }
@@ -182,7 +200,7 @@ class OrderControllerTest {
         verify(orderService, times(1)).getOrderById(99L);
     }
 
-    // ==================== GET /api/v1/order/status/{status} ====================
+    // ==================== GET /api/v1/order/getByStatus/{status} ====================
 
     /**
      * Tests successful retrieval of orders by status.
@@ -190,13 +208,13 @@ class OrderControllerTest {
      */
     @Test
     void getOrdersByStatus_Success_Returns200Ok() throws Exception {
-        when(orderService.getOrderByStatus(OrderEnum.PENDING)).thenReturn(List.of(successfulOrderResponse));
+        when(orderService.getOrdersByStatus(OrderEnum.PENDING)).thenReturn(List.of(successfulOrderResponse));
 
-        mockMvc.perform(get("/api/v1/order/status/{status}", "PENDING"))
+        mockMvc.perform(get("/api/v1/order/getByStatus/{status}", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].orderStatus").value("PENDING"));
 
-        verify(orderService, times(1)).getOrderByStatus(OrderEnum.PENDING);
+        verify(orderService, times(1)).getOrdersByStatus(OrderEnum.PENDING);
     }
 
     // ==================== PATCH /api/v1/order/update/{orderId} ====================
@@ -243,7 +261,7 @@ class OrderControllerTest {
         mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().is(422))
                 .andExpect(jsonPath("$.error").value("INVALID_ORDER_STATUS_TRANSITION"));
     }
 
@@ -326,5 +344,323 @@ class OrderControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(orderService, times(1)).softDeleteUserOrder(100L);
+    }
+
+    // ==================== Additional Validation Tests ====================
+
+    /**
+     * Tests order placement with null userId.
+     * Verifies HTTP 400 Bad Request with validation error.
+     */
+    @Test
+    void placeOrder_NullUserId_Returns400BadRequest() throws Exception {
+        PlaceOrderRequestDTO invalidRequest = new PlaceOrderRequestDTO();
+        invalidRequest.setUserId(null);
+        invalidRequest.setBookOrder(bookOrder);
+
+        mockMvc.perform(post("/api/v1/order/place")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).placeOrder(any(PlaceOrderRequestDTO.class));
+    }
+
+    /**
+     * Tests order placement with empty bookOrder.
+     * Verifies HTTP 400 Bad Request with validation error.
+     */
+    @Test
+    void placeOrder_EmptyBookOrder_Returns400BadRequest() throws Exception {
+        PlaceOrderRequestDTO invalidRequest = new PlaceOrderRequestDTO();
+        invalidRequest.setUserId(99L);
+        invalidRequest.setBookOrder(Collections.emptyMap());
+
+        mockMvc.perform(post("/api/v1/order/place")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).placeOrder(any(PlaceOrderRequestDTO.class));
+    }
+
+    /**
+     * Tests order placement with null bookOrder.
+     * Verifies HTTP 400 Bad Request with validation error.
+     */
+    @Test
+    void placeOrder_NullBookOrder_Returns400BadRequest() throws Exception {
+        PlaceOrderRequestDTO invalidRequest = new PlaceOrderRequestDTO();
+        invalidRequest.setUserId(99L);
+        invalidRequest.setBookOrder(null);
+
+        mockMvc.perform(post("/api/v1/order/place")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).placeOrder(any(PlaceOrderRequestDTO.class));
+    }
+
+    // ==================== Additional GET Tests ====================
+
+    /**
+     * Tests retrieval of orders by SHIPPED status.
+     * Verifies HTTP 200 OK with filtered orders.
+     */
+    @Test
+    void getOrdersByStatus_Shipped_Returns200Ok() throws Exception {
+        OrderResponseDTO shippedOrder = OrderResponseDTO.builder()
+                .orderId(2L)
+                .userId(99L)
+                .orderStatus(OrderEnum.SHIPPED)
+                .build();
+
+        when(orderService.getOrdersByStatus(OrderEnum.SHIPPED)).thenReturn(List.of(shippedOrder));
+
+        mockMvc.perform(get("/api/v1/order/getByStatus/{status}", "SHIPPED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].orderStatus").value("SHIPPED"));
+
+        verify(orderService, times(1)).getOrdersByStatus(OrderEnum.SHIPPED);
+    }
+
+    /**
+     * Tests retrieval of orders by DELIVERED status.
+     * Verifies HTTP 200 OK with filtered orders.
+     */
+    @Test
+    void getOrdersByStatus_Delivered_Returns200Ok() throws Exception {
+        OrderResponseDTO deliveredOrder = OrderResponseDTO.builder()
+                .orderId(3L)
+                .userId(99L)
+                .orderStatus(OrderEnum.DELIVERED)
+                .build();
+
+        when(orderService.getOrdersByStatus(OrderEnum.DELIVERED)).thenReturn(List.of(deliveredOrder));
+
+        mockMvc.perform(get("/api/v1/order/getByStatus/{status}", "DELIVERED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].orderStatus").value("DELIVERED"));
+
+        verify(orderService, times(1)).getOrdersByStatus(OrderEnum.DELIVERED);
+    }
+
+    /**
+     * Tests retrieval of orders by CANCELLED status.
+     * Verifies HTTP 200 OK with filtered orders.
+     */
+    @Test
+    void getOrdersByStatus_Cancelled_Returns200Ok() throws Exception {
+        OrderResponseDTO cancelledOrder = OrderResponseDTO.builder()
+                .orderId(4L)
+                .userId(99L)
+                .orderStatus(OrderEnum.CANCELLED)
+                .build();
+
+        when(orderService.getOrdersByStatus(OrderEnum.CANCELLED)).thenReturn(List.of(cancelledOrder));
+
+        mockMvc.perform(get("/api/v1/order/getByStatus/{status}", "CANCELLED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].orderStatus").value("CANCELLED"));
+
+        verify(orderService, times(1)).getOrdersByStatus(OrderEnum.CANCELLED);
+    }
+
+    /**
+     * Tests retrieval when no orders match the status.
+     * Verifies HTTP 404 Not Found response.
+     */
+    @Test
+    void getOrdersByStatus_NoOrders_Returns404NotFound() throws Exception {
+        when(orderService.getOrdersByStatus(OrderEnum.DELIVERED))
+                .thenThrow(new OrderNotFoundException("No orders found with status: DELIVERED"));
+
+        mockMvc.perform(get("/api/v1/order/getByStatus/{status}", "DELIVERED"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("ORDER_NOT_FOUND"));
+
+        verify(orderService, times(1)).getOrdersByStatus(OrderEnum.DELIVERED);
+    }
+
+    /**
+     * Tests getAllOrders when no orders exist.
+     * Verifies HTTP 404 Not Found response.
+     */
+    @Test
+    void getAllOrders_ThrowsNotFoundException_Returns404() throws Exception {
+        when(orderService.getOrderAll())
+                .thenThrow(new OrderNotFoundException("No orders found in the system."));
+
+        mockMvc.perform(get("/api/v1/order/getAll"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("ORDER_NOT_FOUND"));
+
+        verify(orderService, times(1)).getOrderAll();
+    }
+
+    // ==================== Additional PATCH Tests ====================
+
+    /**
+     * Tests status update to DELIVERED.
+     * Verifies HTTP 200 OK with updated status.
+     */
+    @Test
+    void changeOrderStatus_ToDelivered_Returns200Ok() throws Exception {
+        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+        updateRequest.setOrderStatus(OrderEnum.DELIVERED);
+
+        OrderResponseDTO updatedResponse = OrderResponseDTO.builder()
+                .orderId(1L)
+                .userId(99L)
+                .orderStatus(OrderEnum.DELIVERED)
+                .build();
+
+        when(orderService.updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class)))
+                .thenReturn(updatedResponse);
+
+        mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderStatus").value("DELIVERED"));
+
+        verify(orderService, times(1)).updateOrderStatus(eq(1L), any(UpdateOrderStatusRequestDTO.class));
+    }
+
+    /**
+     * Tests status update for non-existent order.
+     * Verifies HTTP 404 Not Found response.
+     */
+    @Test
+    void changeOrderStatus_OrderNotFound_Returns404() throws Exception {
+        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+        updateRequest.setOrderStatus(OrderEnum.SHIPPED);
+
+        when(orderService.updateOrderStatus(eq(999L), any(UpdateOrderStatusRequestDTO.class)))
+                .thenThrow(new OrderNotFoundException("Order not found with ID: 999"));
+
+        mockMvc.perform(patch("/api/v1/order/update/{orderId}", 999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("ORDER_NOT_FOUND"));
+
+        verify(orderService, times(1)).updateOrderStatus(eq(999L), any(UpdateOrderStatusRequestDTO.class));
+    }
+
+    /**
+     * Tests status update with null status in request body.
+     * Verifies HTTP 400 Bad Request with validation error.
+     */
+    @Test
+    void changeOrderStatus_NullStatus_Returns400BadRequest() throws Exception {
+        UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
+        updateRequest.setOrderStatus(null);
+
+        mockMvc.perform(patch("/api/v1/order/update/{orderId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).updateOrderStatus(anyLong(), any(UpdateOrderStatusRequestDTO.class));
+    }
+
+    // ==================== Additional DELETE Tests ====================
+
+    /**
+     * Tests soft deletion of non-existent order.
+     * Verifies HTTP 404 Not Found response.
+     */
+    @Test
+    void deleteOrder_NotFound_Returns404() throws Exception {
+        doThrow(new OrderNotFoundException("Order not found with ID: 999"))
+                .when(orderService).softDeleteOrder(999L);
+
+        mockMvc.perform(delete("/api/v1/order/delete/{orderId}", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("ORDER_NOT_FOUND"));
+
+        verify(orderService, times(1)).softDeleteOrder(999L);
+    }
+
+    /**
+     * Tests soft deletion of user orders when user has no orders.
+     * Verifies HTTP 404 Not Found response.
+     */
+    @Test
+    void deleteUserOrder_NoOrdersFound_Returns404() throws Exception {
+        doThrow(new OrderNotFoundException("Order not found with ID: 999"))
+                .when(orderService).softDeleteUserOrder(999L);
+
+        mockMvc.perform(delete("/api/v1/order/deleteByUser/{userId}", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("ORDER_NOT_FOUND"));
+
+        verify(orderService, times(1)).softDeleteUserOrder(999L);
+    }
+
+    // ==================== Additional Cancel Tests ====================
+
+    /**
+     * Tests cancellation of shipped order (which should be allowed).
+     * Verifies HTTP 200 OK with CANCELLED status.
+     */
+    @Test
+    void cancelOrder_ShippedOrder_Returns200Ok() throws Exception {
+        OrderResponseDTO cancelledResponse = OrderResponseDTO.builder()
+                .orderId(1L)
+                .orderStatus(OrderEnum.CANCELLED)
+                .build();
+
+        when(orderService.cancelOrder(1L)).thenReturn(cancelledResponse);
+
+        mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderStatus").value("CANCELLED"));
+
+        verify(orderService, times(1)).cancelOrder(1L);
+    }
+
+    /**
+     * Tests cancellation of already cancelled order.
+     * Verifies HTTP 409 Conflict with ORDER_CANCELLATION_DENIED error.
+     */
+    @Test
+    void cancelOrder_AlreadyCancelled_Returns409Conflict() throws Exception {
+        when(orderService.cancelOrder(1L))
+                .thenThrow(new OrderCancellationNotAllowedException("Cannot cancel an order that is already CANCELLED"));
+
+        mockMvc.perform(delete("/api/v1/order/cancel/{orderId}", 1L))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("ORDER_CANCELLATION_DENIED"));
+
+        verify(orderService, times(1)).cancelOrder(1L);
+    }
+
+    // ==================== Multiple Orders Tests ====================
+
+    /**
+     * Tests retrieval of multiple orders.
+     * Verifies HTTP 200 OK with correct order count.
+     */
+    @Test
+    void getAllOrders_MultipleOrders_Returns200Ok() throws Exception {
+        OrderResponseDTO order2 = OrderResponseDTO.builder()
+                .orderId(2L)
+                .userId(100L)
+                .orderStatus(OrderEnum.SHIPPED)
+                .build();
+
+        when(orderService.getOrderAll()).thenReturn(List.of(successfulOrderResponse, order2));
+
+        mockMvc.perform(get("/api/v1/order/getAll"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].orderId").value(1L))
+                .andExpect(jsonPath("$[1].orderId").value(2L));
+
+        verify(orderService, times(1)).getOrderAll();
     }
 }

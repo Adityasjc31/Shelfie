@@ -20,7 +20,9 @@ public interface OrderService {
 
     Optional<OrderResponseDTO> getOrderById(long orderId);
 
-    List<OrderResponseDTO> getOrderByStatus(OrderEnum status);
+    List<OrderResponseDTO> getOrdersByUserId(long userId);
+
+    List<OrderResponseDTO> getOrdersByStatus(OrderEnum status);
 
     OrderResponseDTO updateOrderStatus(long orderId, UpdateOrderStatusRequestDTO request);
 

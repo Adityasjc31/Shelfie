@@ -315,13 +315,41 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
+     * Retrieves all orders associated with a specific user.
+     * Filters out soft-deleted orders automatically via @SQLRestriction.
+     *
+     * @param userId The unique identifier of the user.
+     * @return List of OrderResponseDTO belonging to the user.
+     * @throws OrderNotFoundException if no orders exist for the given user.
+     */
+    @Override
+    public List<OrderResponseDTO> getOrdersByUserId(long userId) {
+        log.info("Fetching orders for userId: {}", userId);
+
+        List<Order> orders = orderRepository.findByUserId(userId);
+
+        if (orders.isEmpty()) {
+            log.warn("No orders found for userId: {}", userId);
+            throw new OrderNotFoundException("No orders found for user with ID: " + userId);
+        }
+
+        List<OrderResponseDTO> responseList = new ArrayList<>();
+        for (Order order : orders) {
+            responseList.add(toResponseDTO(order));
+        }
+
+        log.info("Orders fetched successfully for userId: {}. count: {}", userId, responseList.size());
+        return responseList;
+    }
+
+    /**
      * Retrieves orders filtered by their current status.
      * * @param status The OrderEnum status to filter by.
      * * @return List of OrderResponseDTO.
      * @throws OrderNotFoundException if no orders match the given status.
      */
     @Override
-    public List<OrderResponseDTO> getOrderByStatus(OrderEnum status) {
+    public List<OrderResponseDTO> getOrdersByStatus(OrderEnum status) {
         log.info("Fetching orders by status: {}", status);
         List<Order> orders = orderRepository.findByOrderStatus(status);
 

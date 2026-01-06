@@ -84,16 +84,32 @@ public class OrderController {
     }
 
     /**
+     * Retrieves all orders for a specific user.
+     *
+     * @param userId The unique identifier of the user.
+     * @return List of orders belonging to the user or 404 if none found.
+     */
+    @GetMapping("/getByUser/{userId}")
+    public ResponseEntity<List<OrderResponseDTO>> getOrdersByUserId(@PathVariable long userId) {
+        log.info("GET : /api/v1/order/getByUser/{} | Fetching orders for user", userId);
+
+        List<OrderResponseDTO> orders = orderService.getOrdersByUserId(userId);
+
+        log.info("GET : /api/v1/order/getByUser/{} | Orders fetched | count: {}", userId, orders.size());
+        return ResponseEntity.ok(orders);
+    }
+
+    /**
      * Filters orders by their current status.
      *
      * @param status The OrderEnum value to filter by.
      * @return List of matching orders.
      */
-    @GetMapping("/status/{status}")
+    @GetMapping("/getByStatus/{status}")
     public ResponseEntity<List<OrderResponseDTO>> getOrdersByStatus(@PathVariable OrderEnum status) {
-        log.info("GET : /api/v1/order/status/{} | Fetching orders by status", status);
-        List<OrderResponseDTO> orders = orderService.getOrderByStatus(status);
-        log.info("GET : /api/v1/order/status/{} | Fetched orders | count: {}", status, orders.size());
+        log.info("GET : /api/v1/order/getByStatus/{} | Fetching orders by status", status);
+        List<OrderResponseDTO> orders = orderService.getOrdersByStatus(status);
+        log.info("GET : /api/v1/order/getByStatus/{} | Fetched orders | count: {}", status, orders.size());
         return ResponseEntity.ok(orders);
     }
 

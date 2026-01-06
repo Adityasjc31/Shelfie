@@ -3,7 +3,6 @@ package com.book.management.order.client;
 
 import com.book.management.order.client.fallback.InventoryClientFallbackFactory;
 import com.book.management.order.dto.requestdto.ReduceInventoryStockRequestDTO;
-import com.book.management.order.dto.responsedto.ReduceInventoryStockResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PatchMapping;
