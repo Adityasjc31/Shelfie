@@ -13,9 +13,6 @@ import java.util.Optional;
  * - Enable refresh token rotation
  * - Track token usage
  *
- * Production: Use Redis with TTL (7 days typical)
- * Development: In-memory storage acceptable
- *
  * @author Aditya Srivastava
  * @version 1.0 - REST API Compliant
  */
