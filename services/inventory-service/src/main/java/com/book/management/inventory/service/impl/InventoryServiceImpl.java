@@ -14,6 +14,7 @@ import com.book.management.inventory.model.Inventory;
 import com.book.management.inventory.repository.InventoryRepository;
 import com.book.management.inventory.service.InventoryService;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -240,55 +241,74 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional(readOnly = true)
     public Map<Long, Boolean> checkBulkAvailability(Map<Long, Integer> bookQuantities) {
-        Map<Long, Boolean> availabilityMap = new HashMap<>();
+        if (bookQuantities == null || bookQuantities.isEmpty()) {
+            return new HashMap<>();
+        }
 
+        // Single bulk query instead of N individual queries
+        List<Long> bookIds = new ArrayList<>(bookQuantities.keySet());
+        List<Inventory> inventories = inventoryRepository.findByBookIdIn(bookIds);
+
+        // Create a map for quick lookup: bookId -> Inventory
+        Map<Long, Inventory> inventoryMap = inventories.stream()
+                .collect(java.util.stream.Collectors.toMap(Inventory::getBookId, inv -> inv));
+
+        // Check availability in-memory
+        Map<Long, Boolean> availabilityMap = new HashMap<>();
         for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
             Long bookId = entry.getKey();
-            Integer quantity = entry.getValue();
-            boolean isAvailable = inventoryRepository.findByBookId(bookId)
-                    .map(inventory -> inventory.getQuantity() >= quantity)
-                    .orElse(false);
+            Integer requestedQuantity = entry.getValue();
+            Inventory inventory = inventoryMap.get(bookId);
+            boolean isAvailable = inventory != null && inventory.getQuantity() >= requestedQuantity;
             availabilityMap.put(bookId, isAvailable);
         }
 
+        log.debug("Bulk availability check for {} books completed with single query", bookIds.size());
         return availabilityMap;
     }
 
     @Override
     @Transactional
     public void reduceBulkInventory(Map<Long, Integer> bookQuantities) {
-        // First, check if all books are available (inline to avoid self-invocation)
-        Map<Long, Boolean> availabilityMap = new HashMap<>();
-        for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
-            Long bookId = entry.getKey();
-            Integer quantity = entry.getValue();
-            boolean isAvailable = inventoryRepository.findByBookId(bookId)
-                    .map(inventory -> inventory.getQuantity() >= quantity)
-                    .orElse(false);
-            availabilityMap.put(bookId, isAvailable);
+        if (bookQuantities == null || bookQuantities.isEmpty()) {
+            return;
         }
 
-        boolean allAvailable = availabilityMap.values().stream().allMatch(Boolean::booleanValue);
+        // Single bulk query to fetch all inventory records
+        List<Long> bookIds = new ArrayList<>(bookQuantities.keySet());
+        List<Inventory> inventories = inventoryRepository.findByBookIdIn(bookIds);
 
-        if (!allAvailable) {
-            List<Long> unavailableBooks = availabilityMap.entrySet().stream()
-                    .filter(entry -> !entry.getValue())
-                    .map(Map.Entry::getKey)
-                    .toList();
+        // Create a map for quick lookup: bookId -> Inventory
+        Map<Long, Inventory> inventoryMap = inventories.stream()
+                .collect(java.util.stream.Collectors.toMap(Inventory::getBookId, inv -> inv));
 
+        // Check availability in-memory
+        List<Long> unavailableBooks = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
+            Long bookId = entry.getKey();
+            Integer requestedQuantity = entry.getValue();
+            Inventory inventory = inventoryMap.get(bookId);
+            if (inventory == null || inventory.getQuantity() < requestedQuantity) {
+                unavailableBooks.add(bookId);
+            }
+        }
+
+        if (!unavailableBooks.isEmpty()) {
             log.warn("Bulk inventory reduction failed. Unavailable books: {}", unavailableBooks);
             throw new InsufficientStockException(
                     "Insufficient stock for books: " + unavailableBooks);
         }
 
-        // All available - proceed with deduction (inline to avoid self-invocation)
+        // All available - proceed with deduction in-memory and batch save
         for (Map.Entry<Long, Integer> entry : bookQuantities.entrySet()) {
             Long bookId = entry.getKey();
             Integer quantity = entry.getValue();
-            Inventory inventory = inventoryRepository.findByBookId(bookId)
-                    .orElseThrow(() -> new InventoryNotFoundException(BOOK_ID_FIELD, bookId));
+            Inventory inventory = inventoryMap.get(bookId);
             inventory.setQuantity(inventory.getQuantity() - quantity);
-            inventoryRepository.save(inventory);
         }
+
+        // Save all updated inventories in one batch
+        inventoryRepository.saveAll(inventories);
+        log.debug("Bulk inventory reduction for {} books completed with optimized queries", bookIds.size());
     }
 }
