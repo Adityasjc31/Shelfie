@@ -9,6 +9,7 @@ import com.book.management.authentication.repository.ITokenBlacklistRepository;
 import com.book.management.authentication.repository.IRefreshTokenRepository;
 import com.book.management.authentication.service.IAuthenticationService;
 import com.book.management.authentication.util.JwtUtil;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -78,7 +79,18 @@ public class AuthenticationService implements IAuthenticationService {
 
         } catch (UserServiceException e) {
             log.error("User service unavailable during registration: {}", e.getMessage());
-            throw new AuthenticationException("Registration failed: " + e.getMessage());
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (FeignException.ServiceUnavailable | FeignException.BadGateway | FeignException.GatewayTimeout e) {
+            log.error("User service connection failed during registration: {}", e.getMessage());
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (FeignException e) {
+            log.error("Feign client error during registration: {}", e.getMessage());
+            if (e.status() == 409) {
+                throw new UserAlreadyExistsException(request.getEmail());
+            }
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (UserAlreadyExistsException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Registration failed: {}", e.getMessage());
             throw new AuthenticationException("Registration failed: " + e.getMessage());
@@ -113,7 +125,18 @@ public class AuthenticationService implements IAuthenticationService {
 
         } catch (UserServiceException e) {
             log.error("User service unavailable during login: {}", e.getMessage());
-            throw new AuthenticationException("Login failed: User service unavailable");
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (FeignException.ServiceUnavailable | FeignException.BadGateway | FeignException.GatewayTimeout e) {
+            log.error("User service connection failed during login: {}", e.getMessage());
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (FeignException e) {
+            log.error("Feign client error during login: {}", e.getMessage());
+            if (e.status() == 401 || e.status() == 404) {
+                throw new InvalidCredentialsException();
+            }
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (InvalidCredentialsException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Login failed: {}", e.getMessage());
             throw new InvalidCredentialsException();
@@ -350,7 +373,10 @@ public class AuthenticationService implements IAuthenticationService {
             return userServiceClient.getUserById(Long.parseLong(userId));
         } catch (UserServiceException e) {
             log.error("Failed to get user from User Service: {}", e.getMessage());
-            throw new AuthenticationException("Failed to retrieve user details");
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
+        } catch (FeignException e) {
+            log.error("Feign client error while getting user: {}", e.getMessage());
+            throw new ServiceUnavailableException("User Service is temporarily unavailable. Please try again later.");
         }
     }
 }
