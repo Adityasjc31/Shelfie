@@ -1,6 +1,8 @@
 package com.book.management.user.service.impl;
 
+import com.book.management.user.client.OrderServiceClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +31,12 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
     private final JpaUserRepository userRepository;
+    private final OrderServiceClient orderServiceClient; // 1. Inject the Feign Client
 
     /**
      * {@inheritDoc}
@@ -187,11 +191,17 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteUser(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new UserNotFoundException(userId);
-        }
-
+        // 1. Delete the user from the local database
         userRepository.deleteById(userId);
+
+        // 2. Call the Order Service to clean up related data
+        try {
+            orderServiceClient.deleteOrdersByUserId(userId);
+        } catch (Exception e) {
+            // Log the error or handle it based on your requirements
+            // (e.g., should the user deletion fail if orders aren't deleted?)
+            log.error("Failed to delete orders for user {}: {}", userId, e.getMessage());
+        }
     }
 
     /**
@@ -252,4 +262,7 @@ public class UserServiceImpl implements UserService {
                 .updatedAt(user.getUpdatedAt())
                 .build();
     }
+
+
 }
+
