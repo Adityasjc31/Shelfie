@@ -86,13 +86,13 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     // ============================================================================
-    // READ Operations
+    // READ Operations (excludes soft-deleted records)
     // ============================================================================
 
     @Override
     @Transactional(readOnly = true)
     public ReviewResponseDTO getReviewById(Long reviewId) {
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findActiveById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
         return mapToResponseDTO(review);
     }
@@ -100,7 +100,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(readOnly = true)
     public List<ReviewResponseDTO> getAllReviews() {
-        return reviewRepository.findAll().stream()
+        return reviewRepository.findAllActive().stream()
                 .map(this::mapToResponseDTO)
                 .toList();
     }
@@ -151,7 +151,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public ReviewResponseDTO updateReview(Long reviewId, Long userId, ReviewUpdateDTO updateDTO) {
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findActiveById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
         if (!review.getUserId().equals(userId)) {
@@ -172,7 +172,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public ReviewResponseDTO moderateReview(Long reviewId, ReviewModerationDTO moderationDTO) {
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findActiveById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
         if (moderationDTO.getStatus() == ReviewStatus.REJECTED &&
@@ -200,7 +200,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public ReviewResponseDTO approveReview(Long reviewId, Long moderatorId) {
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findActiveById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
         review.setStatus(ReviewStatus.APPROVED);
@@ -222,7 +222,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new InvalidModerationException("Rejection reason is required");
         }
 
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findActiveById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
         review.setStatus(ReviewStatus.REJECTED);
@@ -237,12 +237,12 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     // ============================================================================
-    // DELETE Operations
+    // DELETE Operations (Soft Delete)
     // ============================================================================
 
     @Override
     public void deleteReview(Long reviewId, Long userId) {
-        Review review = reviewRepository.findById(reviewId)
+        Review review = reviewRepository.findActiveById(reviewId)
                 .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
         if (!review.getUserId().equals(userId)) {
@@ -250,25 +250,30 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         Long bookId = review.getBookId();
-        reviewRepository.deleteById(reviewId);
+
+        // Soft delete - mark as deleted
+        review.setIsDeleted(true);
+        reviewRepository.save(review);
 
         // Update book rating after deletion
         updateBookServiceRating(bookId);
+        log.info("Soft deleted review ID: {} by user ID: {}", reviewId, userId);
     }
 
     @Override
     public void deleteReviewByAdmin(Long reviewId) {
-        if (!reviewRepository.existsById(reviewId)) {
-            throw new ReviewNotFoundException(reviewId);
-        }
+        Review review = reviewRepository.findActiveById(reviewId)
+                .orElseThrow(() -> new ReviewNotFoundException(reviewId));
 
-        Review review = reviewRepository.findById(reviewId).orElseThrow();
         Long bookId = review.getBookId();
 
-        reviewRepository.deleteById(reviewId);
+        // Soft delete - mark as deleted
+        review.setIsDeleted(true);
+        reviewRepository.save(review);
 
         // Update book rating after deletion
         updateBookServiceRating(bookId);
+        log.info("Soft deleted review ID: {} by admin", reviewId);
     }
 
     @Override
@@ -286,9 +291,9 @@ public class ReviewServiceImpl implements ReviewService {
                 .distinct()
                 .toList();
 
-        // Delete all reviews by user
-        reviewRepository.deleteAll(userReviews);
-        log.info("Deleted {} reviews for user ID: {}", userReviews.size(), userId);
+        // Soft delete all reviews by user using bulk update
+        int deletedCount = reviewRepository.softDeleteByUserId(userId);
+        log.info("Soft deleted {} reviews for user ID: {}", deletedCount, userId);
 
         // Update book ratings for all affected books
         for (Long bookId : affectedBookIds) {

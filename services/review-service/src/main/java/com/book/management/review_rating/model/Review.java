@@ -21,7 +21,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_book_id", columnList = "book_id"),
         @Index(name = "idx_user_id", columnList = "user_id"),
         @Index(name = "idx_status", columnList = "status"),
-        @Index(name = "idx_rating", columnList = "rating")
+        @Index(name = "idx_rating", columnList = "rating"),
+        @Index(name = "idx_is_deleted", columnList = "is_deleted")
 })
 @Data
 @NoArgsConstructor
@@ -57,6 +58,10 @@ public class Review {
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private Boolean isDeleted = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -67,6 +72,9 @@ public class Review {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (isDeleted == null) {
+            isDeleted = false;
+        }
     }
 
     @PreUpdate
@@ -93,6 +101,13 @@ public class Review {
      */
     public boolean isRejected() {
         return status == ReviewStatus.REJECTED;
+    }
+
+    /**
+     * Checks if the review is soft-deleted.
+     */
+    public boolean isDeleted() {
+        return isDeleted != null && isDeleted;
     }
 
     /**
