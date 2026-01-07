@@ -4,6 +4,10 @@ import com.book.management.book.dto.requestdto.AddBookRequestDTO;
 import com.book.management.book.dto.requestdto.UpdateBookRequestDTO;
 import com.book.management.book.dto.responsedto.BookPriceResponseDTO;
 import com.book.management.book.dto.responsedto.BookResponseDTO;
+import com.book.management.book.exception.BookNotFoundException;
+import com.book.management.book.exception.GlobalBookExceptionHandler;
+import com.book.management.book.exception.InvalidBookDataException;
+import com.book.management.book.exception.InvalidCategoryException;
 import com.book.management.book.service.BookService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +44,9 @@ public class BookControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(bookController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(bookController)
+                .setControllerAdvice(new GlobalBookExceptionHandler())
+                .build();
 
         // Sample book response
         sampleBookResponse = new BookResponseDTO();
@@ -171,7 +177,7 @@ public class BookControllerTest {
         @DisplayName("Should return book when found")
         void getBookById_Found() throws Exception {
             // Given
-            when(bookService.getBookById(1L)).thenReturn(Optional.of(sampleBookResponse));
+            when(bookService.getBookById(1L)).thenReturn(sampleBookResponse);
 
             // When & Then
             mockMvc.perform(get("/api/v1/book/getById/1"))
@@ -186,7 +192,7 @@ public class BookControllerTest {
         @DisplayName("Should return 404 when book not found")
         void getBookById_NotFound() throws Exception {
             // Given
-            when(bookService.getBookById(999L)).thenReturn(Optional.empty());
+            when(bookService.getBookById(999L)).thenThrow(new com.book.management.book.exception.BookNotFoundException(999));
 
             // When & Then
             mockMvc.perform(get("/api/v1/book/getById/999"))
@@ -227,6 +233,17 @@ public class BookControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(0));
         }
+
+        @Test
+        @DisplayName("Should return 400 when author ID is blank")
+        void getBooksByAuthor_BlankAuthorId() throws Exception {
+            // Given
+            when(bookService.getBooksByAuthor("   ")).thenThrow(new InvalidBookDataException("Author ID cannot be null or empty"));
+
+            // When & Then
+            mockMvc.perform(get("/api/v1/book/getByAuthor/   "))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Nested
@@ -261,6 +278,20 @@ public class BookControllerTest {
                             .param("categoryId", "CAT-HIS"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(0));
+        }
+
+        @Test
+        @DisplayName("Should return 400 for invalid category ID")
+        void getBooksByCategory_InvalidCategoryId() throws Exception {
+            // Given
+            when(bookService.getBooksByCategory("INVALID-CAT")).thenThrow(new InvalidCategoryException("INVALID-CAT"));
+
+            // When & Then
+            mockMvc.perform(get("/api/v1/book/getByCategory")
+                            .param("categoryId", "INVALID-CAT"))
+                    .andExpect(status().isBadRequest());
+
+            verify(bookService, times(1)).getBooksByCategory("INVALID-CAT");
         }
     }
 
@@ -450,6 +481,48 @@ public class BookControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.bookPrice").value(45.99));
         }
+
+        @Test
+        @DisplayName("Should return 404 when updating non-existent book")
+        void updateBook_NotFound() throws Exception {
+            // Given
+            String requestJson = """
+                {
+                    "bookTitle": "Updated Title"
+                }
+                """;
+
+            when(bookService.updateBook(eq(999L), any(UpdateBookRequestDTO.class)))
+                    .thenThrow(new BookNotFoundException(999));
+
+            // When & Then
+            mockMvc.perform(patch("/api/v1/book/update/999")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isNotFound());
+
+            verify(bookService, times(1)).updateBook(eq(999L), any(UpdateBookRequestDTO.class));
+        }
+
+        @Test
+        @DisplayName("Should return 400 when price is negative")
+        void updateBook_NegativePrice() throws Exception {
+            // Given
+            String requestJson = """
+                {
+                    "bookPrice": -10.0
+                }
+                """;
+
+            when(bookService.updateBook(eq(1L), any(UpdateBookRequestDTO.class)))
+                    .thenThrow(new InvalidBookDataException("Price cannot be negative"));
+
+            // When & Then
+            mockMvc.perform(patch("/api/v1/book/update/1")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Nested
@@ -478,6 +551,19 @@ public class BookControllerTest {
             // When & Then
             mockMvc.perform(delete("/api/v1/book/delete/999"))
                     .andExpect(status().isNoContent());
+
+            verify(bookService, times(1)).deleteBook(999L);
+        }
+
+        @Test
+        @DisplayName("Should return 404 when deleting non-existent book")
+        void deleteBook_NotFound() throws Exception {
+            // Given
+            doThrow(new BookNotFoundException(999)).when(bookService).deleteBook(999L);
+
+            // When & Then
+            mockMvc.perform(delete("/api/v1/book/delete/999"))
+                    .andExpect(status().isNotFound());
 
             verify(bookService, times(1)).deleteBook(999L);
         }
