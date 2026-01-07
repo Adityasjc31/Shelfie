@@ -15,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of ReviewService for Microservices Architecture.
@@ -78,7 +76,6 @@ public class ReviewServiceImpl implements ReviewService {
                 .rating(createDTO.getRating())
                 .comment(createDTO.getComment())
                 .status(ReviewStatus.PENDING)
-                .helpfulCount(0)
                 .build();
 
         Review savedReview = reviewRepository.save(review);
@@ -144,17 +141,6 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional(readOnly = true)
     public List<ReviewResponseDTO> getPendingReviews() {
         return reviewRepository.findPendingReviews().stream()
-                .map(this::mapToResponseDTO)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ReviewResponseDTO> getReviewsByRating(Integer rating) {
-        if (rating < 1 || rating > 5) {
-            throw new InvalidReviewOperationException("Rating must be between 1 and 5");
-        }
-        return reviewRepository.findByRating(rating).stream()
                 .map(this::mapToResponseDTO)
                 .toList();
     }
@@ -250,65 +236,6 @@ public class ReviewServiceImpl implements ReviewService {
         return mapToResponseDTO(rejectedReview);
     }
 
-    @Override
-    public ReviewResponseDTO markReviewAsHelpful(Long reviewId) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new ReviewNotFoundException(reviewId));
-
-        review.setHelpfulCount(review.getHelpfulCount() + 1);
-        return mapToResponseDTO(reviewRepository.save(review));
-    }
-
-    // ============================================================================
-    // ANALYTICS Operations
-    // ============================================================================
-
-    @Override
-    @Transactional(readOnly = true)
-    public BookRatingStatsDTO getBookRatingStats(Long bookId) {
-        List<Review> allReviews = reviewRepository.findByBookId(bookId);
-        Double averageRating = reviewRepository.calculateAverageRating(bookId);
-        if (averageRating == null)
-            averageRating = 0.0;
-
-        // Calculate rating distribution
-        List<Object[]> ratingCounts = reviewRepository.countReviewsByRating(bookId);
-        Map<Integer, Long> distribution = ratingCounts.stream()
-                .collect(Collectors.toMap(
-                        row -> (Integer) row[0],
-                        row -> (Long) row[1]));
-
-        RatingDistribution ratingDist = RatingDistribution.builder()
-                .fiveStars(distribution.getOrDefault(5, 0L))
-                .fourStars(distribution.getOrDefault(4, 0L))
-                .threeStars(distribution.getOrDefault(3, 0L))
-                .twoStars(distribution.getOrDefault(2, 0L))
-                .oneStar(distribution.getOrDefault(1, 0L))
-                .build();
-
-        long totalReviews = allReviews.size();
-        long approvedReviews = reviewRepository.countByBookIdAndStatus(bookId, ReviewStatus.APPROVED);
-        long pendingReviews = reviewRepository.countByBookIdAndStatus(bookId, ReviewStatus.PENDING);
-        long rejectedReviews = reviewRepository.countByBookIdAndStatus(bookId, ReviewStatus.REJECTED);
-
-        return BookRatingStatsDTO.builder()
-                .bookId(bookId)
-                .averageRating(averageRating)
-                .totalReviews(totalReviews)
-                .approvedReviews(approvedReviews)
-                .pendingReviews(pendingReviews)
-                .rejectedReviews(rejectedReviews)
-                .ratingDistribution(ratingDist)
-                .build();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Double calculateAverageRating(Long bookId) {
-        Double average = reviewRepository.calculateAverageRating(bookId);
-        return average != null ? average : 0.0;
-    }
-
     // ============================================================================
     // DELETE Operations
     // ============================================================================
@@ -358,10 +285,21 @@ public class ReviewServiceImpl implements ReviewService {
                 .status(review.getStatus())
                 .moderatedBy(review.getModeratedBy())
                 .rejectionReason(review.getRejectionReason())
-                .helpfulCount(review.getHelpfulCount())
                 .createdAt(review.getCreatedAt())
                 .updatedAt(review.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Calculates average rating for a book (approved reviews only).
+     * Private helper method for internal use.
+     * 
+     * @param bookId the book ID
+     * @return average rating or 0.0 if no reviews
+     */
+    private Double calculateAverageRating(Long bookId) {
+        Double average = reviewRepository.calculateAverageRating(bookId);
+        return average != null ? average : 0.0;
     }
 
     /**

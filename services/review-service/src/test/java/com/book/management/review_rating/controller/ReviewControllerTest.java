@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.book.management.review_rating.dto.BookRatingStatsDTO;
 import com.book.management.review_rating.dto.ReviewCreateDTO;
 import com.book.management.review_rating.dto.ReviewModerationDTO;
 import com.book.management.review_rating.dto.ReviewResponseDTO;
@@ -59,7 +58,6 @@ class ReviewControllerTest {
                                 .rating(5)
                                 .comment("Excellent book!")
                                 .status(ReviewStatus.PENDING)
-                                .helpfulCount(0)
                                 .createdAt(LocalDateTime.now())
                                 .updatedAt(LocalDateTime.now())
                                 .build();
@@ -186,21 +184,6 @@ class ReviewControllerTest {
         }
 
         @Test
-        void testGetReviewsByRating() throws Exception {
-                // Arrange
-                List<ReviewResponseDTO> reviews = Arrays.asList(responseDTO);
-                when(reviewService.getReviewsByRating(5)).thenReturn(reviews);
-
-                // Act & Assert
-                mockMvc.perform(get("/api/v1/reviews/rating/{rating}", 5))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.length()").value(1))
-                                .andExpect(jsonPath("$[0].rating").value(5));
-
-                verify(reviewService, times(1)).getReviewsByRating(5);
-        }
-
-        @Test
         void testUpdateReview() throws Exception {
                 // Arrange
                 ReviewUpdateDTO updateDTO = ReviewUpdateDTO.builder()
@@ -266,57 +249,6 @@ class ReviewControllerTest {
                                 .andExpect(jsonPath("$.rejectionReason").value("Inappropriate content"));
 
                 verify(reviewService, times(1)).rejectReview(1L, 2001L, "Inappropriate content");
-        }
-
-        @Test
-        void testMarkReviewAsHelpful() throws Exception {
-                // Arrange
-                ReviewResponseDTO helpfulResponse = ReviewResponseDTO.builder()
-                                .reviewId(1L)
-                                .helpfulCount(1)
-                                .build();
-                when(reviewService.markReviewAsHelpful(1L)).thenReturn(helpfulResponse);
-
-                // Act & Assert
-                mockMvc.perform(patch("/api/v1/reviews/{reviewId}/helpful", 1L))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.helpfulCount").value(1));
-
-                verify(reviewService, times(1)).markReviewAsHelpful(1L);
-        }
-
-        @Test
-        void testGetBookRatingStats() throws Exception {
-                // Arrange
-                BookRatingStatsDTO stats = BookRatingStatsDTO.builder()
-                                .bookId(101L)
-                                .averageRating(4.5)
-                                .totalReviews(10L)
-                                .approvedReviews(8L)
-                                .build();
-                when(reviewService.getBookRatingStats(101L)).thenReturn(stats);
-
-                // Act & Assert
-                mockMvc.perform(get("/api/v1/reviews/book/{bookId}/stats", 101L))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.bookId").value(101L))
-                                .andExpect(jsonPath("$.averageRating").value(4.5))
-                                .andExpect(jsonPath("$.totalReviews").value(10));
-
-                verify(reviewService, times(1)).getBookRatingStats(101L);
-        }
-
-        @Test
-        void testCalculateAverageRating() throws Exception {
-                // Arrange
-                when(reviewService.calculateAverageRating(101L)).thenReturn(4.5);
-
-                // Act & Assert
-                mockMvc.perform(get("/api/v1/reviews/book/{bookId}/average-rating", 101L))
-                                .andExpect(status().isOk())
-                                .andExpect(content().string("4.5"));
-
-                verify(reviewService, times(1)).calculateAverageRating(101L);
         }
 
         @Test

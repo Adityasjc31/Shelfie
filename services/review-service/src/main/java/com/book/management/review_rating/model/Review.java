@@ -18,10 +18,10 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "reviews", indexes = {
-    @Index(name = "idx_book_id", columnList = "book_id"),
-    @Index(name = "idx_user_id", columnList = "user_id"),
-    @Index(name = "idx_status", columnList = "status"),
-    @Index(name = "idx_rating", columnList = "rating")
+        @Index(name = "idx_book_id", columnList = "book_id"),
+        @Index(name = "idx_user_id", columnList = "user_id"),
+        @Index(name = "idx_status", columnList = "status"),
+        @Index(name = "idx_rating", columnList = "rating")
 })
 @Data
 @NoArgsConstructor
@@ -56,10 +56,6 @@ public class Review {
 
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
-
-    @Column(name = "helpful_count")
-    @Builder.Default
-    private Integer helpfulCount = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

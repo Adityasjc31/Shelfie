@@ -47,11 +47,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByStatus(ReviewStatus status);
 
     /**
-     * Finds all reviews with a specific rating.
-     */
-    List<Review> findByRating(Integer rating);
-
-    /**
      * Checks if a user has already reviewed a book.
      */
     boolean existsByUserIdAndBookId(Long userId, Long bookId);
@@ -83,10 +78,4 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      */
     @Query("SELECT r FROM Review r WHERE r.status = 'PENDING'")
     List<Review> findPendingReviews();
-
-    /**
-     * Counts reviews by rating for a book (for distribution statistics).
-     */
-    @Query("SELECT r.rating, COUNT(r) FROM Review r WHERE r.bookId = :bookId AND r.status = 'APPROVED' GROUP BY r.rating")
-    List<Object[]> countReviewsByRating(@Param("bookId") Long bookId);
 }

@@ -1,9 +1,7 @@
 package com.book.management.review_rating.service;
 
-
 import java.util.List;
 
-import com.book.management.review_rating.dto.BookRatingStatsDTO;
 import com.book.management.review_rating.dto.ReviewCreateDTO;
 import com.book.management.review_rating.dto.ReviewModerationDTO;
 import com.book.management.review_rating.dto.ReviewResponseDTO;
@@ -85,21 +83,13 @@ public interface ReviewService {
     List<ReviewResponseDTO> getPendingReviews();
 
     /**
-     * Retrieves all reviews with a specific rating.
-     * 
-     * @param rating the rating (1-5)
-     * @return list of reviews with the given rating
-     */
-    List<ReviewResponseDTO> getReviewsByRating(Integer rating);
-
-    /**
      * Updates a review (only by the review owner).
      * 
-     * @param reviewId the review ID
-     * @param userId the user ID attempting the update
+     * @param reviewId  the review ID
+     * @param userId    the user ID attempting the update
      * @param updateDTO the update data
      * @return the updated review response
-     * @throws ReviewNotFoundException if review not found
+     * @throws ReviewNotFoundException           if review not found
      * @throws UnauthorizedReviewAccessException if user is not the owner
      */
     ReviewResponseDTO updateReview(Long reviewId, Long userId, ReviewUpdateDTO updateDTO);
@@ -108,10 +98,10 @@ public interface ReviewService {
      * Moderates a review (approve or reject).
      * Admin-only operation.
      * 
-     * @param reviewId the review ID
+     * @param reviewId      the review ID
      * @param moderationDTO the moderation data
      * @return the moderated review response
-     * @throws ReviewNotFoundException if review not found
+     * @throws ReviewNotFoundException    if review not found
      * @throws InvalidModerationException if moderation is invalid
      */
     ReviewResponseDTO moderateReview(Long reviewId, ReviewModerationDTO moderationDTO);
@@ -119,7 +109,7 @@ public interface ReviewService {
     /**
      * Approves a review.
      * 
-     * @param reviewId the review ID
+     * @param reviewId    the review ID
      * @param moderatorId the moderator user ID
      * @return the approved review response
      * @throws ReviewNotFoundException if review not found
@@ -129,46 +119,21 @@ public interface ReviewService {
     /**
      * Rejects a review.
      * 
-     * @param reviewId the review ID
+     * @param reviewId    the review ID
      * @param moderatorId the moderator user ID
-     * @param reason the rejection reason
+     * @param reason      the rejection reason
      * @return the rejected review response
      * @throws ReviewNotFoundException if review not found
      */
     ReviewResponseDTO rejectReview(Long reviewId, Long moderatorId, String reason);
 
     /**
-     * Marks a review as helpful.
-     * 
-     * @param reviewId the review ID
-     * @return the updated review response
-     * @throws ReviewNotFoundException if review not found
-     */
-    ReviewResponseDTO markReviewAsHelpful(Long reviewId);
-
-    /**
-     * Gets rating statistics for a book.
-     * 
-     * @param bookId the book ID
-     * @return the book rating statistics
-     */
-    BookRatingStatsDTO getBookRatingStats(Long bookId);
-
-    /**
-     * Calculates average rating for a book.
-     * 
-     * @param bookId the book ID
-     * @return average rating
-     */
-    Double calculateAverageRating(Long bookId);
-
-    /**
      * Deletes a review.
      * Can be deleted by review owner or admin.
      * 
      * @param reviewId the review ID
-     * @param userId the user ID attempting deletion
-     * @throws ReviewNotFoundException if review not found
+     * @param userId   the user ID attempting deletion
+     * @throws ReviewNotFoundException           if review not found
      * @throws UnauthorizedReviewAccessException if user is not authorized
      */
     void deleteReview(Long reviewId, Long userId);
@@ -181,5 +146,4 @@ public interface ReviewService {
      */
     void deleteReviewByAdmin(Long reviewId);
 
-    
 }

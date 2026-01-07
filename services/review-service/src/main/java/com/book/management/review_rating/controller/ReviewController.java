@@ -119,17 +119,6 @@ public class ReviewController {
     }
 
     /**
-     * Retrieves all reviews with a specific rating.
-     * 
-     * @param rating the rating (1-5)
-     * @return ResponseEntity with list of reviews and HTTP 200 status
-     */
-    @GetMapping("/rating/{rating}")
-    public ResponseEntity<List<ReviewResponseDTO>> getReviewsByRating(@PathVariable Integer rating) {
-        return ResponseEntity.ok(reviewService.getReviewsByRating(rating));
-    }
-
-    /**
      * Updates a review.
      * 
      * @param reviewId  the review ID
@@ -187,39 +176,6 @@ public class ReviewController {
             @RequestParam Long moderatorId,
             @RequestParam String reason) {
         return ResponseEntity.ok(reviewService.rejectReview(reviewId, moderatorId, reason));
-    }
-
-    /**
-     * Marks a review as helpful.
-     * 
-     * @param reviewId the review ID
-     * @return ResponseEntity with updated review and HTTP 200 status
-     */
-    @PatchMapping("/{reviewId}/helpful")
-    public ResponseEntity<ReviewResponseDTO> markReviewAsHelpful(@PathVariable Long reviewId) {
-        return ResponseEntity.ok(reviewService.markReviewAsHelpful(reviewId));
-    }
-
-    /**
-     * Gets rating statistics for a book.
-     * 
-     * @param bookId the book ID
-     * @return ResponseEntity with rating statistics and HTTP 200 status
-     */
-    @GetMapping("/book/{bookId}/stats")
-    public ResponseEntity<BookRatingStatsDTO> getBookRatingStats(@PathVariable Long bookId) {
-        return ResponseEntity.ok(reviewService.getBookRatingStats(bookId));
-    }
-
-    /**
-     * Calculates average rating for a book.
-     * 
-     * @param bookId the book ID
-     * @return ResponseEntity with average rating and HTTP 200 status
-     */
-    @GetMapping("/book/{bookId}/average-rating")
-    public ResponseEntity<Double> calculateAverageRating(@PathVariable Long bookId) {
-        return ResponseEntity.ok(reviewService.calculateAverageRating(bookId));
     }
 
     /**

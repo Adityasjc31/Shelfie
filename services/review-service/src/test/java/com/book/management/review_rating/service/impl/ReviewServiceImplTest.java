@@ -68,7 +68,6 @@ class ReviewServiceImplTest {
                 .rating(5)
                 .comment("Excellent book!")
                 .status(ReviewStatus.PENDING)
-                .helpfulCount(0)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -349,21 +348,6 @@ class ReviewServiceImplTest {
                     () -> reviewService.rejectReview(1L, 2001L, null));
             verify(reviewRepository, never()).save(any(Review.class));
         }
-
-        @Test
-        void markReviewAsHelpful_Success() {
-            // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
-            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
-
-            // Act
-            ReviewResponseDTO result = reviewService.markReviewAsHelpful(1L);
-
-            // Assert
-            assertNotNull(result);
-            verify(reviewRepository, times(1)).findById(1L);
-            verify(reviewRepository, times(1)).save(any(Review.class));
-        }
     }
 
     // ============================================================================
@@ -420,42 +404,6 @@ class ReviewServiceImplTest {
             // Assert
             verify(reviewRepository, times(1)).existsById(1L);
             verify(reviewRepository, times(1)).deleteById(1L);
-        }
-    }
-
-    // ============================================================================
-    // Analytics Tests
-    // ============================================================================
-
-    @Nested
-    @DisplayName("Analytics Tests")
-    class AnalyticsTests {
-
-        @Test
-        void calculateAverageRating_Success() {
-            // Arrange
-            when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.5);
-
-            // Act
-            Double result = reviewService.calculateAverageRating(101L);
-
-            // Assert
-            assertNotNull(result);
-            assertEquals(4.5, result);
-            verify(reviewRepository, times(1)).calculateAverageRating(101L);
-        }
-
-        @Test
-        void calculateAverageRating_ReturnsZeroWhenNull() {
-            // Arrange
-            when(reviewRepository.calculateAverageRating(101L)).thenReturn(null);
-
-            // Act
-            Double result = reviewService.calculateAverageRating(101L);
-
-            // Assert
-            assertNotNull(result);
-            assertEquals(0.0, result);
         }
     }
 }

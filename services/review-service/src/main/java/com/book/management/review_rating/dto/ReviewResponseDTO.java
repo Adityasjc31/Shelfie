@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class ReviewResponseDTO {
-    
+
     private Long reviewId;
     private Long userId;
     private Long bookId;
@@ -30,7 +30,6 @@ public class ReviewResponseDTO {
     private ReviewStatus status;
     private Long moderatedBy;
     private String rejectionReason;
-    private Integer helpfulCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
