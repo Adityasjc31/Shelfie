@@ -5,13 +5,18 @@ import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.book.management.inventory.controller.InventoryController;
+import com.book.management.inventory.config.GatewaySecurityProperties;
+import com.book.management.inventory.config.JpaAuditingConfig;
 import com.book.management.inventory.dto.*;
+import com.book.management.inventory.filter.GatewayAuthenticationFilter;
 import com.book.management.inventory.service.InventoryService;
 
 import java.time.LocalDateTime;
@@ -32,8 +37,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @version 2.0
  * @since 2024-12-08
  */
-@WebMvcTest(InventoryController.class)
-public class InventoryControllerTest {
+@WebMvcTest(controllers = InventoryController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
+                GatewayAuthenticationFilter.class, JpaAuditingConfig.class }), properties = {
+                                "spring.cloud.config.enabled=false",
+                                "eureka.client.enabled=false",
+                                "spring.data.jpa.repositories.enabled=false"
+                })
+@EnableAutoConfiguration(excludeName = {
+                "org.springframework.boot.data.jpa.autoconfigure.JpaRepositoriesAutoConfiguration",
+                "org.springframework.boot.jpa.autoconfigure.HibernateJpaAutoConfiguration"
+})
+class InventoryControllerTest {
 
         @Autowired
         private MockMvc mockMvc;
@@ -43,6 +57,9 @@ public class InventoryControllerTest {
 
         @MockitoBean
         private InventoryService inventoryService;
+
+        @MockitoBean
+        private GatewaySecurityProperties gatewaySecurityProperties;
 
         private InventoryResponseDTO responseDTO;
         private InventoryCreateDTO createDTO;
@@ -457,5 +474,44 @@ public class InventoryControllerTest {
                                 .andExpect(status().isOk());
 
                 verify(inventoryService, times(1)).reduceBulkInventory(any());
+        }
+
+        @Test
+        void testCreateInventory_WithCreatePath() throws Exception {
+                // Arrange - Test the /create endpoint which is the actual controller mapping
+                when(inventoryService.createInventory(any(InventoryCreateDTO.class)))
+                                .thenReturn(responseDTO);
+
+                // Act & Assert
+                mockMvc.perform(post("/api/v1/inventory/create")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(createDTO)))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.inventoryId").value(1L))
+                                .andExpect(jsonPath("$.bookId").value(100L));
+
+                verify(inventoryService, times(1)).createInventory(any(InventoryCreateDTO.class));
+        }
+
+        @Test
+        void testCheckBulkAvailability_PartialAvailability() throws Exception {
+                // Arrange - some books not available
+                BulkStockCheckDTO checkDTO = BulkStockCheckDTO.builder()
+                                .bookQuantities(java.util.Map.of(100L, 5, 101L, 100))
+                                .build();
+
+                java.util.Map<Long, Boolean> availabilityMap = java.util.Map.of(100L, true, 101L, false);
+                when(inventoryService.checkBulkAvailability(any())).thenReturn(availabilityMap);
+
+                // Act & Assert
+                mockMvc.perform(post("/api/v1/inventory/bulk/check-availability")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(checkDTO)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.allAvailable").value(false))
+                                .andExpect(jsonPath("$.message")
+                                                .value("Some books are not available in required quantities"));
+
+                verify(inventoryService, times(1)).checkBulkAvailability(any());
         }
 }

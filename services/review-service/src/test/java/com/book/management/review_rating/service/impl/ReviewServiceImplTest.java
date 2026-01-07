@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.book.management.review_rating.client.BookServiceClient;
 import com.book.management.review_rating.client.dto.BookResponseDTO;
 import com.book.management.review_rating.dto.ReviewCreateDTO;
+import com.book.management.review_rating.dto.ReviewModerationDTO;
 import com.book.management.review_rating.dto.ReviewResponseDTO;
 import com.book.management.review_rating.dto.ReviewUpdateDTO;
 import com.book.management.review_rating.exception.DuplicateReviewException;
@@ -26,6 +27,7 @@ import com.book.management.review_rating.repository.ReviewRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,6 +70,7 @@ class ReviewServiceImplTest {
                 .rating(5)
                 .comment("Excellent book!")
                 .status(ReviewStatus.PENDING)
+                .isDeleted(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -155,7 +158,7 @@ class ReviewServiceImplTest {
         @Test
         void getReviewById_Success() {
             // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
 
             // Act
             ReviewResponseDTO result = reviewService.getReviewById(1L);
@@ -164,25 +167,25 @@ class ReviewServiceImplTest {
             assertNotNull(result);
             assertEquals(1L, result.getReviewId());
             assertEquals(5, result.getRating());
-            verify(reviewRepository, times(1)).findById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
         }
 
         @Test
         void getReviewById_ThrowsExceptionWhenNotFound() {
             // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.empty());
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.empty());
 
             // Act & Assert
             assertThrows(ReviewNotFoundException.class,
                     () -> reviewService.getReviewById(1L));
-            verify(reviewRepository, times(1)).findById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
         }
 
         @Test
         void getAllReviews_Success() {
             // Arrange
             List<Review> reviews = Arrays.asList(testReview, testReview);
-            when(reviewRepository.findAll()).thenReturn(reviews);
+            when(reviewRepository.findAllActive()).thenReturn(reviews);
 
             // Act
             List<ReviewResponseDTO> result = reviewService.getAllReviews();
@@ -190,7 +193,20 @@ class ReviewServiceImplTest {
             // Assert
             assertNotNull(result);
             assertEquals(2, result.size());
-            verify(reviewRepository, times(1)).findAll();
+            verify(reviewRepository, times(1)).findAllActive();
+        }
+
+        @Test
+        void getAllReviews_ReturnsEmptyList() {
+            // Arrange
+            when(reviewRepository.findAllActive()).thenReturn(Collections.emptyList());
+
+            // Act
+            List<ReviewResponseDTO> result = reviewService.getAllReviews();
+
+            // Assert
+            assertNotNull(result);
+            assertTrue(result.isEmpty());
         }
 
         @Test
@@ -248,6 +264,26 @@ class ReviewServiceImplTest {
         }
 
         @Test
+        void getReviewsByStatus_Success() {
+            // Arrange
+            Review approvedReview = Review.builder()
+                    .reviewId(2L)
+                    .status(ReviewStatus.APPROVED)
+                    .build();
+            List<Review> reviews = Arrays.asList(approvedReview);
+            when(reviewRepository.findByStatus(ReviewStatus.APPROVED)).thenReturn(reviews);
+
+            // Act
+            List<ReviewResponseDTO> result = reviewService.getReviewsByStatus(ReviewStatus.APPROVED);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertEquals(ReviewStatus.APPROVED, result.get(0).getStatus());
+            verify(reviewRepository, times(1)).findByStatus(ReviewStatus.APPROVED);
+        }
+
+        @Test
         void getPendingReviews_Success() {
             // Arrange
             List<Review> reviews = Arrays.asList(testReview);
@@ -279,7 +315,7 @@ class ReviewServiceImplTest {
                     .rating(4)
                     .comment("Updated comment")
                     .build();
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
             when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
 
             // Act
@@ -287,8 +323,22 @@ class ReviewServiceImplTest {
 
             // Assert
             assertNotNull(result);
-            verify(reviewRepository, times(1)).findById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
             verify(reviewRepository, times(1)).save(any(Review.class));
+        }
+
+        @Test
+        void updateReview_ThrowsExceptionWhenNotFound() {
+            // Arrange
+            ReviewUpdateDTO updateDTO = ReviewUpdateDTO.builder()
+                    .rating(4)
+                    .comment("Updated comment")
+                    .build();
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThrows(ReviewNotFoundException.class,
+                    () -> reviewService.updateReview(1L, 1001L, updateDTO));
         }
 
         @Test
@@ -298,19 +348,38 @@ class ReviewServiceImplTest {
                     .rating(4)
                     .comment("Updated comment")
                     .build();
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
 
             // Act & Assert
             assertThrows(UnauthorizedReviewAccessException.class,
                     () -> reviewService.updateReview(1L, 9999L, updateDTO));
-            verify(reviewRepository, times(1)).findById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
             verify(reviewRepository, never()).save(any(Review.class));
+        }
+
+        @Test
+        void updateReview_ThrowsExceptionWhenRejected() {
+            // Arrange
+            Review rejectedReview = Review.builder()
+                    .reviewId(1L)
+                    .userId(1001L)
+                    .status(ReviewStatus.REJECTED)
+                    .build();
+            ReviewUpdateDTO updateDTO = ReviewUpdateDTO.builder()
+                    .rating(4)
+                    .comment("Updated comment")
+                    .build();
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(rejectedReview));
+
+            // Act & Assert
+            assertThrows(InvalidReviewOperationException.class,
+                    () -> reviewService.updateReview(1L, 1001L, updateDTO));
         }
 
         @Test
         void approveReview_Success() {
             // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
             when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
             when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.5);
             when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(5L);
@@ -321,15 +390,25 @@ class ReviewServiceImplTest {
 
             // Assert
             assertNotNull(result);
-            verify(reviewRepository, times(1)).findById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
             verify(reviewRepository, times(1)).save(any(Review.class));
             verify(bookServiceClient, times(1)).updateBookRating(any(), any());
         }
 
         @Test
+        void approveReview_ThrowsExceptionWhenNotFound() {
+            // Arrange
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThrows(ReviewNotFoundException.class,
+                    () -> reviewService.approveReview(1L, 2001L));
+        }
+
+        @Test
         void rejectReview_Success() {
             // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
             when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
 
             // Act
@@ -337,7 +416,7 @@ class ReviewServiceImplTest {
 
             // Assert
             assertNotNull(result);
-            verify(reviewRepository, times(1)).findById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
             verify(reviewRepository, times(1)).save(any(Review.class));
         }
 
@@ -348,10 +427,91 @@ class ReviewServiceImplTest {
                     () -> reviewService.rejectReview(1L, 2001L, null));
             verify(reviewRepository, never()).save(any(Review.class));
         }
+
+        @Test
+        void rejectReview_ThrowsExceptionWhenReasonBlank() {
+            // Act & Assert
+            assertThrows(InvalidModerationException.class,
+                    () -> reviewService.rejectReview(1L, 2001L, "   "));
+            verify(reviewRepository, never()).save(any(Review.class));
+        }
+
+        @Test
+        void moderateReview_Approve_Success() {
+            // Arrange
+            ReviewModerationDTO moderationDTO = ReviewModerationDTO.builder()
+                    .status(ReviewStatus.APPROVED)
+                    .moderatedBy(2001L)
+                    .build();
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
+            when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.5);
+            when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(5L);
+            doNothing().when(bookServiceClient).updateBookRating(any(), any());
+
+            // Act
+            ReviewResponseDTO result = reviewService.moderateReview(1L, moderationDTO);
+
+            // Assert
+            assertNotNull(result);
+            verify(reviewRepository, times(1)).save(any(Review.class));
+            verify(bookServiceClient, times(1)).updateBookRating(any(), any());
+        }
+
+        @Test
+        void moderateReview_Reject_Success() {
+            // Arrange
+            ReviewModerationDTO moderationDTO = ReviewModerationDTO.builder()
+                    .status(ReviewStatus.REJECTED)
+                    .moderatedBy(2001L)
+                    .rejectionReason("Spam content")
+                    .build();
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
+
+            // Act
+            ReviewResponseDTO result = reviewService.moderateReview(1L, moderationDTO);
+
+            // Assert
+            assertNotNull(result);
+            verify(reviewRepository, times(1)).save(any(Review.class));
+            // Should NOT update book rating for rejected reviews
+            verify(bookServiceClient, never()).updateBookRating(any(), any());
+        }
+
+        @Test
+        void moderateReview_ThrowsExceptionWhenRejectWithoutReason() {
+            // Arrange
+            ReviewModerationDTO moderationDTO = ReviewModerationDTO.builder()
+                    .status(ReviewStatus.REJECTED)
+                    .moderatedBy(2001L)
+                    .rejectionReason(null)
+                    .build();
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+
+            // Act & Assert
+            assertThrows(InvalidModerationException.class,
+                    () -> reviewService.moderateReview(1L, moderationDTO));
+        }
+
+        @Test
+        void moderateReview_ThrowsExceptionWhenRejectWithBlankReason() {
+            // Arrange
+            ReviewModerationDTO moderationDTO = ReviewModerationDTO.builder()
+                    .status(ReviewStatus.REJECTED)
+                    .moderatedBy(2001L)
+                    .rejectionReason("   ")
+                    .build();
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+
+            // Act & Assert
+            assertThrows(InvalidModerationException.class,
+                    () -> reviewService.moderateReview(1L, moderationDTO));
+        }
     }
 
     // ============================================================================
-    // DELETE Review Tests
+    // DELETE Review Tests (Soft Delete)
     // ============================================================================
 
     @Nested
@@ -361,8 +521,8 @@ class ReviewServiceImplTest {
         @Test
         void deleteReview_Success() {
             // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
-            doNothing().when(reviewRepository).deleteById(1L);
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
             when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.0);
             when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(4L);
             doNothing().when(bookServiceClient).updateBookRating(any(), any());
@@ -371,29 +531,38 @@ class ReviewServiceImplTest {
             reviewService.deleteReview(1L, 1001L);
 
             // Assert
-            verify(reviewRepository, times(1)).findById(1L);
-            verify(reviewRepository, times(1)).deleteById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
+            verify(reviewRepository, times(1)).save(any(Review.class));
             verify(bookServiceClient, times(1)).updateBookRating(any(), any());
+        }
+
+        @Test
+        void deleteReview_ThrowsExceptionWhenNotFound() {
+            // Arrange
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThrows(ReviewNotFoundException.class,
+                    () -> reviewService.deleteReview(1L, 1001L));
         }
 
         @Test
         void deleteReview_ThrowsExceptionWhenUnauthorized() {
             // Arrange
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
 
             // Act & Assert
             assertThrows(UnauthorizedReviewAccessException.class,
                     () -> reviewService.deleteReview(1L, 9999L));
-            verify(reviewRepository, times(1)).findById(1L);
-            verify(reviewRepository, never()).deleteById(anyLong());
+            verify(reviewRepository, times(1)).findActiveById(1L);
+            verify(reviewRepository, never()).save(any(Review.class));
         }
 
         @Test
         void deleteReviewByAdmin_Success() {
             // Arrange
-            when(reviewRepository.existsById(1L)).thenReturn(true);
-            when(reviewRepository.findById(1L)).thenReturn(Optional.of(testReview));
-            doNothing().when(reviewRepository).deleteById(1L);
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
             when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.0);
             when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(4L);
             doNothing().when(bookServiceClient).updateBookRating(any(), any());
@@ -402,8 +571,133 @@ class ReviewServiceImplTest {
             reviewService.deleteReviewByAdmin(1L);
 
             // Assert
-            verify(reviewRepository, times(1)).existsById(1L);
-            verify(reviewRepository, times(1)).deleteById(1L);
+            verify(reviewRepository, times(1)).findActiveById(1L);
+            verify(reviewRepository, times(1)).save(any(Review.class));
+        }
+
+        @Test
+        void deleteReviewByAdmin_ThrowsExceptionWhenNotFound() {
+            // Arrange
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThrows(ReviewNotFoundException.class,
+                    () -> reviewService.deleteReviewByAdmin(1L));
+        }
+
+        @Test
+        void deleteReviewsByUserId_Success() {
+            // Arrange
+            List<Review> userReviews = Arrays.asList(testReview);
+            when(reviewRepository.findByUserId(1001L)).thenReturn(userReviews);
+            when(reviewRepository.softDeleteByUserId(1001L)).thenReturn(1);
+            when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.0);
+            when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(4L);
+            doNothing().when(bookServiceClient).updateBookRating(any(), any());
+
+            // Act
+            reviewService.deleteReviewsByUserId(1001L);
+
+            // Assert
+            verify(reviewRepository, times(1)).findByUserId(1001L);
+            verify(reviewRepository, times(1)).softDeleteByUserId(1001L);
+            verify(bookServiceClient, times(1)).updateBookRating(any(), any());
+        }
+
+        @Test
+        void deleteReviewsByUserId_NoReviews() {
+            // Arrange
+            when(reviewRepository.findByUserId(1001L)).thenReturn(Collections.emptyList());
+
+            // Act
+            reviewService.deleteReviewsByUserId(1001L);
+
+            // Assert
+            verify(reviewRepository, times(1)).findByUserId(1001L);
+            verify(reviewRepository, never()).softDeleteByUserId(anyLong());
+        }
+
+        @Test
+        void deleteReviewsByUserId_MultipleBooks() {
+            // Arrange
+            Review review1 = Review.builder().reviewId(1L).userId(1001L).bookId(101L).build();
+            Review review2 = Review.builder().reviewId(2L).userId(1001L).bookId(102L).build();
+            List<Review> userReviews = Arrays.asList(review1, review2);
+
+            when(reviewRepository.findByUserId(1001L)).thenReturn(userReviews);
+            when(reviewRepository.softDeleteByUserId(1001L)).thenReturn(2);
+            when(reviewRepository.calculateAverageRating(anyLong())).thenReturn(4.0);
+            when(reviewRepository.countByBookIdAndStatus(anyLong(), any())).thenReturn(4L);
+            doNothing().when(bookServiceClient).updateBookRating(any(), any());
+
+            // Act
+            reviewService.deleteReviewsByUserId(1001L);
+
+            // Assert
+            verify(reviewRepository, times(1)).softDeleteByUserId(1001L);
+            // Should update ratings for both books
+            verify(bookServiceClient, times(2)).updateBookRating(any(), any());
+        }
+    }
+
+    // ============================================================================
+    // Book Service Rating Update Error Handling
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Book Service Error Handling")
+    class BookServiceErrorHandlingTests {
+
+        @Test
+        void approveReview_ContinuesWhenBookServiceFails() {
+            // Arrange
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
+            when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.5);
+            when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(5L);
+            doThrow(new RuntimeException("Book Service unavailable"))
+                    .when(bookServiceClient).updateBookRating(any(), any());
+
+            // Act - should not throw exception even if book service fails
+            ReviewResponseDTO result = reviewService.approveReview(1L, 2001L);
+
+            // Assert
+            assertNotNull(result);
+            verify(reviewRepository, times(1)).save(any(Review.class));
+        }
+
+        @Test
+        void deleteReview_ContinuesWhenBookServiceFails() {
+            // Arrange
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
+            when(reviewRepository.calculateAverageRating(101L)).thenReturn(4.0);
+            when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(4L);
+            doThrow(new RuntimeException("Book Service unavailable"))
+                    .when(bookServiceClient).updateBookRating(any(), any());
+
+            // Act - should not throw exception even if book service fails
+            assertDoesNotThrow(() -> reviewService.deleteReview(1L, 1001L));
+
+            // Assert
+            verify(reviewRepository, times(1)).save(any(Review.class));
+        }
+
+        @Test
+        void approveReview_HandlesNullAverageRating() {
+            // Arrange
+            when(reviewRepository.findActiveById(1L)).thenReturn(Optional.of(testReview));
+            when(reviewRepository.save(any(Review.class))).thenReturn(testReview);
+            when(reviewRepository.calculateAverageRating(101L)).thenReturn(null);
+            when(reviewRepository.countByBookIdAndStatus(101L, ReviewStatus.APPROVED)).thenReturn(0L);
+            doNothing().when(bookServiceClient).updateBookRating(any(), any());
+
+            // Act
+            ReviewResponseDTO result = reviewService.approveReview(1L, 2001L);
+
+            // Assert
+            assertNotNull(result);
+            verify(bookServiceClient, times(1)).updateBookRating(any(), any());
         }
     }
 }

@@ -14,12 +14,16 @@ import com.book.management.review_rating.dto.ReviewResponseDTO;
 import com.book.management.review_rating.dto.ReviewUpdateDTO;
 import com.book.management.review_rating.model.Review.ReviewStatus;
 import com.book.management.review_rating.service.ReviewService;
+import com.book.management.review_rating.config.GatewaySecurityProperties;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -34,7 +38,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @version 1.0
  * @since 2024-12-15
  */
-@WebMvcTest(ReviewController.class)
+@WebMvcTest(controllers = ReviewController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@EnableAutoConfiguration(excludeName = {
+                "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
+                "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration",
+                "org.springframework.boot.data.jpa.autoconfigure.JpaRepositoriesAutoConfiguration"
+})
+@TestPropertySource(properties = {
+                "spring.cloud.discovery.enabled=false",
+                "spring.cloud.config.enabled=false",
+                "eureka.client.enabled=false",
+                "spring.jpa.hibernate.ddl-auto=none",
+                "gateway.security.enabled=false"
+})
 class ReviewControllerTest {
 
         @Autowired
@@ -45,6 +62,9 @@ class ReviewControllerTest {
 
         @MockitoBean
         private ReviewService reviewService;
+
+        @MockitoBean
+        private GatewaySecurityProperties gatewaySecurityProperties;
 
         private ReviewResponseDTO responseDTO;
         private ReviewCreateDTO createDTO;
@@ -320,5 +340,17 @@ class ReviewControllerTest {
                                 .andExpect(jsonPath("$.status").value("APPROVED"));
 
                 verify(reviewService, times(1)).moderateReview(eq(1L), any(ReviewModerationDTO.class));
+        }
+
+        @Test
+        void testDeleteReviewsByUserId() throws Exception {
+                // Arrange
+                doNothing().when(reviewService).deleteReviewsByUserId(1001L);
+
+                // Act & Assert
+                mockMvc.perform(delete("/api/v1/reviews/user/{userId}", 1001L))
+                                .andExpect(status().isNoContent());
+
+                verify(reviewService, times(1)).deleteReviewsByUserId(1001L);
         }
 }

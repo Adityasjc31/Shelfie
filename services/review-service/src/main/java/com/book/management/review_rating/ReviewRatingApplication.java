@@ -5,17 +5,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
  * Main Application class for Review & Rating Service.
-
+ * 
  * This microservice handles all review-related operations including:
  * - Creating and managing book reviews
  * - Rating aggregation and statistics
  * - Review moderation (approve/reject)
  * - Helpful review marking
-
+ * 
  * Integrates with:
  * - Config Server for centralized configuration
  * - Eureka Server for service discovery
@@ -29,7 +28,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableFeignClients
-@EnableJpaAuditing
 @EnableAspectJAutoProxy
 public class ReviewRatingApplication {
 

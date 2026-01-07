@@ -11,11 +11,11 @@ import com.book.management.inventory.dto.*;
 import com.book.management.inventory.exception.*;
 import com.book.management.inventory.model.Inventory;
 import com.book.management.inventory.repository.InventoryRepository;
-import com.book.management.inventory.service.impl.InventoryServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -85,7 +85,7 @@ class InventoryServiceImplTest {
         when(inventoryRepository.existsByBookId(100L)).thenReturn(true);
 
         // Act & Assert
-        assertThrows(InventoryAlreadyExistsException.class, 
+        assertThrows(InventoryAlreadyExistsException.class,
                 () -> inventoryService.createInventory(createDTO));
         verify(inventoryRepository, times(1)).existsByBookId(100L);
         verify(inventoryRepository, never()).save(any(Inventory.class));
@@ -112,7 +112,7 @@ class InventoryServiceImplTest {
         when(inventoryRepository.findById(1L)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThrows(InventoryNotFoundException.class, 
+        assertThrows(InventoryNotFoundException.class,
                 () -> inventoryService.getInventoryById(1L));
         verify(inventoryRepository, times(1)).findById(1L);
     }
@@ -193,7 +193,7 @@ class InventoryServiceImplTest {
         when(inventoryRepository.findById(1L)).thenReturn(Optional.of(testInventory));
 
         // Act & Assert
-        assertThrows(InvalidInventoryOperationException.class, 
+        assertThrows(InvalidInventoryOperationException.class,
                 () -> inventoryService.adjustInventoryQuantity(1L, adjustmentDTO));
         verify(inventoryRepository, times(1)).findById(1L);
         verify(inventoryRepository, never()).save(any(Inventory.class));
@@ -220,7 +220,7 @@ class InventoryServiceImplTest {
         when(inventoryRepository.findByBookId(100L)).thenReturn(Optional.of(testInventory));
 
         // Act & Assert
-        assertThrows(InsufficientStockException.class, 
+        assertThrows(InsufficientStockException.class,
                 () -> inventoryService.reduceInventory(100L, 100));
         verify(inventoryRepository, times(1)).findByBookId(100L);
         verify(inventoryRepository, never()).save(any(Inventory.class));
@@ -344,9 +344,209 @@ class InventoryServiceImplTest {
         when(inventoryRepository.existsById(1L)).thenReturn(false);
 
         // Act & Assert
-        assertThrows(InventoryNotFoundException.class, 
+        assertThrows(InventoryNotFoundException.class,
                 () -> inventoryService.deleteInventory(1L));
         verify(inventoryRepository, times(1)).existsById(1L);
         verify(inventoryRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void getInStockItems_Success() {
+        // Arrange
+        Inventory inStockItem = Inventory.builder()
+                .inventoryId(1L)
+                .bookId(100L)
+                .quantity(50)
+                .lowStockThreshold(10)
+                .build();
+        when(inventoryRepository.findInStockItems()).thenReturn(Arrays.asList(inStockItem));
+
+        // Act
+        List<InventoryResponseDTO> result = inventoryService.getInStockItems();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertFalse(result.get(0).isOutOfStock());
+        verify(inventoryRepository, times(1)).findInStockItems();
+    }
+
+    @Test
+    void deleteInventoryByBookId_Success() {
+        // Arrange
+        when(inventoryRepository.findByBookId(100L)).thenReturn(Optional.of(testInventory));
+        doNothing().when(inventoryRepository).delete(any(Inventory.class));
+
+        // Act
+        inventoryService.deleteInventoryByBookId(100L);
+
+        // Assert
+        verify(inventoryRepository, times(1)).findByBookId(100L);
+        verify(inventoryRepository, times(1)).delete(any(Inventory.class));
+    }
+
+    @Test
+    void deleteInventoryByBookId_ThrowsExceptionWhenNotFound() {
+        // Arrange
+        when(inventoryRepository.findByBookId(100L)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(InventoryNotFoundException.class,
+                () -> inventoryService.deleteInventoryByBookId(100L));
+        verify(inventoryRepository, times(1)).findByBookId(100L);
+        verify(inventoryRepository, never()).delete(any(Inventory.class));
+    }
+
+    @Test
+    void checkBulkAvailability_Success() {
+        // Arrange
+        Inventory inv1 = Inventory.builder().bookId(100L).quantity(50).build();
+        Inventory inv2 = Inventory.builder().bookId(101L).quantity(30).build();
+        when(inventoryRepository.findByBookIdIn(any())).thenReturn(Arrays.asList(inv1, inv2));
+
+        Map<Long, Integer> bookQuantities = new java.util.HashMap<>();
+        bookQuantities.put(100L, 10);
+        bookQuantities.put(101L, 20);
+
+        // Act
+        Map<Long, Boolean> result = inventoryService.checkBulkAvailability(bookQuantities);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertTrue(result.get(100L));
+        assertTrue(result.get(101L));
+    }
+
+    @Test
+    void checkBulkAvailability_EmptyMap() {
+        // Act
+        Map<Long, Boolean> result = inventoryService.checkBulkAvailability(new java.util.HashMap<>());
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(inventoryRepository, never()).findByBookIdIn(any());
+    }
+
+    @Test
+    void checkBulkAvailability_NullMap() {
+        // Act
+        Map<Long, Boolean> result = inventoryService.checkBulkAvailability(null);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void reduceBulkInventory_Success() {
+        // Arrange
+        Inventory inv1 = Inventory.builder().inventoryId(1L).bookId(100L).quantity(50).build();
+        Inventory inv2 = Inventory.builder().inventoryId(2L).bookId(101L).quantity(30).build();
+        when(inventoryRepository.findByBookIdIn(any())).thenReturn(Arrays.asList(inv1, inv2));
+        when(inventoryRepository.saveAll(any())).thenReturn(Arrays.asList(inv1, inv2));
+
+        Map<Long, Integer> bookQuantities = new java.util.HashMap<>();
+        bookQuantities.put(100L, 10);
+        bookQuantities.put(101L, 5);
+
+        // Act
+        inventoryService.reduceBulkInventory(bookQuantities);
+
+        // Assert
+        verify(inventoryRepository, times(1)).findByBookIdIn(any());
+        verify(inventoryRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void reduceBulkInventory_EmptyMap() {
+        // Act
+        inventoryService.reduceBulkInventory(new java.util.HashMap<>());
+
+        // Assert
+        verify(inventoryRepository, never()).findByBookIdIn(any());
+        verify(inventoryRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void reduceBulkInventory_NullMap() {
+        // Act
+        inventoryService.reduceBulkInventory(null);
+
+        // Assert
+        verify(inventoryRepository, never()).findByBookIdIn(any());
+    }
+
+    @Test
+    void reduceBulkInventory_InsufficientStock() {
+        // Arrange
+        Inventory inv1 = Inventory.builder().bookId(100L).quantity(5).build(); // Only 5 available
+        when(inventoryRepository.findByBookIdIn(any())).thenReturn(Arrays.asList(inv1));
+
+        Map<Long, Integer> bookQuantities = new java.util.HashMap<>();
+        bookQuantities.put(100L, 10); // Requesting 10
+
+        // Act & Assert
+        assertThrows(InsufficientStockException.class,
+                () -> inventoryService.reduceBulkInventory(bookQuantities));
+        verify(inventoryRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void getLowStockItems_CriticalAlert() {
+        // Arrange - out of stock item should have CRITICAL alert level
+        Inventory outOfStockItem = Inventory.builder()
+                .inventoryId(3L)
+                .bookId(300L)
+                .quantity(0)
+                .lowStockThreshold(10)
+                .build();
+        when(inventoryRepository.findLowStockItems()).thenReturn(Arrays.asList(outOfStockItem));
+
+        // Act
+        List<LowStockAlertDTO> result = inventoryService.getLowStockItems();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("CRITICAL", result.get(0).getAlertLevel());
+    }
+
+    @Test
+    void getInventoryByBookId_ThrowsExceptionWhenNotFound() {
+        // Arrange
+        when(inventoryRepository.findByBookId(999L)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(InventoryNotFoundException.class,
+                () -> inventoryService.getInventoryByBookId(999L));
+    }
+
+    @Test
+    void createInventory_WithNullThreshold() {
+        // Arrange
+        InventoryCreateDTO dtoWithNullThreshold = InventoryCreateDTO.builder()
+                .bookId(200L)
+                .quantity(50)
+                .lowStockThreshold(null)
+                .build();
+
+        Inventory savedInventory = Inventory.builder()
+                .inventoryId(2L)
+                .bookId(200L)
+                .quantity(50)
+                .lowStockThreshold(10) // Default value
+                .build();
+
+        when(inventoryRepository.existsByBookId(200L)).thenReturn(false);
+        when(inventoryRepository.save(any(Inventory.class))).thenReturn(savedInventory);
+
+        // Act
+        InventoryResponseDTO result = inventoryService.createInventory(dtoWithNullThreshold);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(10, result.getLowStockThreshold());
     }
 }
