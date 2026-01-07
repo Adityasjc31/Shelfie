@@ -1,6 +1,7 @@
 package com.book.management.api_gateway.filter;
 
 import com.book.management.api_gateway.config.AuthenticationProperties;
+import com.book.management.api_gateway.service.RoleAuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,9 @@ public class AuthenticationFilterTest {
     private AuthenticationProperties authenticationProperties;
 
     @Mock
+    private RoleAuthorizationService roleAuthorizationService;
+
+    @Mock
     private GatewayFilterChain chain;
 
     private AuthenticationFilter authenticationFilter;
@@ -45,14 +49,18 @@ public class AuthenticationFilterTest {
     @BeforeEach
     void setUp() {
         when(webClientBuilder.build()).thenReturn(webClient);
-        authenticationFilter = new AuthenticationFilter(webClientBuilder, authenticationProperties);
+        authenticationFilter = new AuthenticationFilter(
+                webClientBuilder,
+                authenticationProperties,
+                roleAuthorizationService);
     }
 
     @Test
     void testIsPublicEndpoint_LoginPath() {
         // Test that login path is considered public
-        assertTrue(isPublicEndpoint("/api/v1/auth/login"));
-        assertTrue(isPublicEndpoint("/api/v1/auth/register"));
+        assertTrue(isPublicEndpoint("/auth/login"));
+        assertTrue(isPublicEndpoint("/auth/register"));
+        assertTrue(isPublicEndpoint("/auth/refresh"));
     }
 
     @Test
@@ -60,6 +68,13 @@ public class AuthenticationFilterTest {
         // Test that actuator paths are considered public
         assertTrue(isPublicEndpoint("/actuator/health"));
         assertTrue(isPublicEndpoint("/actuator/info"));
+    }
+
+    @Test
+    void testIsPublicEndpoint_SwaggerPath() {
+        // Test that swagger paths are considered public
+        assertTrue(isPublicEndpoint("/swagger-ui/index.html"));
+        assertTrue(isPublicEndpoint("/api-docs"));
     }
 
     @Test
@@ -79,11 +94,37 @@ public class AuthenticationFilterTest {
 
     @Test
     void testAuthDisabledBypasses() {
-        // When auth is disabled, requests should pass through
+        // When auth is disabled, requests should pass through with mock user
         when(authenticationProperties.isEnabled()).thenReturn(false);
+
+        // Setup mock configuration
+        AuthenticationProperties.Mock mockConfig = new AuthenticationProperties.Mock();
+        when(authenticationProperties.getMock()).thenReturn(mockConfig);
 
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/v1/inventory")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        AuthenticationFilter.Config config = new AuthenticationFilter.Config();
+        var filter = authenticationFilter.apply(config);
+
+        // Execute filter
+        filter.filter(exchange, chain).block();
+
+        // Verify chain was called (request passed through with mock user)
+        verify(chain, times(1)).filter(any());
+    }
+
+    @Test
+    void testPublicEndpointBypassesAuth() {
+        // When accessing public endpoint, auth should be bypassed
+        // Note: Public endpoints don't check authProperties.isEnabled()
+
+        MockServerHttpRequest request = MockServerHttpRequest
+                .get("/auth/login")
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
@@ -100,12 +141,11 @@ public class AuthenticationFilterTest {
     }
 
     @Test
-    void testPublicEndpointBypassesAuth() {
-        // When accessing public endpoint, auth should be bypassed
-        when(authenticationProperties.isEnabled()).thenReturn(true);
+    void testActuatorEndpointBypassesAuth() {
+        // When accessing actuator endpoint, auth should be bypassed
 
         MockServerHttpRequest request = MockServerHttpRequest
-                .get("/api/v1/auth/login")
+                .get("/actuator/health")
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
@@ -160,10 +200,36 @@ public class AuthenticationFilterTest {
         assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
     }
 
-    // Helper method to check if path is public
+    @Test
+    void testAuthHeaderWithoutBearerPrefixReturnsUnauthorized() {
+        when(authenticationProperties.isEnabled()).thenReturn(true);
+
+        MockServerHttpRequest request = MockServerHttpRequest
+                .get("/api/v1/inventory")
+                .header(HttpHeaders.AUTHORIZATION, "Basic sometoken")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        AuthenticationFilter.Config config = new AuthenticationFilter.Config();
+        var filter = authenticationFilter.apply(config);
+
+        // Execute filter
+        filter.filter(exchange, chain).block();
+
+        // Verify response status is unauthorized
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    /**
+     * Helper method to check if path is public.
+     * Mirrors the logic from AuthenticationFilter.isPublicEndpoint()
+     */
     private boolean isPublicEndpoint(String path) {
-        return path.contains("/auth/login") ||
-                path.contains("/auth/register") ||
-                path.contains("/actuator");
+        return path.startsWith("/auth/login") ||
+                path.startsWith("/auth/register") ||
+                path.startsWith("/auth/refresh") ||
+                path.startsWith("/actuator") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/api-docs");
     }
 }
