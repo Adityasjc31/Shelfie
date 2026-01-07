@@ -1,6 +1,5 @@
 package com.book.management.order.controller;
 
-import com.book.management.order.config.GatewaySecurityProperties;
 import com.book.management.order.dto.requestdto.PlaceOrderRequestDTO;
 import com.book.management.order.dto.requestdto.UpdateOrderStatusRequestDTO;
 import com.book.management.order.dto.responsedto.OrderResponseDTO;
@@ -17,6 +16,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
