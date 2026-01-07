@@ -271,6 +271,31 @@ public class ReviewServiceImpl implements ReviewService {
         updateBookServiceRating(bookId);
     }
 
+    @Override
+    public void deleteReviewsByUserId(Long userId) {
+        List<Review> userReviews = reviewRepository.findByUserId(userId);
+
+        if (userReviews.isEmpty()) {
+            log.info("No reviews found for user ID: {}. Nothing to delete.", userId);
+            return;
+        }
+
+        // Collect affected book IDs before deletion (for rating updates)
+        List<Long> affectedBookIds = userReviews.stream()
+                .map(Review::getBookId)
+                .distinct()
+                .toList();
+
+        // Delete all reviews by user
+        reviewRepository.deleteAll(userReviews);
+        log.info("Deleted {} reviews for user ID: {}", userReviews.size(), userId);
+
+        // Update book ratings for all affected books
+        for (Long bookId : affectedBookIds) {
+            updateBookServiceRating(bookId);
+        }
+    }
+
     // ============================================================================
     // Private Helper Methods
     // ============================================================================

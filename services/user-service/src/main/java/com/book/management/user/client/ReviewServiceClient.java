@@ -50,8 +50,8 @@ public interface ReviewServiceClient {
      * @return ResponseEntity with no content
      */
     @DeleteMapping("/api/v1/reviews/{reviewId}")
-    ResponseEntity<Void> deleteReview(@PathVariable("reviewId") Long reviewId, 
-                                       @RequestParam("userId") Long userId);
+    ResponseEntity<Void> deleteReview(@PathVariable("reviewId") Long reviewId,
+            @RequestParam("userId") Long userId);
 
     /**
      * Deletes a review by admin.
@@ -61,4 +61,14 @@ public interface ReviewServiceClient {
      */
     @DeleteMapping("/api/v1/reviews/{reviewId}/admin")
     ResponseEntity<Void> deleteReviewByAdmin(@PathVariable("reviewId") Long reviewId);
+
+    /**
+     * Deletes all reviews by a specific user.
+     * Used for cascading delete when a user is deleted.
+     * 
+     * @param userId the user ID whose reviews should be deleted
+     * @return ResponseEntity with no content
+     */
+    @DeleteMapping("/api/v1/reviews/user/{userId}")
+    ResponseEntity<Void> deleteReviewsByUserId(@PathVariable("userId") Long userId);
 }

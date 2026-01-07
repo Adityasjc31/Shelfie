@@ -149,7 +149,7 @@ public class GatewayConfig {
                                 // USER SERVICE ROUTES
                                 // ==========================================
                                 .route("user-service", r -> r
-                                                .path("/api/v1/user/**")
+                                                .path("/api/v1/users/**")
                                                 .filters(f -> applyStandardFilters(f, "userCircuitBreaker",
                                                                 "forward:/fallback/users"))
                                                 .uri("lb://user-service"))

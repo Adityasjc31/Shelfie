@@ -146,4 +146,12 @@ public interface ReviewService {
      */
     void deleteReviewByAdmin(Long reviewId);
 
+    /**
+     * Deletes all reviews by a specific user.
+     * Used for cascading delete when a user is deleted.
+     * 
+     * @param userId the user ID whose reviews should be deleted
+     */
+    void deleteReviewsByUserId(Long userId);
+
 }

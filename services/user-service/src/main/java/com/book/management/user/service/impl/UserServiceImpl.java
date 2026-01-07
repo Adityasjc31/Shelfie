@@ -1,6 +1,7 @@
 package com.book.management.user.service.impl;
 
 import com.book.management.user.client.OrderServiceClient;
+import com.book.management.user.client.ReviewServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
@@ -36,7 +37,8 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final JpaUserRepository userRepository;
-    private final OrderServiceClient orderServiceClient; // 1. Inject the Feign Client
+    private final OrderServiceClient orderServiceClient;
+    private final ReviewServiceClient reviewServiceClient;
 
     /**
      * {@inheritDoc}
@@ -202,9 +204,14 @@ public class UserServiceImpl implements UserService {
         try {
             orderServiceClient.deleteOrdersByUserId(userId);
         } catch (Exception e) {
-            // Log the error or handle it based on your requirements
-            // (e.g., should the user deletion fail if orders aren't deleted?)
             log.error("Failed to delete orders for user {}: {}", userId, e.getMessage());
+        }
+
+        // 4. Call the Review Service to clean up related reviews
+        try {
+            reviewServiceClient.deleteReviewsByUserId(userId);
+        } catch (Exception e) {
+            log.error("Failed to delete reviews for user {}: {}", userId, e.getMessage());
         }
     }
 
@@ -267,6 +274,4 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-
 }
-

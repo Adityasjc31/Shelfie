@@ -204,4 +204,17 @@ public class ReviewController {
         reviewService.deleteReviewByAdmin(reviewId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Deletes all reviews by a specific user.
+     * Used for cascading delete when a user is deleted.
+     * 
+     * @param userId the user ID whose reviews should be deleted
+     * @return ResponseEntity with HTTP 204 No Content status
+     */
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<Void> deleteReviewsByUserId(@PathVariable Long userId) {
+        reviewService.deleteReviewsByUserId(userId);
+        return ResponseEntity.noContent().build();
+    }
 }

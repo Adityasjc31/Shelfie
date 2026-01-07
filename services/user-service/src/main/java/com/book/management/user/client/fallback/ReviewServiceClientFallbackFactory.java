@@ -75,6 +75,19 @@ public class ReviewServiceClientFallbackFactory implements FallbackFactory<Revie
                 logFallback("deleteReviewByAdmin", reviewId, cause);
                 return ResponseEntity.noContent().build();
             }
+
+            /**
+             * Fallback method for deleting all reviews by a user.
+             * Logs a warning with exception details but doesn't fail the operation.
+             * 
+             * @param userId the user ID
+             * @return ResponseEntity with no content
+             */
+            @Override
+            public ResponseEntity<Void> deleteReviewsByUserId(Long userId) {
+                logFallback("deleteReviewsByUserId", userId, cause);
+                return ResponseEntity.noContent().build();
+            }
         };
     }
 
@@ -87,7 +100,7 @@ public class ReviewServiceClientFallbackFactory implements FallbackFactory<Revie
      */
     private void logFallback(String methodName, Object param, Throwable cause) {
         String errorMessage = cause.getMessage();
-        
+
         if (cause instanceof FeignException feignException) {
             log.warn("FALLBACK [{}]: Review Service call failed. Param: {}. Status: {}. Message: {}",
                     methodName, param, feignException.status(), errorMessage);
