@@ -1,7 +1,6 @@
 package com.book.management.book.service;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.book.management.book.dto.requestdto.AddBookRequestDTO;
 import com.book.management.book.dto.requestdto.UpdateBookRequestDTO;
@@ -16,7 +15,7 @@ public interface BookService {
     // Read
     List<BookResponseDTO> getBooksAll();
 
-    Optional<BookResponseDTO> getBookById(long bookId);
+    BookResponseDTO getBookById(long bookId);
 
     List<BookResponseDTO> getBooksByAuthor(String authorId);
 
