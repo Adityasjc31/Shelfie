@@ -1,6 +1,7 @@
 package com.book.management.api_gateway.filter;
 
 import com.book.management.api_gateway.config.AuthenticationProperties;
+import com.book.management.api_gateway.service.RoleAuthorizationService;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -47,6 +49,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
     private final WebClient.Builder webClientBuilder;
     private final AuthenticationProperties authProperties;
+    private final RoleAuthorizationService roleAuthorizationService;
 
     // Public endpoints that don't require authentication
     private static final List<String> PUBLIC_ENDPOINTS = List.of(
@@ -57,10 +60,13 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             "/swagger-ui",
             "/api-docs");
 
-    public AuthenticationFilter(WebClient.Builder webClientBuilder, AuthenticationProperties authProperties) {
+    public AuthenticationFilter(WebClient.Builder webClientBuilder, 
+                                AuthenticationProperties authProperties,
+                                RoleAuthorizationService roleAuthorizationService) {
         super(Config.class);
         this.webClientBuilder = webClientBuilder;
         this.authProperties = authProperties;
+        this.roleAuthorizationService = roleAuthorizationService;
     }
 
     @Override
@@ -105,6 +111,24 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                         if (validationResponse.isValid()) {
                             log.info("✓ Token validated successfully for user: {}",
                                     validationResponse.getUsername());
+
+                            // Get user roles
+                            List<String> userRoles = validationResponse.getRoles() != null 
+                                    ? validationResponse.getRoles() 
+                                    : List.of();
+
+                            // Check role-based authorization
+                            HttpMethod httpMethod = request.getMethod();
+                            if (!roleAuthorizationService.isAuthorized(path, httpMethod, userRoles)) {
+                                String errorMessage = roleAuthorizationService
+                                        .getAuthorizationFailureMessage(path, httpMethod, userRoles);
+                                log.warn("✗ Role authorization failed for user: {} on path: {}. Roles: {}", 
+                                        validationResponse.getUsername(), path, userRoles);
+                                return onError(exchange, errorMessage, HttpStatus.FORBIDDEN);
+                            }
+
+                            log.info("✓ Role authorization passed for user: {} with roles: {}", 
+                                    validationResponse.getUsername(), userRoles);
 
                             // Add user context to request headers
                             ServerHttpRequest modifiedRequest = request.mutate()
