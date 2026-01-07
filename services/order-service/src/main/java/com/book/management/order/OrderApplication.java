@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * Entry point for the Order Microservice.
- * * @EnableFeignClients: Enables inter-service communication via interfaces.
+ *  @EnableFeignClients: Enables inter-service communication via interfaces.
  *   @EnableDiscoveryClient:  Registers this service with the Eureka Registry.
  */
 @SpringBootApplication
