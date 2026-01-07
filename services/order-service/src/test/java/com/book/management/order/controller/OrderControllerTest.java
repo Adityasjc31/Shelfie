@@ -49,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(value = OrderController.class,
         excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
                 classes = GatewayAuthenticationFilter.class))
-@Import({GlobalOrderExceptionHandler.class, OrderControllerTest.TestConfig.class})
+@Import({GlobalOrderExceptionHandler.class})
 class OrderControllerTest {
 
         @Autowired
@@ -188,7 +188,7 @@ class OrderControllerTest {
                 verify(orderService, times(1)).getOrderById(99L);
         }
 
-        // ==================== GET /api/v1/order/status/{status} ====================
+        // ==================== GET /api/v1/order/getByStatus/{status} ====================
 
         /**
          * Tests successful retrieval of orders by status.
@@ -198,7 +198,7 @@ class OrderControllerTest {
         void getOrdersByStatus_Success_Returns200Ok() throws Exception {
                 when(orderService.getOrdersByStatus(OrderEnum.PENDING)).thenReturn(List.of(successfulOrderResponse));
 
-                mockMvc.perform(get("/api/v1/order/status/{status}", "PENDING"))
+                mockMvc.perform(get("/api/v1/order/getByStatus/{status}", "PENDING"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[0].orderStatus").value("PENDING"));
 
