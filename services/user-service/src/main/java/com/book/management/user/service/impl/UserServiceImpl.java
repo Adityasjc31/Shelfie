@@ -189,12 +189,16 @@ public class UserServiceImpl implements UserService {
      * {@inheritDoc}
      */
     @Override
-    @Transactional
+    @Transactional(readOnly = false)
     public void deleteUser(Long userId) {
-        // 1. Delete the user from the local database
-        userRepository.deleteById(userId);
+        // 1. Check if user exists first
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
-        // 2. Call the Order Service to clean up related data
+        // 2. Delete the user from the local database
+        userRepository.delete(user);
+
+        // 3. Call the Order Service to clean up related data
         try {
             orderServiceClient.deleteOrdersByUserId(userId);
         } catch (Exception e) {
