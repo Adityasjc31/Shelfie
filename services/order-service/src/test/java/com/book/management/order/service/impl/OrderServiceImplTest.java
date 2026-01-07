@@ -97,14 +97,11 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).save(any(Order.class));
     }
 
-<<<<<<< HEAD
-=======
     /**
      * Tests order placement failure when Book Service is unavailable.
      * Verifies OrderNotPlacedException is thrown and no inventory/save operations
      * occur.
      */
->>>>>>> 83471c75d4d72a52c8347305ecd178e2aeee7d8d
     @Test
     void placeOrder_BookServiceFails_ThrowsOrderNotPlacedException() {
         when(bookServiceClient.getBookPrices(any(GetBookPriceRequestDTO.class)))
@@ -117,14 +114,11 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any());
     }
 
-<<<<<<< HEAD
-=======
     /**
      * Tests order placement failure when Inventory Service reports insufficient
      * stock.
      * Verifies OrderNotPlacedException is thrown and order is not saved.
      */
->>>>>>> 83471c75d4d72a52c8347305ecd178e2aeee7d8d
     @Test
     void placeOrder_InventoryServiceFails_ThrowsOrderNotPlacedException() {
         GetBookPriceResponseDTO priceResponse = new GetBookPriceResponseDTO();
@@ -163,8 +157,6 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findById(999L);
     }
 
-<<<<<<< HEAD
-=======
 
 
     // ==================== getAllOrders Tests ====================
@@ -210,7 +202,7 @@ class OrderServiceImplTest {
         List<Order> orders = List.of(order);
         when(orderRepository.findByOrderStatus(OrderEnum.PENDING)).thenReturn(orders);
 
-        List<OrderResponseDTO> result = orderService.getOrderByStatus(OrderEnum.PENDING);
+        List<OrderResponseDTO> result = orderService.getOrdersByStatus(OrderEnum.PENDING);
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -225,7 +217,6 @@ class OrderServiceImplTest {
      * Tests valid status transition from PENDING to SHIPPED.
      * Verifies order status is updated and saved correctly.
      */
->>>>>>> 83471c75d4d72a52c8347305ecd178e2aeee7d8d
     @Test
     void updateOrderStatus_PendingToShipped_Success() {
         UpdateOrderStatusRequestDTO updateRequest = new UpdateOrderStatusRequestDTO();
