@@ -10,6 +10,7 @@ import com.book.management.book.dto.responsedto.InventoryResponseDTO;
 import com.book.management.book.exception.BookNotFoundException;
 import com.book.management.book.exception.DuplicateBookException;
 import com.book.management.book.exception.InvalidBookDataException;
+import com.book.management.book.exception.InvalidCategoryException;
 import com.book.management.book.model.Book;
 import com.book.management.book.repository.BookRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -149,29 +150,35 @@ public class BookServiceImplTest {
             when(inventoryClient.getInventoryByBookId(1L)).thenReturn(sampleInventoryResponse);
 
             // When
-            Optional<BookResponseDTO> result = bookService.getBookById(1L);
+            BookResponseDTO result = bookService.getBookById(1L);
 
             // Then
-            assertTrue(result.isPresent());
-            assertEquals(1L, result.get().getBookId());
-            assertEquals("Test Book", result.get().getBookTitle());
-            assertEquals(100L, result.get().getBookStockQuantity());
+            assertNotNull(result);
+            assertEquals(1L, result.getBookId());
+            assertEquals("Test Book", result.getBookTitle());
+            assertEquals(100L, result.getBookStockQuantity());
 
             verify(bookRepository, times(1)).findById(1L);
         }
 
         @Test
-        @DisplayName("Should return empty when book not found")
+        @DisplayName("Should throw BookNotFoundException when book not found")
         void getBookById_NotFound() {
             // Given
             when(bookRepository.findById(999L)).thenReturn(Optional.empty());
 
-            // When
-            Optional<BookResponseDTO> result = bookService.getBookById(999L);
-
-            // Then
-            assertFalse(result.isPresent());
+            // When & Then
+            assertThrows(BookNotFoundException.class, () -> bookService.getBookById(999L));
             verify(inventoryClient, never()).getInventoryByBookId(anyLong());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException when book ID is zero or negative")
+        void getBookById_InvalidId() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBookById(0L));
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBookById(-1L));
+            verify(bookRepository, never()).findById(anyLong());
         }
     }
 
@@ -210,6 +217,22 @@ public class BookServiceImplTest {
             // Then
             verify(bookRepository, times(1)).findByBookAuthorId("author-123");
         }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for null author ID")
+        void getBooksByAuthor_NullAuthorId() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBooksByAuthor(null));
+            verify(bookRepository, never()).findByBookAuthorId(anyString());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for blank author ID")
+        void getBooksByAuthor_BlankAuthorId() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBooksByAuthor("   "));
+            verify(bookRepository, never()).findByBookAuthorId(anyString());
+        }
     }
 
     @Nested
@@ -246,6 +269,44 @@ public class BookServiceImplTest {
             // Then
             assertTrue(result.isEmpty());
         }
+
+        @Test
+        @DisplayName("Should throw InvalidCategoryException for null category ID")
+        void getBooksByCategory_NullCategoryId() {
+            // When & Then
+            assertThrows(InvalidCategoryException.class, () -> bookService.getBooksByCategory(null));
+            verify(bookRepository, never()).findByBookCategoryId(anyString());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidCategoryException for blank category ID")
+        void getBooksByCategory_BlankCategoryId() {
+            // When & Then
+            assertThrows(InvalidCategoryException.class, () -> bookService.getBooksByCategory("   "));
+            verify(bookRepository, never()).findByBookCategoryId(anyString());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidCategoryException for invalid category ID")
+        void getBooksByCategory_InvalidCategoryId() {
+            // When & Then
+            assertThrows(InvalidCategoryException.class, () -> bookService.getBooksByCategory("INVALID-CAT"));
+            verify(bookRepository, never()).findByBookCategoryId(anyString());
+        }
+
+        @Test
+        @DisplayName("Should normalize category ID to uppercase")
+        void getBooksByCategory_NormalizesToUppercase() {
+            // Given
+            when(bookRepository.findByBookCategoryId("CAT-FIC")).thenReturn(Arrays.asList(sampleBook));
+            when(inventoryClient.getInventoryByBookId(1L)).thenReturn(sampleInventoryResponse);
+
+            // When
+            bookService.getBooksByCategory("cat-fic");
+
+            // Then
+            verify(bookRepository, times(1)).findByBookCategoryId("CAT-FIC");
+        }
     }
 
     @Nested
@@ -280,6 +341,22 @@ public class BookServiceImplTest {
 
             // Then
             verify(bookRepository, times(1)).findByBookTitleContainingIgnoreCase("Book");
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for null title")
+        void searchBooksByTitle_NullTitle() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.searchBooksByTitle(null));
+            verify(bookRepository, never()).findByBookTitleContainingIgnoreCase(anyString());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for blank title")
+        void searchBooksByTitle_BlankTitle() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.searchBooksByTitle("   "));
+            verify(bookRepository, never()).findByBookTitleContainingIgnoreCase(anyString());
         }
     }
 
@@ -373,12 +450,13 @@ public class BookServiceImplTest {
             // Given
             AddBookRequestDTO request = mock(AddBookRequestDTO.class);
             when(request.getBookTitle()).thenReturn("Duplicate Book");
-            when(request.getBookAuthorId()).thenReturn("author");
+            lenient().when(request.getBookAuthorId()).thenReturn("author");
             when(request.getBookCategoryId()).thenReturn("CAT-FIC");
             when(request.getBookPrice()).thenReturn(20.0);
             when(request.getBookStockQuantity()).thenReturn(10);
             when(request.getBookId()).thenReturn(1L);
 
+            // Mock existsById to return true so DuplicateBookException is thrown
             when(bookRepository.existsById(1L)).thenReturn(true);
 
             // When & Then
@@ -392,8 +470,6 @@ public class BookServiceImplTest {
             // Given
             AddBookRequestDTO request = mock(AddBookRequestDTO.class);
             when(request.getBookTitle()).thenReturn(null);
-            when(request.getBookPrice()).thenReturn(20.0);
-            when(request.getBookStockQuantity()).thenReturn(10);
 
             // When & Then
             assertThrows(InvalidBookDataException.class, () -> bookService.addBook(request));
@@ -405,8 +481,6 @@ public class BookServiceImplTest {
             // Given
             AddBookRequestDTO request = mock(AddBookRequestDTO.class);
             when(request.getBookTitle()).thenReturn("   ");
-            when(request.getBookPrice()).thenReturn(20.0);
-            when(request.getBookStockQuantity()).thenReturn(10);
 
             // When & Then
             assertThrows(InvalidBookDataException.class, () -> bookService.addBook(request));
@@ -419,7 +493,6 @@ public class BookServiceImplTest {
             AddBookRequestDTO request = mock(AddBookRequestDTO.class);
             when(request.getBookTitle()).thenReturn("Valid Title");
             when(request.getBookPrice()).thenReturn(-10.0);
-            when(request.getBookStockQuantity()).thenReturn(10);
 
             // When & Then
             assertThrows(InvalidBookDataException.class, () -> bookService.addBook(request));
@@ -470,13 +543,9 @@ public class BookServiceImplTest {
             // Given
             AddBookRequestDTO request = mock(AddBookRequestDTO.class);
             when(request.getBookTitle()).thenReturn("Book Title");
-            when(request.getBookAuthorId()).thenReturn("author");
-            when(request.getBookCategoryId()).thenReturn("CAT-FIC");
             when(request.getBookPrice()).thenReturn(20.0);
             when(request.getBookStockQuantity()).thenReturn(null);
-            when(request.getBookId()).thenReturn(null);
 
-            // This will fail validation, but let's test the null handling in the actual flow
             // The validation throws exception for null stock
             assertThrows(InvalidBookDataException.class, () -> bookService.addBook(request));
         }
@@ -573,7 +642,6 @@ public class BookServiceImplTest {
         void updateBook_NotFound() {
             // Given
             UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
-            when(request.getBookTitle()).thenReturn("Update");
 
             when(bookRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -687,6 +755,30 @@ public class BookServiceImplTest {
             List<Long> keys = new ArrayList<>(result.getBookPrice().keySet());
             assertEquals(Arrays.asList(3L, 1L, 2L), keys);
         }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for null bookIds list")
+        void getBookPricesMap_NullBookIds() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBookPricesMap(null));
+            verify(bookRepository, never()).findById(anyLong());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for empty bookIds list")
+        void getBookPricesMap_EmptyBookIds() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBookPricesMap(Collections.emptyList()));
+            verify(bookRepository, never()).findById(anyLong());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for invalid book ID in list")
+        void getBookPricesMap_InvalidBookIdInList() {
+            // When & Then - 0 is checked first in the loop
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBookPricesMap(Arrays.asList(0L, 1L)));
+            assertThrows(InvalidBookDataException.class, () -> bookService.getBookPricesMap(Arrays.asList(-1L, 1L)));
+        }
     }
 
     @Nested
@@ -737,6 +829,16 @@ public class BookServiceImplTest {
             // Then - Book should still be deleted locally
             verify(bookRepository, times(1)).deleteById(1L);
         }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException when book ID is zero or negative")
+        void deleteBook_InvalidId() {
+            // When & Then
+            assertThrows(InvalidBookDataException.class, () -> bookService.deleteBook(0L));
+            assertThrows(InvalidBookDataException.class, () -> bookService.deleteBook(-1L));
+            verify(bookRepository, never()).existsById(anyLong());
+            verify(bookRepository, never()).deleteById(anyLong());
+        }
     }
 
     @Nested
@@ -778,13 +880,29 @@ public class BookServiceImplTest {
         }
 
         @Test
-        @DisplayName("Should default to OTHER category for unknown category")
-        void addBook_DefaultsToOtherCategory() {
+        @DisplayName("Should throw InvalidCategoryException for unknown category when adding book")
+        void addBook_ThrowsForUnknownCategory() {
             // Given
             AddBookRequestDTO request = mock(AddBookRequestDTO.class);
             when(request.getBookTitle()).thenReturn("Unknown Category Book");
-            when(request.getBookAuthorId()).thenReturn("author");
+            lenient().when(request.getBookAuthorId()).thenReturn("author");
             when(request.getBookCategoryId()).thenReturn("UNKNOWN-CAT");
+            when(request.getBookPrice()).thenReturn(20.0);
+            when(request.getBookStockQuantity()).thenReturn(10);
+
+            // When & Then
+            assertThrows(InvalidCategoryException.class, () -> bookService.addBook(request));
+            verify(bookRepository, never()).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should accept CAT-OTH as valid OTHER category")
+        void addBook_AcceptsCatOthCategory() {
+            // Given
+            AddBookRequestDTO request = mock(AddBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn("Other Category Book");
+            when(request.getBookAuthorId()).thenReturn("author");
+            when(request.getBookCategoryId()).thenReturn("CAT-OTH");
             when(request.getBookPrice()).thenReturn(20.0);
             when(request.getBookStockQuantity()).thenReturn(10);
             when(request.getBookId()).thenReturn(null);
@@ -794,7 +912,7 @@ public class BookServiceImplTest {
             Book savedBook = Book.builder()
                     .bookId(1L)
                     .bookCategoryId("CAT-OTH")
-                    .bookTitle("Unknown Category Book")
+                    .bookTitle("Other Category Book")
                     .bookAuthorId("author")
                     .bookPrice(20.0)
                     .build();
