@@ -33,6 +33,6 @@ public interface OrderServiceClient {
      * @param userId the user ID
      * @return ResponseEntity with no content
      */
-    @DeleteMapping("/deleteByUser/{userId}")
+    @DeleteMapping("/api/v1/order/deleteByUser/{userId}")
     ResponseEntity<Void> deleteOrdersByUserId(@PathVariable("userId") Long userId);
 }
