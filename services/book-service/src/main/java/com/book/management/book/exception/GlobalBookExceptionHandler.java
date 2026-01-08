@@ -3,14 +3,11 @@ package com.book.management.book.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -70,50 +67,6 @@ public class GlobalBookExceptionHandler {
     }
 
     /**
-     * Handles InvalidCategoryException.
-     * 
-     * Triggered when:
-     * - An invalid or non-existent category ID is provided
-     * 
-     * HTTP Status: 400 Bad Request
-     */
-    @ExceptionHandler(InvalidCategoryException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidCategoryException(InvalidCategoryException ex) {
-        log.error("InvalidCategoryException occurred: {}", ex.getMessage());
-
-        Map<String, Object> errorBody = new LinkedHashMap<>();
-        errorBody.put("timestamp", LocalDateTime.now().toString());
-        errorBody.put("status", HttpStatus.BAD_REQUEST.value());
-        errorBody.put("error", "Bad Request");
-        errorBody.put("message", ex.getMessage());
-
-        return new ResponseEntity<>(errorBody, HttpStatus.BAD_REQUEST);
-    }
-
-    /**
-     * Handles MethodArgumentNotValidException for @Valid annotation validation failures.
-     * 
-     * HTTP Status: 400 Bad Request
-     */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        log.error("Validation failed: {}", ex.getMessage());
-
-        Map<String, Object> errorBody = new LinkedHashMap<>();
-        errorBody.put("timestamp", LocalDateTime.now().toString());
-        errorBody.put("status", HttpStatus.BAD_REQUEST.value());
-        errorBody.put("error", "Validation Failed");
-
-        Map<String, String> fieldErrors = new HashMap<>();
-        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage());
-        }
-        errorBody.put("fieldErrors", fieldErrors);
-
-        return new ResponseEntity<>(errorBody, HttpStatus.BAD_REQUEST);
-    }
-
-    /**
      * Handles DuplicateBookException.
      * 
      * Triggered when:
@@ -161,6 +114,35 @@ public class GlobalBookExceptionHandler {
             InvalidBookDataException ex, WebRequest request) {
         
         log.error("InvalidBookDataException occurred: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Handles InvalidCategoryException.
+     * 
+     * Triggered when:
+     * - An invalid or non-existent category ID is provided
+     * - Category ID format is incorrect
+     * 
+     * HTTP Status: 400 Bad Request
+     * 
+     * @param ex the InvalidCategoryException
+     * @param request the web request context
+     * @return ResponseEntity with error details and 400 status
+     */
+    @ExceptionHandler(InvalidCategoryException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCategoryException(
+            InvalidCategoryException ex, WebRequest request) {
+        
+        log.error("InvalidCategoryException occurred: {}", ex.getMessage());
         
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),

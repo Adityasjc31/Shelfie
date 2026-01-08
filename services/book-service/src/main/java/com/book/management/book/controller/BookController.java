@@ -26,7 +26,7 @@ public class BookController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<BookResponseDTO> addBook(@Valid @RequestBody AddBookRequestDTO request) {
+    public ResponseEntity<BookResponseDTO> addBook(@RequestBody AddBookRequestDTO request) {
         BookResponseDTO created = bookService.addBook(request);
         return ResponseEntity.ok(created);
     }
@@ -38,8 +38,9 @@ public class BookController {
 
     @GetMapping("/getById/{bookId}")
     public ResponseEntity<BookResponseDTO> getBookById(@PathVariable long bookId) {
-        BookResponseDTO book = bookService.getBookById(bookId);
-        return ResponseEntity.ok(book);
+        return bookService.getBookById(bookId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/getByAuthor/{authorId}")
