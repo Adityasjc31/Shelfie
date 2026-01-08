@@ -11,7 +11,6 @@ import com.book.management.book.enums.CategoryEnum;
 import com.book.management.book.exception.BookNotFoundException;
 import com.book.management.book.exception.DuplicateBookException;
 import com.book.management.book.exception.InvalidBookDataException;
-import com.book.management.book.exception.InvalidCategoryException;
 import com.book.management.book.model.Book;
 import com.book.management.book.repository.BookRepository;
 import com.book.management.book.service.BookService;
@@ -41,298 +40,259 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public List<BookResponseDTO> getBooksAll() {
-        try {
-            List<Book> books = bookRepository.findAll();
-            List<BookResponseDTO> responseList = new ArrayList<>();
+        List<Book> books = bookRepository.findAll();
+        List<BookResponseDTO> responseList = new ArrayList<>();
 
-            for (Book book : books) {
-                responseList.add(toResponseDTOWithInventoryLookup(book));
-            }
-            return responseList;
-        } catch (Exception e) {
-            log.error("Error fetching all books: {}", e.getMessage());
-            throw new InvalidBookDataException("Error fetching all books: " + e.getMessage());
+        for (Book book : books) {
+            responseList.add(toResponseDTOWithInventoryLookup(book));
         }
+        return responseList;
     }
 
     @Override
     public List<BookResponseDTO> getBooksByAuthor(String authorId) {
-        try {
-            if (authorId == null || authorId.isBlank()) {
-                throw new InvalidBookDataException("Author ID cannot be null or empty");
-            }
-            
-            List<Book> books = bookRepository.findByBookAuthorId(authorId.trim());
-            List<BookResponseDTO> responseList = new ArrayList<>();
-
-            for (Book book : books) {
-                responseList.add(toResponseDTOWithInventoryLookup(book));
-            }
-            return responseList;
-        } catch (InvalidBookDataException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error fetching books by author: {}", e.getMessage());
-            throw new InvalidBookDataException("Error fetching books by author: " + e.getMessage());
+        // Validate authorId
+        if (authorId == null || authorId.isBlank()) {
+            throw new InvalidBookDataException("Author ID is required and cannot be blank");
         }
+        if (authorId.trim().length() < 2) {
+            throw new InvalidBookDataException("Author ID must be at least 2 characters long");
+        }
+        
+        List<Book> books = bookRepository.findByBookAuthorId(authorId.trim());
+        
+        // Throw exception if no books found for the author
+        if (books.isEmpty()) {
+            throw new BookNotFoundException("No books found for author ID: " + authorId.trim());
+        }
+        
+        List<BookResponseDTO> responseList = new ArrayList<>();
+
+        for (Book book : books) {
+            responseList.add(toResponseDTOWithInventoryLookup(book));
+        }
+        return responseList;
     }
 
     @Override
     public List<BookResponseDTO> getBooksByCategory(String categoryId) {
-        try {
-            // Validate category ID
-            if (categoryId == null || categoryId.isBlank()) {
-                throw new InvalidCategoryException("Category ID cannot be null or empty");
-            }
-            
-            // Validate if category ID is a valid category
-            String normalizedCategoryId = categoryId.trim().toUpperCase();
-            CategoryEnum category = CategoryEnum.fromId(normalizedCategoryId);
-            
-            // If the category resolves to OTHER but the input wasn't CAT-OTH, it's invalid
-            if (category == CategoryEnum.OTHER && !normalizedCategoryId.equals("CAT-OTH")) {
-                throw new InvalidCategoryException(categoryId);
-            }
-            
-            List<Book> books = bookRepository.findByBookCategoryId(category.getId());
-            List<BookResponseDTO> responseList = new ArrayList<>();
-
-            for (Book book : books) {
-                responseList.add(toResponseDTOWithInventoryLookup(book));
-            }
-            return responseList;
-        } catch (InvalidCategoryException e) {
-            log.error("Invalid category ID provided: {}", categoryId);
-            throw e;
-        } catch (Exception e) {
-            log.error("Error fetching books by category: {}", e.getMessage());
-            throw new InvalidBookDataException("Error fetching books by category: " + e.getMessage());
+        // Validate categoryId
+        if (categoryId == null || categoryId.isBlank()) {
+            throw new InvalidBookDataException("Category ID is required and cannot be blank");
         }
+        // Validate category is a valid enum value
+        if (!isValidCategoryId(categoryId)) {
+            throw new InvalidBookDataException("Invalid category ID: '" + categoryId + "'. " + getValidCategoriesMessage());
+        }
+        
+        List<Book> books = bookRepository.findByBookCategoryId(categoryId);
+        
+        // Throw exception if no books found for the category
+        if (books.isEmpty()) {
+            throw new BookNotFoundException("No books found for category: " + getCategoryDisplayName(categoryId));
+        }
+        
+        List<BookResponseDTO> responseList = new ArrayList<>();
+
+        for (Book book : books) {
+            responseList.add(toResponseDTOWithInventoryLookup(book));
+        }
+        return responseList;
     }
 
     @Override
     public List<BookResponseDTO> searchBooksByTitle(String title) {
-        try {
-            if (title == null || title.isBlank()) {
-                throw new InvalidBookDataException("Search title cannot be null or empty");
-            }
-            
-            // 1. Change the type from Optional<Object> to List<Book>
-            List<Book> books = bookRepository.findByBookTitleContainingIgnoreCase(title.trim());
-
-            List<BookResponseDTO> responseList = new ArrayList<>();
-
-            // 2. Now the for-each loop will work perfectly
-            for (Book book : books) {
-                responseList.add(toResponseDTOWithInventoryLookup(book));
-            }
-
-            return responseList;
-        } catch (InvalidBookDataException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error searching books by title: {}", e.getMessage());
-            throw new InvalidBookDataException("Error searching books by title: " + e.getMessage());
+        // Validate title
+        if (title == null || title.isBlank()) {
+            throw new InvalidBookDataException("Title search term is required and cannot be blank");
         }
+        if (title.trim().length() < 1) {
+            throw new InvalidBookDataException("Title search term must be at least 1 character long");
+        }
+        
+        // 1. Change the type from Optional<Object> to List<Book>
+        List<Book> books = bookRepository.findByBookTitleContainingIgnoreCase(title.trim());
+
+        // Throw exception if no books found with the title
+        if (books.isEmpty()) {
+            throw new BookNotFoundException("No books found matching title: '" + title.trim() + "'");
+        }
+        
+        List<BookResponseDTO> responseList = new ArrayList<>();
+
+        // 2. Now the for-each loop will work perfectly
+        for (Book book : books) {
+            responseList.add(toResponseDTOWithInventoryLookup(book));
+        }
+
+        return responseList;
     }
 
     @Override
-    public BookResponseDTO getBookById(long bookId) {
-        try {
-            if (bookId <= 0) {
-                throw new InvalidBookDataException("Book ID must be a positive number");
-            }
-            
-            Optional<Book> bookOpt = bookRepository.findById(bookId);
-            if (bookOpt.isEmpty()) {
-                log.error("Book not found with ID: {}", bookId);
-                throw new BookNotFoundException((int) bookId);
-            }
-            
+    public Optional<BookResponseDTO> getBookById(long bookId) {
+        Optional<Book> bookOpt = bookRepository.findById(bookId);
+        if (bookOpt.isPresent()) {
             BookResponseDTO dto = toResponseDTOWithInventoryLookup(bookOpt.get());
-            return dto;
-        } catch (BookNotFoundException e) {
-            throw e;
-        } catch (InvalidBookDataException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error fetching book by ID {}: {}", bookId, e.getMessage());
-            throw new InvalidBookDataException("Error fetching book: " + e.getMessage());
+            return Optional.of(dto);
         }
+        return Optional.empty();
     }
 
     @Override
     public BookResponseDTO addBook(AddBookRequestDTO request) {
+        log.info("Adding new book: '{}'", request.getBookTitle());
+        validateCreate(request);
+
+        String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
+
+        // 1. Check for duplicates ONLY if an ID is provided
+        if (request.getBookId() != null) {
+            if (bookRepository.existsById(request.getBookId())) {
+                throw new DuplicateBookException(request.getBookId().intValue());
+            }
+        }
+
+        // 2. Build Entity
+        Book book = new Book();
+        // Only set ID if provided, otherwise let @GeneratedValue do its job
+        if (request.getBookId() != null) {
+            book.setBookId(request.getBookId());
+        }
+
+        book.setBookTitle(request.getBookTitle().trim());
+        book.setBookAuthorId(request.getBookAuthorId().trim());
+        book.setBookCategoryId(canonicalCategoryId);
+        book.setBookPrice(request.getBookPrice());
+
+        // 3. Save to DB (This generates the ID for savedBook)
+        Book savedBook = bookRepository.save(book);
+
         try {
-            log.info("Adding new book: '{}'", request.getBookTitle());
-            validateCreate(request);
+            // 4. Handle Stock Null-Safety and use InventoryCreateDTO
+            Integer stockQuantity = (request.getBookStockQuantity() != null)
+                    ? request.getBookStockQuantity()
+                    : 0;
 
-            // Validate category ID
-            CategoryEnum category = CategoryEnum.fromId(request.getBookCategoryId());
-            if (category == CategoryEnum.OTHER && 
-                !request.getBookCategoryId().trim().toUpperCase().equals("CAT-OTH")) {
-                throw new InvalidCategoryException(request.getBookCategoryId());
-            }
-            String canonicalCategoryId = category.getId();
+            // Using your provided InventoryCreateDTO from com.book.management.book.dto.requestdto
+            InventoryCreateDTO invRequest = InventoryCreateDTO.builder()
+                    .bookId(savedBook.getBookId())
+                    .quantity(stockQuantity)
+                    .lowStockThreshold(5) // Threshold set to 5 as requested
+                    .build();
 
-            // 1. Check for duplicates ONLY if an ID is provided
-            if (request.getBookId() != null) {
-                if (bookRepository.existsById(request.getBookId())) {
-                    throw new DuplicateBookException(request.getBookId().intValue());
-                }
-            }
+            // 5. Sync with Inventory Service via Feign Client
+            // This returns your provided InventoryResponseDTO from com.book.management.book.dto.responsedto
+            InventoryResponseDTO invResponse = inventoryClient.createInventory(invRequest);
 
-            // 2. Build Entity
-            Book book = new Book();
-            // Only set ID if provided, otherwise let @GeneratedValue do its job
-            if (request.getBookId() != null) {
-                book.setBookId(request.getBookId());
-            }
+            // Convert the Integer quantity from invResponse to Long for the response DTO
+            Long finalQuantity = (invResponse.getQuantity() != null)
+                    ? invResponse.getQuantity().longValue()
+                    : 0L;
 
-            book.setBookTitle(request.getBookTitle().trim());
-            book.setBookAuthorId(request.getBookAuthorId().trim());
-            book.setBookCategoryId(canonicalCategoryId);
-            book.setBookPrice(request.getBookPrice());
+            return toResponseDTO(savedBook, finalQuantity);
 
-            // 3. Save to DB (This generates the ID for savedBook)
-            Book savedBook = bookRepository.save(book);
-
-            try {
-                // 4. Handle Stock Null-Safety and use InventoryCreateDTO
-                Integer stockQuantity = (request.getBookStockQuantity() != null)
-                        ? request.getBookStockQuantity()
-                        : 0;
-
-                // Using your provided InventoryCreateDTO from com.book.management.book.dto.requestdto
-                InventoryCreateDTO invRequest = InventoryCreateDTO.builder()
-                        .bookId(savedBook.getBookId())
-                        .quantity(stockQuantity)
-                        .lowStockThreshold(5) // Threshold set to 5 as requested
-                        .build();
-
-                // 5. Sync with Inventory Service via Feign Client
-                // This returns your provided InventoryResponseDTO from com.book.management.book.dto.responsedto
-                InventoryResponseDTO invResponse = inventoryClient.createInventory(invRequest);
-
-                // Convert the Integer quantity from invResponse to Long for the response DTO
-                Long finalQuantity = (invResponse.getQuantity() != null)
-                        ? invResponse.getQuantity().longValue()
-                        : 0L;
-
-                return toResponseDTO(savedBook, finalQuantity);
-
-            } catch (Exception e) {
-                log.error("Inventory creation failed for book {}: {}", savedBook.getBookId(), e.getMessage());
-                // Fallback: return book data with 0 stock if inventory service fails
-                return toResponseDTO(savedBook, 0L);
-            }
-        } catch (InvalidCategoryException | DuplicateBookException | InvalidBookDataException e) {
-            throw e;
         } catch (Exception e) {
-            log.error("Error adding book: {}", e.getMessage());
-            throw new InvalidBookDataException("Error adding book: " + e.getMessage());
+            log.error("Inventory creation failed for book {}: {}", savedBook.getBookId(), e.getMessage());
+            // Fallback: return book data with 0 stock if inventory service fails
+            return toResponseDTO(savedBook, 0L);
         }
     }
 
     @Override
     public BookResponseDTO updateBook(long bookId, UpdateBookRequestDTO request) {
-        try {
-            if (bookId <= 0) {
-                throw new InvalidBookDataException("Book ID must be a positive number");
-            }
-            
-            Optional<Book> existingOpt = bookRepository.findById(bookId);
-            if (existingOpt.isEmpty()) {
-                throw new BookNotFoundException((int) bookId);
-            }
-
-            Book existing = existingOpt.get();
-            boolean isUpdated = false;
-
-            if (request.getBookTitle() != null && !request.getBookTitle().isBlank()) {
-                existing.setBookTitle(request.getBookTitle().trim());
-                isUpdated = true;
-            }
-            if (request.getBookPrice() != null) {
-                if (request.getBookPrice() < 0) {
-                    throw new InvalidBookDataException("Price cannot be negative");
-                }
-                existing.setBookPrice(request.getBookPrice());
-                isUpdated = true;
-            }
-
-            if (isUpdated) {
-                existing = bookRepository.save(existing);
-            }
-
-            return toResponseDTOWithInventoryLookup(existing);
-        } catch (BookNotFoundException | InvalidBookDataException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error updating book {}: {}", bookId, e.getMessage());
-            throw new InvalidBookDataException("Error updating book: " + e.getMessage());
+        Optional<Book> existingOpt = bookRepository.findById(bookId);
+        if (existingOpt.isEmpty()) {
+            throw new BookNotFoundException((int) bookId);
         }
+
+        Book existing = existingOpt.get();
+        boolean isUpdated = false;
+
+        // Update title if provided
+        if (request.getBookTitle() != null && !request.getBookTitle().isBlank()) {
+            if (request.getBookTitle().trim().length() < 2) {
+                throw new InvalidBookDataException("Book title must be at least 2 characters long");
+            }
+            if (request.getBookTitle().trim().length() > 255) {
+                throw new InvalidBookDataException("Book title cannot exceed 255 characters");
+            }
+            existing.setBookTitle(request.getBookTitle().trim());
+            isUpdated = true;
+        }
+        
+        // Update author if provided
+        if (request.getBookAuthorId() != null && !request.getBookAuthorId().isBlank()) {
+            if (request.getBookAuthorId().trim().length() < 2) {
+                throw new InvalidBookDataException("Author ID must be at least 2 characters long");
+            }
+            existing.setBookAuthorId(request.getBookAuthorId().trim());
+            isUpdated = true;
+        }
+        
+        // Update category if provided
+        if (request.getBookCategoryId() != null && !request.getBookCategoryId().isBlank()) {
+            if (!isValidCategoryId(request.getBookCategoryId())) {
+                throw new InvalidBookDataException("Invalid category ID: '" + request.getBookCategoryId() + "'. " + getValidCategoriesMessage());
+            }
+            String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
+            existing.setBookCategoryId(canonicalCategoryId);
+            isUpdated = true;
+        }
+        
+        // Update price if provided
+        if (request.getBookPrice() != null) {
+            if (request.getBookPrice() < 0) {
+                throw new InvalidBookDataException("Book price cannot be negative");
+            }
+            if (request.getBookPrice() > 10000) {
+                throw new InvalidBookDataException("Book price cannot exceed 10000");
+            }
+            existing.setBookPrice(request.getBookPrice());
+            isUpdated = true;
+        }
+
+        if (isUpdated) {
+            existing = bookRepository.save(existing);
+            log.info("Book {} updated successfully", bookId);
+        }
+
+        return toResponseDTOWithInventoryLookup(existing);
     }
 
     @Override
     public BookPriceResponseDTO getBookPricesMap(List<Long> bookIds) {
-        try {
-            if (bookIds == null || bookIds.isEmpty()) {
-                throw new InvalidBookDataException("Book IDs list cannot be null or empty");
+        Map<Long, Double> prices = new LinkedHashMap<>();
+        for (Long id : bookIds) {
+            Optional<Book> bOpt = bookRepository.findById(id);
+            if (bOpt.isEmpty()) {
+                throw new BookNotFoundException("ID not found: " + id);
             }
-            
-            Map<Long, Double> prices = new LinkedHashMap<>();
-            for (Long id : bookIds) {
-                if (id == null || id <= 0) {
-                    throw new InvalidBookDataException("Invalid book ID in list: " + id);
-                }
-                Optional<Book> bOpt = bookRepository.findById(id);
-                if (bOpt.isEmpty()) {
-                    throw new BookNotFoundException("Book ID not found: " + id);
-                }
-                prices.put(bOpt.get().getBookId(), bOpt.get().getBookPrice());
-            }
-            return new BookPriceResponseDTO(prices);
-        } catch (BookNotFoundException | InvalidBookDataException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error fetching book prices: {}", e.getMessage());
-            throw new InvalidBookDataException("Error fetching book prices: " + e.getMessage());
+            prices.put(bOpt.get().getBookId(), bOpt.get().getBookPrice());
         }
+        return new BookPriceResponseDTO(prices);
     }
 
     @Override
     public void deleteBook(long bookId) {
+        log.info("Attempting to delete book with ID: {}", bookId);
+
+        // 1. Check if the book exists before attempting deletion
+        if (!bookRepository.existsById(bookId)) {
+            throw new BookNotFoundException("Cannot delete. Book not found with ID: " + bookId);
+        }
+
+        // 2. Delete the book from the local database
+        bookRepository.deleteById(bookId);
+        log.info("Book {} deleted from Book Repository", bookId);
+
+        // 3. Sync with Inventory Service (External Call)
         try {
-            log.info("Attempting to delete book with ID: {}", bookId);
-
-            if (bookId <= 0) {
-                throw new InvalidBookDataException("Book ID must be a positive number");
-            }
-
-            // 1. Check if the book exists before attempting deletion
-            if (!bookRepository.existsById(bookId)) {
-                throw new BookNotFoundException("Cannot delete. Book not found with ID: " + bookId);
-            }
-
-            // 2. Delete the book from the local database
-            bookRepository.deleteById(bookId);
-            log.info("Book {} deleted from Book Repository", bookId);
-
-            // 3. Sync with Inventory Service (External Call)
-            try {
-                log.info("Notifying Inventory Service to delete records for book: {}", bookId);
-                inventoryClient.deleteInventoryByBookId(bookId);
-            } catch (Exception e) {
-                // We log the error but don't throw an exception.
-                // This ensures the book stays deleted locally even if the inventory cleanup fails.
-                log.error("Failed to delete inventory for book {}. Error: {}", bookId, e.getMessage());
-            }
-        } catch (BookNotFoundException | InvalidBookDataException e) {
-            throw e;
+            log.info("Notifying Inventory Service to delete records for book: {}", bookId);
+            inventoryClient.deleteInventoryByBookId(bookId);
         } catch (Exception e) {
-            log.error("Error deleting book {}: {}", bookId, e.getMessage());
-            throw new InvalidBookDataException("Error deleting book: " + e.getMessage());
+            // We log the error but don't throw an exception.
+            // This ensures the book stays deleted locally even if the inventory cleanup fails.
+            log.error("Failed to delete inventory for book {}. Error: {}", bookId, e.getMessage());
         }
     }
 
@@ -362,8 +322,84 @@ public class BookServiceImpl implements BookService {
     }
 
     private void validateCreate(AddBookRequestDTO req) {
-        if (req.getBookTitle() == null || req.getBookTitle().isBlank()) throw new InvalidBookDataException("Title missing");
-        if (req.getBookPrice() == null || req.getBookPrice() < 0) throw new InvalidBookDataException("Invalid price");
-        if (req.getBookStockQuantity() == null || req.getBookStockQuantity() < 0) throw new InvalidBookDataException("Invalid stock");
+        // Validate title
+        if (req.getBookTitle() == null || req.getBookTitle().isBlank()) {
+            throw new InvalidBookDataException("Book title is required and cannot be blank");
+        }
+        if (req.getBookTitle().trim().length() < 2) {
+            throw new InvalidBookDataException("Book title must be at least 2 characters long");
+        }
+        if (req.getBookTitle().trim().length() > 255) {
+            throw new InvalidBookDataException("Book title cannot exceed 255 characters");
+        }
+        
+        // Validate author
+        if (req.getBookAuthorId() == null || req.getBookAuthorId().isBlank()) {
+            throw new InvalidBookDataException("Author ID is required and cannot be blank");
+        }
+        if (req.getBookAuthorId().trim().length() < 2) {
+            throw new InvalidBookDataException("Author ID must be at least 2 characters long");
+        }
+        
+        // Validate category
+        if (req.getBookCategoryId() == null || req.getBookCategoryId().isBlank()) {
+            throw new InvalidBookDataException("Category ID is required and cannot be blank");
+        }
+        // Validate that category exists (not defaulting to OTHER for invalid input)
+        if (!isValidCategoryId(req.getBookCategoryId())) {
+            throw new InvalidBookDataException("Invalid category ID: '" + req.getBookCategoryId() + "'. " + getValidCategoriesMessage());
+        }
+        
+        // Validate price
+        if (req.getBookPrice() == null) {
+            throw new InvalidBookDataException("Book price is required");
+        }
+        if (req.getBookPrice() < 0) {
+            throw new InvalidBookDataException("Book price cannot be negative");
+        }
+        if (req.getBookPrice() > 10000) {
+            throw new InvalidBookDataException("Book price cannot exceed 10000");
+        }
+        
+        // Validate stock
+        if (req.getBookStockQuantity() == null) {
+            throw new InvalidBookDataException("Stock quantity is required");
+        }
+        if (req.getBookStockQuantity() < 0) {
+            throw new InvalidBookDataException("Stock quantity cannot be negative");
+        }
+    }
+    
+    private boolean isValidCategoryId(String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) return false;
+        String normalized = categoryId.trim().toUpperCase();
+        for (CategoryEnum c : CategoryEnum.values()) {
+            if (c.getId().equalsIgnoreCase(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private String getValidCategoriesMessage() {
+        StringBuilder sb = new StringBuilder("Valid categories are: ");
+        CategoryEnum[] categories = CategoryEnum.values();
+        for (int i = 0; i < categories.length; i++) {
+            CategoryEnum c = categories[i];
+            sb.append(c.name().replace("_", " ")).append(" (").append(c.getId()).append(")");
+            if (i < categories.length - 1) {
+                sb.append(", ");
+            }
+        }
+        return sb.toString();
+    }
+    
+    private String getCategoryDisplayName(String categoryId) {
+        for (CategoryEnum c : CategoryEnum.values()) {
+            if (c.getId().equalsIgnoreCase(categoryId.trim())) {
+                return c.name().replace("_", " ") + " (" + c.getId() + ")";
+            }
+        }
+        return categoryId;
     }
 }
