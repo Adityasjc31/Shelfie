@@ -91,7 +91,7 @@ public class AuthenticationControllerTest {
                                 .andExpect(jsonPath("$.accessToken").exists())
                                 .andExpect(jsonPath("$.refreshToken").exists())
                                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                                .andExpect(jsonPath("$.userId").value("1001"));
+                                .andExpect(jsonPath("$.user.userId").value("1001"));
 
                 verify(authenticationService, times(1)).register(any(RegisterRequest.class));
         }
@@ -126,7 +126,7 @@ public class AuthenticationControllerTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.accessToken").exists())
                                 .andExpect(jsonPath("$.refreshToken").exists())
-                                .andExpect(jsonPath("$.email").value("test@example.com"));
+                                .andExpect(jsonPath("$.user.email").value("test@example.com"));
 
                 verify(authenticationService, times(1)).login(any(LoginRequest.class));
         }
@@ -202,18 +202,6 @@ public class AuthenticationControllerTest {
                 verify(authenticationService, times(1)).logout(anyString());
         }
 
-        @Test
-        void testLogoutFromAllDevices() throws Exception {
-                // Arrange
-                doNothing().when(authenticationService).logoutFromAllDevices(anyString());
-
-                // Act & Assert
-                mockMvc.perform(post("/api/v1/auth/logout-all")
-                                .header("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMDAxIn0.test"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.message").value("Logged out from all devices successfully"))
-                                .andExpect(jsonPath("$.status").value("success"));
-        }
 
         @Test
         void testHealth() throws Exception {

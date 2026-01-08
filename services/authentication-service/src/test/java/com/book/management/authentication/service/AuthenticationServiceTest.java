@@ -6,6 +6,7 @@ import com.book.management.authentication.exception.InvalidCredentialsException;
 import com.book.management.authentication.exception.InvalidTokenException;
 import com.book.management.authentication.exception.UserAlreadyExistsException;
 import com.book.management.authentication.model.BlacklistedToken;
+import com.book.management.authentication.model.RefreshToken;
 import com.book.management.authentication.repository.IRefreshTokenRepository;
 import com.book.management.authentication.repository.ITokenBlacklistRepository;
 import com.book.management.authentication.service.impl.AuthenticationService;
@@ -17,6 +18,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Arrays;
+import java.util.Date;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -80,6 +83,13 @@ public class AuthenticationServiceTest {
         // Arrange
         when(userServiceClient.registerUser(any(UserRegistrationDTO.class)))
                 .thenReturn(userResponse);
+        when(jwtUtil.generateToken(anyString(), anyString(), anyList()))
+                .thenReturn("mock-access-token");
+        when(jwtUtil.generateRefreshToken(anyString(), anyString()))
+                .thenReturn("mock-refresh-token");
+        when(jwtUtil.getRefreshExpirationTime()).thenReturn(604800000L);
+        when(jwtUtil.getExpirationTime()).thenReturn(86400L);
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(null);
 
         // Act
         AuthResponse response = authenticationService.register(registerRequest);
@@ -109,6 +119,13 @@ public class AuthenticationServiceTest {
         // Arrange
         when(userServiceClient.loginUser(any(UserLoginDTO.class)))
                 .thenReturn(userResponse);
+        when(jwtUtil.generateToken(anyString(), anyString(), anyList()))
+                .thenReturn("mock-access-token");
+        when(jwtUtil.generateRefreshToken(anyString(), anyString()))
+                .thenReturn("mock-refresh-token");
+        when(jwtUtil.getRefreshExpirationTime()).thenReturn(604800000L);
+        when(jwtUtil.getExpirationTime()).thenReturn(86400L);
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(null);
 
         // Act
         AuthResponse response = authenticationService.login(loginRequest);
@@ -137,14 +154,19 @@ public class AuthenticationServiceTest {
     void testValidateToken_ValidToken() {
         // Arrange
         String validToken = "valid-jwt-token";
+        when(jwtUtil.validateToken(validToken)).thenReturn(true);
         when(tokenBlacklistRepository.existsByToken(validToken)).thenReturn(false);
+        when(jwtUtil.extractUserId(validToken)).thenReturn("1001");
+        when(jwtUtil.extractUsername(validToken)).thenReturn("test@example.com");
+        when(jwtUtil.extractRoles(validToken)).thenReturn(Arrays.asList("CUSTOMER"));
 
         // Act
         TokenValidationResponse response = authenticationService.validateToken(validToken);
 
         // Assert
         assertNotNull(response);
-        // The response validity depends on JWT parsing
+        assertTrue(response.isValid());
+        assertEquals("1001", response.getUserId());
         verify(tokenBlacklistRepository, times(1)).existsByToken(validToken);
     }
 
@@ -152,6 +174,7 @@ public class AuthenticationServiceTest {
     void testValidateToken_BlacklistedToken() {
         // Arrange
         String blacklistedToken = "blacklisted-token";
+        when(jwtUtil.validateToken(blacklistedToken)).thenReturn(true);
         when(tokenBlacklistRepository.existsByToken(blacklistedToken)).thenReturn(true);
 
         // Act
@@ -166,17 +189,27 @@ public class AuthenticationServiceTest {
     @Test
     void testRefreshToken_Success() {
         // Arrange
+        String refreshTokenStr = "valid-refresh-token";
         RefreshTokenRequest request = RefreshTokenRequest.builder()
-                .refreshToken("valid-refresh-token")
+                .refreshToken(refreshTokenStr)
                 .build();
 
-        when(refreshTokenRepository.findByToken("valid-refresh-token"))
-                .thenReturn(Optional.of(com.book.management.authentication.model.RefreshToken.builder()
-                        .token("valid-refresh-token")
-                        .userId("1001")
-                        .used(false)
-                        .build()));
+        RefreshToken storedToken = RefreshToken.builder()
+                .token(refreshTokenStr)
+                .userId("1001")
+                .used(false)
+                .build();
+
+        when(jwtUtil.validateToken(refreshTokenStr)).thenReturn(true);
+        when(jwtUtil.extractTokenType(refreshTokenStr)).thenReturn("REFRESH");
+        when(refreshTokenRepository.findByToken(refreshTokenStr)).thenReturn(Optional.of(storedToken));
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(storedToken);
+        when(jwtUtil.extractUserId(refreshTokenStr)).thenReturn("1001");
         when(userServiceClient.getUserById(1001L)).thenReturn(userResponse);
+        when(jwtUtil.generateToken(anyString(), anyString(), anyList())).thenReturn("new-access-token");
+        when(jwtUtil.generateRefreshToken(anyString(), anyString())).thenReturn("new-refresh-token");
+        when(jwtUtil.getRefreshExpirationTime()).thenReturn(604800000L);
+        when(jwtUtil.getExpirationTime()).thenReturn(86400L);
 
         // Act
         AuthResponse response = authenticationService.refreshToken(request);
@@ -194,19 +227,20 @@ public class AuthenticationServiceTest {
                 .refreshToken("invalid-refresh-token")
                 .build();
 
-        when(refreshTokenRepository.findByToken("invalid-refresh-token"))
-                .thenReturn(Optional.empty());
+        when(jwtUtil.validateToken("invalid-refresh-token")).thenReturn(false);
 
         // Act & Assert
-        assertThrows(InvalidTokenException.class, () -> {
-            authenticationService.refreshToken(request);
-        });
+        assertThrows(InvalidTokenException.class, () -> authenticationService.refreshToken(request));
     }
 
     @Test
     void testLogout_Success() {
         // Arrange
         String token = "token-to-logout";
+        Date expirationDate = new Date(System.currentTimeMillis() + 86400000); // 24 hours from now
+
+        when(jwtUtil.extractUserId(token)).thenReturn("1001");
+        when(jwtUtil.extractExpiration(token)).thenReturn(expirationDate);
         when(tokenBlacklistRepository.save(any(BlacklistedToken.class))).thenReturn(null);
 
         // Act
@@ -216,18 +250,6 @@ public class AuthenticationServiceTest {
         verify(tokenBlacklistRepository, times(1)).save(any(BlacklistedToken.class));
     }
 
-    @Test
-    void testLogoutFromAllDevices_Success() {
-        // Arrange
-        String userId = "1001";
-        doNothing().when(refreshTokenRepository).deleteByUserId(userId);
-
-        // Act
-        authenticationService.logoutFromAllDevices(userId);
-
-        // Assert
-        verify(refreshTokenRepository, times(1)).deleteByUserId(userId);
-    }
 
     @Test
     void testIsTokenBlacklisted_True() {

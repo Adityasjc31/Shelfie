@@ -279,12 +279,10 @@ public class AuthenticationService implements IAuthenticationService {
     }
 
     /**
-     * {@inheritDoc}
-     *
      * Invalidates all tokens for a user.
+     * Used internally for security (e.g., token reuse detection).
      */
-    @Override
-    public void logoutFromAllDevices(String userId) {
+    private void logoutFromAllDevices(String userId) {
         log.info("Logging out user from all devices: {}", userId);
 
         try {

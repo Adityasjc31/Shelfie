@@ -21,7 +21,6 @@ import java.util.Map;
  * - POST /api/v1/auth/validate - Validate JWT token
  * - POST /api/v1/auth/refresh - Refresh access token
  * - POST /api/v1/auth/logout - Logout (blacklist token)
- * - POST /api/v1/auth/logout-all - Logout from all devices
  *
  * @author Aditya Srivastava
  * @version 1.0 - REST API Compliant
@@ -143,38 +142,6 @@ public class AuthenticationController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Logs out user from all devices.
-     *
-     * POST /api/v1/auth/logout-all
-     *
-     * Invalidates all refresh tokens for the user.
-     * Access tokens will expire naturally based on JWT expiration.
-     *
-     * @param authHeader Authorization header with Bearer token
-     * @return success message
-     */
-    @PostMapping("/logout-all")
-    public ResponseEntity<Map<String, String>> logoutFromAllDevices(
-            @RequestHeader("Authorization") String authHeader) {
-
-        log.info("Logout from all devices request received");
-
-        String token = authHeader.replace("Bearer ", "").trim();
-
-        // Extract user ID from token
-        com.book.management.authentication.util.JwtUtil jwtUtil =
-                new com.book.management.authentication.util.JwtUtil();
-        String userId = jwtUtil.extractUserId(token);
-
-        authenticationService.logoutFromAllDevices(userId);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Logged out from all devices successfully");
-        response.put("status", "success");
-
-        return ResponseEntity.ok(response);
-    }
 
     /**
      * Health check endpoint.
@@ -210,8 +177,7 @@ public class AuthenticationController {
                 "JWT Authentication",
                 "Token Refresh",
                 "Token Blacklist",
-                "Refresh Token Rotation",
-                "Logout from All Devices"
+                "Refresh Token Rotation"
         ));
         return ResponseEntity.ok(response);
     }

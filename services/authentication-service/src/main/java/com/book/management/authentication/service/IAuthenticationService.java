@@ -93,15 +93,6 @@ public interface IAuthenticationService {
      */
     void logout(String token);
 
-    /**
-     * Logs out user from all devices.
-     * 
-     * Invalidates all tokens (access + refresh) for a user.
-     * Useful for "logout everywhere" feature.
-     * 
-     * @param userId user ID
-     */
-    void logoutFromAllDevices(String userId);
 
     /**
      * Checks if token is blacklisted (revoked).
