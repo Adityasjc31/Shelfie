@@ -10,13 +10,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseEntity;
 
+import com.book.management.user.client.OrderServiceClient;
+import com.book.management.user.client.ReviewServiceClient;
 import com.book.management.user.dto.*;
 import com.book.management.user.exception.*;
 import com.book.management.user.model.User;
 import com.book.management.user.model.UserRole;
 import com.book.management.user.repository.JpaUserRepository;
-import com.book.management.user.service.impl.UserServiceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -44,6 +46,12 @@ class UserServiceImplTest {
 
     @Mock
     private JpaUserRepository userRepository;
+
+    @Mock
+    private OrderServiceClient orderServiceClient;
+
+    @Mock
+    private ReviewServiceClient reviewServiceClient;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -376,26 +384,64 @@ class UserServiceImplTest {
     // ========== DELETE USER TESTS ==========
 
     @Test
-    @DisplayName("Should delete user successfully")
+    @DisplayName("Should delete user successfully and clean up orders and reviews")
     void testDeleteUser_Success() {
-        when(userRepository.existsById(1L)).thenReturn(true);
-        doNothing().when(userRepository).deleteById(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        doNothing().when(userRepository).delete(any(User.class));
+        when(orderServiceClient.deleteOrdersByUserId(1L)).thenReturn(ResponseEntity.noContent().build());
+        when(reviewServiceClient.deleteReviewsByUserId(1L)).thenReturn(ResponseEntity.noContent().build());
 
         userService.deleteUser(1L);
 
-        verify(userRepository, times(1)).existsById(1L);
-        verify(userRepository, times(1)).deleteById(1L);
+        verify(userRepository, times(1)).findById(1L);
+        verify(userRepository, times(1)).delete(testUser);
+        verify(orderServiceClient, times(1)).deleteOrdersByUserId(1L);
+        verify(reviewServiceClient, times(1)).deleteReviewsByUserId(1L);
+    }
+
+    @Test
+    @DisplayName("Should delete user even when order service fails")
+    void testDeleteUser_OrderServiceFails() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        doNothing().when(userRepository).delete(any(User.class));
+        when(orderServiceClient.deleteOrdersByUserId(1L)).thenThrow(new RuntimeException("Order service unavailable"));
+        when(reviewServiceClient.deleteReviewsByUserId(1L)).thenReturn(ResponseEntity.noContent().build());
+
+        userService.deleteUser(1L);
+
+        verify(userRepository, times(1)).findById(1L);
+        verify(userRepository, times(1)).delete(testUser);
+        verify(orderServiceClient, times(1)).deleteOrdersByUserId(1L);
+        verify(reviewServiceClient, times(1)).deleteReviewsByUserId(1L);
+    }
+
+    @Test
+    @DisplayName("Should delete user even when review service fails")
+    void testDeleteUser_ReviewServiceFails() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        doNothing().when(userRepository).delete(any(User.class));
+        when(orderServiceClient.deleteOrdersByUserId(1L)).thenReturn(ResponseEntity.noContent().build());
+        when(reviewServiceClient.deleteReviewsByUserId(1L)).thenThrow(new RuntimeException("Review service unavailable"));
+
+        userService.deleteUser(1L);
+
+        verify(userRepository, times(1)).findById(1L);
+        verify(userRepository, times(1)).delete(testUser);
+        verify(orderServiceClient, times(1)).deleteOrdersByUserId(1L);
+        verify(reviewServiceClient, times(1)).deleteReviewsByUserId(1L);
     }
 
     @Test
     @DisplayName("Should throw exception when deleting non-existent user")
     void testDeleteUser_UserNotFound() {
-        when(userRepository.existsById(anyLong())).thenReturn(false);
+        when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.deleteUser(999L))
                 .isInstanceOf(UserNotFoundException.class);
 
-        verify(userRepository, times(1)).existsById(999L);
-        verify(userRepository, never()).deleteById(anyLong());
+        verify(userRepository, times(1)).findById(999L);
+        verify(userRepository, never()).delete(any(User.class));
+        verify(orderServiceClient, never()).deleteOrdersByUserId(anyLong());
+        verify(reviewServiceClient, never()).deleteReviewsByUserId(anyLong());
     }
 }

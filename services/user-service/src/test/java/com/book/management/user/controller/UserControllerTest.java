@@ -9,12 +9,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.book.management.user.controller.UserController;
 import com.book.management.user.dto.*;
+import com.book.management.user.filter.GatewayAuthenticationFilter;
 import com.book.management.user.model.UserRole;
 import com.book.management.user.service.UserService;
 
@@ -39,7 +41,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author Digital Bookstore Team
  * @version 1.0
  */
-@WebMvcTest(UserController.class)
+@WebMvcTest(value = UserController.class,
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                classes = GatewayAuthenticationFilter.class))
 @DisplayName("UserController Unit Tests")
 class UserControllerTest {
 
@@ -90,12 +94,12 @@ class UserControllerTest {
         // ========== REGISTRATION ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("POST /users/register - Should register user successfully")
+        @DisplayName("POST /api/v1/users/register - Should register user successfully")
         void testRegisterUser_Success() throws Exception {
                 when(userService.registerUser(any(UserRegistrationDTO.class)))
                                 .thenReturn(userResponseDTO);
 
-                mockMvc.perform(post("/users/register")
+                mockMvc.perform(post("/api/v1/users/register")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(registrationDTO)))
                                 .andExpect(status().isCreated())
@@ -109,7 +113,7 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("POST /users/register - Should return 400 for invalid input")
+        @DisplayName("POST /api/v1/users/register - Should return 400 for invalid input")
         void testRegisterUser_InvalidInput() throws Exception {
                 UserRegistrationDTO invalidDTO = UserRegistrationDTO.builder()
                                 .name("")
@@ -117,7 +121,7 @@ class UserControllerTest {
                                 .password("123")
                                 .build();
 
-                mockMvc.perform(post("/users/register")
+                mockMvc.perform(post("/api/v1/users/register")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(invalidDTO)))
                                 .andExpect(status().isBadRequest());
@@ -128,12 +132,12 @@ class UserControllerTest {
         // ========== LOGIN ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("POST /users/login - Should login user successfully")
+        @DisplayName("POST /api/v1/users/login - Should login user successfully")
         void testLoginUser_Success() throws Exception {
                 when(userService.loginUser(any(UserLoginDTO.class)))
                                 .thenReturn(userResponseDTO);
 
-                mockMvc.perform(post("/users/login")
+                mockMvc.perform(post("/api/v1/users/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(loginDTO)))
                                 .andExpect(status().isOk())
@@ -146,11 +150,11 @@ class UserControllerTest {
         // ========== GET USER BY ID ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("GET /users/{userId} - Should get user by ID successfully")
+        @DisplayName("GET /api/v1/users/{userId} - Should get user by ID successfully")
         void testGetUserById_Success() throws Exception {
                 when(userService.getUserById(1L)).thenReturn(userResponseDTO);
 
-                mockMvc.perform(get("/users/1"))
+                mockMvc.perform(get("/api/v1/users/1"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.userId", is(1)))
                                 .andExpect(jsonPath("$.email", is("john@example.com")))
@@ -162,12 +166,12 @@ class UserControllerTest {
         // ========== GET USER BY EMAIL ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("GET /users/email/{email} - Should get user by email successfully")
+        @DisplayName("GET /api/v1/users/email/{email} - Should get user by email successfully")
         void testGetUserByEmail_Success() throws Exception {
                 when(userService.getUserByEmail("john@example.com"))
                                 .thenReturn(userResponseDTO);
 
-                mockMvc.perform(get("/users/email/john@example.com"))
+                mockMvc.perform(get("/api/v1/users/email/john@example.com"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.email", is("john@example.com")));
 
@@ -177,7 +181,7 @@ class UserControllerTest {
         // ========== GET ALL USERS ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("GET /users - Should get all users successfully")
+        @DisplayName("GET /api/v1/users - Should get all users successfully")
         void testGetAllUsers_Success() throws Exception {
                 UserResponseDTO user2 = UserResponseDTO.builder()
                                 .userId(2L)
@@ -192,7 +196,7 @@ class UserControllerTest {
                 List<UserResponseDTO> users = Arrays.asList(userResponseDTO, user2);
                 when(userService.getAllUsers()).thenReturn(users);
 
-                mockMvc.perform(get("/users"))
+                mockMvc.perform(get("/api/v1/users"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(2)))
                                 .andExpect(jsonPath("$[0].email", is("john@example.com")))
@@ -204,12 +208,12 @@ class UserControllerTest {
         // ========== GET USERS BY ROLE ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("GET /users/role/{role} - Should get users by role successfully")
+        @DisplayName("GET /api/v1/users/role/{role} - Should get users by role successfully")
         void testGetUsersByRole_Success() throws Exception {
                 List<UserResponseDTO> customers = Arrays.asList(userResponseDTO);
                 when(userService.getUsersByRole(UserRole.CUSTOMER)).thenReturn(customers);
 
-                mockMvc.perform(get("/users/role/CUSTOMER"))
+                mockMvc.perform(get("/api/v1/users/role/CUSTOMER"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(1)))
                                 .andExpect(jsonPath("$[0].role", is("CUSTOMER")));
@@ -220,7 +224,7 @@ class UserControllerTest {
         // ========== UPDATE USER PROFILE ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("PUT /users/{userId} - Should update user profile successfully")
+        @DisplayName("PUT /api/v1/users/{userId} - Should update user profile successfully")
         void testUpdateUserProfile_Success() throws Exception {
                 UserResponseDTO updatedUser = UserResponseDTO.builder()
                                 .userId(1L)
@@ -235,7 +239,7 @@ class UserControllerTest {
                 when(userService.updateUserProfile(anyLong(), any(UserUpdateDTO.class)))
                                 .thenReturn(updatedUser);
 
-                mockMvc.perform(put("/users/1")
+                mockMvc.perform(put("/api/v1/users/1")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(updateDTO)))
                                 .andExpect(status().isOk())
@@ -248,11 +252,11 @@ class UserControllerTest {
         // ========== DEACTIVATE USER ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("PATCH /users/{userId}/deactivate - Should deactivate user successfully")
+        @DisplayName("PATCH /api/v1/users/{userId}/deactivate - Should deactivate user successfully")
         void testDeactivateUser_Success() throws Exception {
                 doNothing().when(userService).deactivateUser(1L);
 
-                mockMvc.perform(patch("/users/1/deactivate"))
+                mockMvc.perform(patch("/api/v1/users/1/deactivate"))
                                 .andExpect(status().isNoContent());
 
                 verify(userService, times(1)).deactivateUser(1L);
@@ -261,11 +265,11 @@ class UserControllerTest {
         // ========== REACTIVATE USER ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("PATCH /users/{userId}/reactivate - Should reactivate user successfully")
+        @DisplayName("PATCH /api/v1/users/{userId}/reactivate - Should reactivate user successfully")
         void testReactivateUser_Success() throws Exception {
                 doNothing().when(userService).reactivateUser(1L);
 
-                mockMvc.perform(patch("/users/1/reactivate"))
+                mockMvc.perform(patch("/api/v1/users/1/reactivate"))
                                 .andExpect(status().isNoContent());
 
                 verify(userService, times(1)).reactivateUser(1L);
@@ -274,13 +278,14 @@ class UserControllerTest {
         // ========== DELETE USER ENDPOINT TESTS ==========
 
         @Test
-        @DisplayName("DELETE /users/{userId} - Should delete user successfully")
+        @DisplayName("DELETE /api/v1/users/{userId} - Should delete user successfully")
         void testDeleteUser_Success() throws Exception {
                 doNothing().when(userService).deleteUser(1L);
 
-                mockMvc.perform(delete("/users/1"))
+                mockMvc.perform(delete("/api/v1/users/1"))
                                 .andExpect(status().isNoContent());
 
                 verify(userService, times(1)).deleteUser(1L);
         }
 }
+
