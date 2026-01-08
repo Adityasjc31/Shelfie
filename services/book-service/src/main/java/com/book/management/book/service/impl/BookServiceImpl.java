@@ -208,18 +208,52 @@ public class BookServiceImpl implements BookService {
         Book existing = existingOpt.get();
         boolean isUpdated = false;
 
+        // Update title if provided
         if (request.getBookTitle() != null && !request.getBookTitle().isBlank()) {
+            if (request.getBookTitle().trim().length() < 2) {
+                throw new InvalidBookDataException("Book title must be at least 2 characters long");
+            }
+            if (request.getBookTitle().trim().length() > 255) {
+                throw new InvalidBookDataException("Book title cannot exceed 255 characters");
+            }
             existing.setBookTitle(request.getBookTitle().trim());
             isUpdated = true;
         }
+        
+        // Update author if provided
+        if (request.getBookAuthorId() != null && !request.getBookAuthorId().isBlank()) {
+            if (request.getBookAuthorId().trim().length() < 2) {
+                throw new InvalidBookDataException("Author ID must be at least 2 characters long");
+            }
+            existing.setBookAuthorId(request.getBookAuthorId().trim());
+            isUpdated = true;
+        }
+        
+        // Update category if provided
+        if (request.getBookCategoryId() != null && !request.getBookCategoryId().isBlank()) {
+            if (!isValidCategoryId(request.getBookCategoryId())) {
+                throw new InvalidBookDataException("Invalid category ID: '" + request.getBookCategoryId() + "'. " + getValidCategoriesMessage());
+            }
+            String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
+            existing.setBookCategoryId(canonicalCategoryId);
+            isUpdated = true;
+        }
+        
+        // Update price if provided
         if (request.getBookPrice() != null) {
-            if (request.getBookPrice() < 0) throw new InvalidBookDataException("Price negative");
+            if (request.getBookPrice() < 0) {
+                throw new InvalidBookDataException("Book price cannot be negative");
+            }
+            if (request.getBookPrice() > 10000) {
+                throw new InvalidBookDataException("Book price cannot exceed 10000");
+            }
             existing.setBookPrice(request.getBookPrice());
             isUpdated = true;
         }
 
         if (isUpdated) {
             existing = bookRepository.save(existing);
+            log.info("Book {} updated successfully", bookId);
         }
 
         return toResponseDTOWithInventoryLookup(existing);
