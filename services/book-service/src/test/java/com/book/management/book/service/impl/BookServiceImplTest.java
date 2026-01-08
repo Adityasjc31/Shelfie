@@ -289,7 +289,7 @@ public class BookServiceImplTest {
             // When & Then
             BookNotFoundException exception = assertThrows(BookNotFoundException.class, 
                 () -> bookService.getBooksByCategory("CAT-HIS"));
-            assertTrue(exception.getMessage().contains("No books found for category ID"));
+            assertTrue(exception.getMessage().contains("No books found for category"));
         }
 
         @Test
@@ -320,6 +320,10 @@ public class BookServiceImplTest {
                 () -> bookService.getBooksByCategory("INVALID-CAT"));
             assertTrue(exception.getMessage().contains("Invalid category ID"));
             assertTrue(exception.getMessage().contains("Valid categories are:"));
+            // Verify category names are displayed with their IDs
+            assertTrue(exception.getMessage().contains("FICTION (CAT-FIC)"));
+            assertTrue(exception.getMessage().contains("NON FICTION (CAT-NF)"));
+            assertTrue(exception.getMessage().contains("TECHNOLOGY (CAT-TCH)"));
             verify(bookRepository, never()).findByBookCategoryId(any());
         }
 
@@ -331,6 +335,18 @@ public class BookServiceImplTest {
                 () -> bookService.getBooksByCategory("CAT-XYZ"));
             assertTrue(exception.getMessage().contains("Invalid category ID"));
             verify(bookRepository, never()).findByBookCategoryId(any());
+        }
+
+        @Test
+        @DisplayName("Should include category display name in not found exception")
+        void getBooksByCategory_NotFoundIncludesCategoryName() {
+            // Given
+            when(bookRepository.findByBookCategoryId("CAT-FAN")).thenReturn(Collections.emptyList());
+
+            // When & Then
+            BookNotFoundException exception = assertThrows(BookNotFoundException.class, 
+                () -> bookService.getBooksByCategory("CAT-FAN"));
+            assertTrue(exception.getMessage().contains("FANTASY (CAT-FAN)"));
         }
     }
 
@@ -869,6 +885,152 @@ public class BookServiceImplTest {
             // Then
             assertEquals("Test Book", result.getBookTitle()); // Title unchanged
             verify(bookRepository, never()).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should update book category successfully")
+        void updateBook_Category() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn(null);
+            when(request.getBookAuthorId()).thenReturn(null);
+            when(request.getBookCategoryId()).thenReturn("CAT-SCI");
+            when(request.getBookPrice()).thenReturn(null);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+            when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(inventoryClient.getInventoryByBookId(1L)).thenReturn(sampleInventoryResponse);
+
+            // When
+            BookResponseDTO result = bookService.updateBook(1L, request);
+
+            // Then
+            assertEquals("CAT-SCI", result.getBookCategoryId());
+            verify(bookRepository, times(1)).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for invalid category ID on update")
+        void updateBook_InvalidCategory() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn(null);
+            when(request.getBookAuthorId()).thenReturn(null);
+            when(request.getBookCategoryId()).thenReturn("INVALID-CAT");
+            when(request.getBookPrice()).thenReturn(null);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+
+            // When & Then
+            InvalidBookDataException exception = assertThrows(InvalidBookDataException.class, 
+                () -> bookService.updateBook(1L, request));
+            assertTrue(exception.getMessage().contains("Invalid category ID"));
+            assertTrue(exception.getMessage().contains("Valid categories are:"));
+            verify(bookRepository, never()).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should update book author successfully")
+        void updateBook_Author() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn(null);
+            when(request.getBookAuthorId()).thenReturn("new-author-456");
+            when(request.getBookCategoryId()).thenReturn(null);
+            when(request.getBookPrice()).thenReturn(null);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+            when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(inventoryClient.getInventoryByBookId(1L)).thenReturn(sampleInventoryResponse);
+
+            // When
+            BookResponseDTO result = bookService.updateBook(1L, request);
+
+            // Then
+            assertEquals("new-author-456", result.getBookAuthorId());
+            verify(bookRepository, times(1)).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for short author ID on update")
+        void updateBook_ShortAuthorId() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn(null);
+            when(request.getBookAuthorId()).thenReturn("a");
+            when(request.getBookCategoryId()).thenReturn(null);
+            when(request.getBookPrice()).thenReturn(null);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+
+            // When & Then
+            InvalidBookDataException exception = assertThrows(InvalidBookDataException.class, 
+                () -> bookService.updateBook(1L, request));
+            assertTrue(exception.getMessage().contains("Author ID must be at least 2 characters"));
+            verify(bookRepository, never()).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for short title on update")
+        void updateBook_ShortTitle() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn("A");
+            when(request.getBookAuthorId()).thenReturn(null);
+            when(request.getBookCategoryId()).thenReturn(null);
+            when(request.getBookPrice()).thenReturn(null);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+
+            // When & Then
+            InvalidBookDataException exception = assertThrows(InvalidBookDataException.class, 
+                () -> bookService.updateBook(1L, request));
+            assertTrue(exception.getMessage().contains("Book title must be at least 2 characters"));
+            verify(bookRepository, never()).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidBookDataException for price exceeding max on update")
+        void updateBook_PriceExceedsMax() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn(null);
+            when(request.getBookAuthorId()).thenReturn(null);
+            when(request.getBookCategoryId()).thenReturn(null);
+            when(request.getBookPrice()).thenReturn(15000.0);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+
+            // When & Then
+            InvalidBookDataException exception = assertThrows(InvalidBookDataException.class, 
+                () -> bookService.updateBook(1L, request));
+            assertTrue(exception.getMessage().contains("Book price cannot exceed 10000"));
+            verify(bookRepository, never()).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Should update all fields at once")
+        void updateBook_AllFields() {
+            // Given
+            UpdateBookRequestDTO request = mock(UpdateBookRequestDTO.class);
+            when(request.getBookTitle()).thenReturn("Complete Update Book");
+            when(request.getBookAuthorId()).thenReturn("updated-author");
+            when(request.getBookCategoryId()).thenReturn("CAT-BIO");
+            when(request.getBookPrice()).thenReturn(55.99);
+
+            when(bookRepository.findById(1L)).thenReturn(Optional.of(sampleBook));
+            when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(inventoryClient.getInventoryByBookId(1L)).thenReturn(sampleInventoryResponse);
+
+            // When
+            BookResponseDTO result = bookService.updateBook(1L, request);
+
+            // Then
+            assertEquals("Complete Update Book", result.getBookTitle());
+            assertEquals("updated-author", result.getBookAuthorId());
+            assertEquals("CAT-BIO", result.getBookCategoryId());
+            assertEquals(55.99, result.getBookPrice());
+            verify(bookRepository, times(1)).save(any(Book.class));
         }
     }
 

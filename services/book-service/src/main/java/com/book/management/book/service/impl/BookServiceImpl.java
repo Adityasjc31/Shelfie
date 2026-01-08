@@ -82,15 +82,14 @@ public class BookServiceImpl implements BookService {
         }
         // Validate category is a valid enum value
         if (!isValidCategoryId(categoryId)) {
-            throw new InvalidBookDataException("Invalid category ID: '" + categoryId + 
-                "'. Valid categories are: CAT-FIC, CAT-NF, CAT-TCH, CAT-SCI, CAT-HIS, CAT-FAN, CAT-BIO, CAT-BUS, CAT-OTH");
+            throw new InvalidBookDataException("Invalid category ID: '" + categoryId + "'. " + getValidCategoriesMessage());
         }
         
         List<Book> books = bookRepository.findByBookCategoryId(categoryId);
         
         // Throw exception if no books found for the category
         if (books.isEmpty()) {
-            throw new BookNotFoundException("No books found for category ID: " + categoryId);
+            throw new BookNotFoundException("No books found for category: " + getCategoryDisplayName(categoryId));
         }
         
         List<BookResponseDTO> responseList = new ArrayList<>();
@@ -209,18 +208,52 @@ public class BookServiceImpl implements BookService {
         Book existing = existingOpt.get();
         boolean isUpdated = false;
 
+        // Update title if provided
         if (request.getBookTitle() != null && !request.getBookTitle().isBlank()) {
+            if (request.getBookTitle().trim().length() < 2) {
+                throw new InvalidBookDataException("Book title must be at least 2 characters long");
+            }
+            if (request.getBookTitle().trim().length() > 255) {
+                throw new InvalidBookDataException("Book title cannot exceed 255 characters");
+            }
             existing.setBookTitle(request.getBookTitle().trim());
             isUpdated = true;
         }
+        
+        // Update author if provided
+        if (request.getBookAuthorId() != null && !request.getBookAuthorId().isBlank()) {
+            if (request.getBookAuthorId().trim().length() < 2) {
+                throw new InvalidBookDataException("Author ID must be at least 2 characters long");
+            }
+            existing.setBookAuthorId(request.getBookAuthorId().trim());
+            isUpdated = true;
+        }
+        
+        // Update category if provided
+        if (request.getBookCategoryId() != null && !request.getBookCategoryId().isBlank()) {
+            if (!isValidCategoryId(request.getBookCategoryId())) {
+                throw new InvalidBookDataException("Invalid category ID: '" + request.getBookCategoryId() + "'. " + getValidCategoriesMessage());
+            }
+            String canonicalCategoryId = CategoryEnum.fromId(request.getBookCategoryId()).getId();
+            existing.setBookCategoryId(canonicalCategoryId);
+            isUpdated = true;
+        }
+        
+        // Update price if provided
         if (request.getBookPrice() != null) {
-            if (request.getBookPrice() < 0) throw new InvalidBookDataException("Price negative");
+            if (request.getBookPrice() < 0) {
+                throw new InvalidBookDataException("Book price cannot be negative");
+            }
+            if (request.getBookPrice() > 10000) {
+                throw new InvalidBookDataException("Book price cannot exceed 10000");
+            }
             existing.setBookPrice(request.getBookPrice());
             isUpdated = true;
         }
 
         if (isUpdated) {
             existing = bookRepository.save(existing);
+            log.info("Book {} updated successfully", bookId);
         }
 
         return toResponseDTOWithInventoryLookup(existing);
@@ -314,8 +347,7 @@ public class BookServiceImpl implements BookService {
         }
         // Validate that category exists (not defaulting to OTHER for invalid input)
         if (!isValidCategoryId(req.getBookCategoryId())) {
-            throw new InvalidBookDataException("Invalid category ID: '" + req.getBookCategoryId() + 
-                "'. Valid categories are: CAT-FIC, CAT-NF, CAT-TCH, CAT-SCI, CAT-HIS, CAT-FAN, CAT-BIO, CAT-BUS, CAT-OTH");
+            throw new InvalidBookDataException("Invalid category ID: '" + req.getBookCategoryId() + "'. " + getValidCategoriesMessage());
         }
         
         // Validate price
@@ -347,5 +379,27 @@ public class BookServiceImpl implements BookService {
             }
         }
         return false;
+    }
+    
+    private String getValidCategoriesMessage() {
+        StringBuilder sb = new StringBuilder("Valid categories are: ");
+        CategoryEnum[] categories = CategoryEnum.values();
+        for (int i = 0; i < categories.length; i++) {
+            CategoryEnum c = categories[i];
+            sb.append(c.name().replace("_", " ")).append(" (").append(c.getId()).append(")");
+            if (i < categories.length - 1) {
+                sb.append(", ");
+            }
+        }
+        return sb.toString();
+    }
+    
+    private String getCategoryDisplayName(String categoryId) {
+        for (CategoryEnum c : CategoryEnum.values()) {
+            if (c.getId().equalsIgnoreCase(categoryId.trim())) {
+                return c.name().replace("_", " ") + " (" + c.getId() + ")";
+            }
+        }
+        return categoryId;
     }
 }
