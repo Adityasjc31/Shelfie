@@ -289,7 +289,7 @@ public class BookServiceImplTest {
             // When & Then
             BookNotFoundException exception = assertThrows(BookNotFoundException.class, 
                 () -> bookService.getBooksByCategory("CAT-HIS"));
-            assertTrue(exception.getMessage().contains("No books found for category ID"));
+            assertTrue(exception.getMessage().contains("No books found for category"));
         }
 
         @Test
@@ -320,6 +320,10 @@ public class BookServiceImplTest {
                 () -> bookService.getBooksByCategory("INVALID-CAT"));
             assertTrue(exception.getMessage().contains("Invalid category ID"));
             assertTrue(exception.getMessage().contains("Valid categories are:"));
+            // Verify category names are displayed with their IDs
+            assertTrue(exception.getMessage().contains("FICTION (CAT-FIC)"));
+            assertTrue(exception.getMessage().contains("NON FICTION (CAT-NF)"));
+            assertTrue(exception.getMessage().contains("TECHNOLOGY (CAT-TCH)"));
             verify(bookRepository, never()).findByBookCategoryId(any());
         }
 
@@ -331,6 +335,18 @@ public class BookServiceImplTest {
                 () -> bookService.getBooksByCategory("CAT-XYZ"));
             assertTrue(exception.getMessage().contains("Invalid category ID"));
             verify(bookRepository, never()).findByBookCategoryId(any());
+        }
+
+        @Test
+        @DisplayName("Should include category display name in not found exception")
+        void getBooksByCategory_NotFoundIncludesCategoryName() {
+            // Given
+            when(bookRepository.findByBookCategoryId("CAT-FAN")).thenReturn(Collections.emptyList());
+
+            // When & Then
+            BookNotFoundException exception = assertThrows(BookNotFoundException.class, 
+                () -> bookService.getBooksByCategory("CAT-FAN"));
+            assertTrue(exception.getMessage().contains("FANTASY (CAT-FAN)"));
         }
     }
 

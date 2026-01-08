@@ -82,15 +82,14 @@ public class BookServiceImpl implements BookService {
         }
         // Validate category is a valid enum value
         if (!isValidCategoryId(categoryId)) {
-            throw new InvalidBookDataException("Invalid category ID: '" + categoryId + 
-                "'. Valid categories are: CAT-FIC, CAT-NF, CAT-TCH, CAT-SCI, CAT-HIS, CAT-FAN, CAT-BIO, CAT-BUS, CAT-OTH");
+            throw new InvalidBookDataException("Invalid category ID: '" + categoryId + "'. " + getValidCategoriesMessage());
         }
         
         List<Book> books = bookRepository.findByBookCategoryId(categoryId);
         
         // Throw exception if no books found for the category
         if (books.isEmpty()) {
-            throw new BookNotFoundException("No books found for category ID: " + categoryId);
+            throw new BookNotFoundException("No books found for category: " + getCategoryDisplayName(categoryId));
         }
         
         List<BookResponseDTO> responseList = new ArrayList<>();
@@ -314,8 +313,7 @@ public class BookServiceImpl implements BookService {
         }
         // Validate that category exists (not defaulting to OTHER for invalid input)
         if (!isValidCategoryId(req.getBookCategoryId())) {
-            throw new InvalidBookDataException("Invalid category ID: '" + req.getBookCategoryId() + 
-                "'. Valid categories are: CAT-FIC, CAT-NF, CAT-TCH, CAT-SCI, CAT-HIS, CAT-FAN, CAT-BIO, CAT-BUS, CAT-OTH");
+            throw new InvalidBookDataException("Invalid category ID: '" + req.getBookCategoryId() + "'. " + getValidCategoriesMessage());
         }
         
         // Validate price
@@ -347,5 +345,27 @@ public class BookServiceImpl implements BookService {
             }
         }
         return false;
+    }
+    
+    private String getValidCategoriesMessage() {
+        StringBuilder sb = new StringBuilder("Valid categories are: ");
+        CategoryEnum[] categories = CategoryEnum.values();
+        for (int i = 0; i < categories.length; i++) {
+            CategoryEnum c = categories[i];
+            sb.append(c.name().replace("_", " ")).append(" (").append(c.getId()).append(")");
+            if (i < categories.length - 1) {
+                sb.append(", ");
+            }
+        }
+        return sb.toString();
+    }
+    
+    private String getCategoryDisplayName(String categoryId) {
+        for (CategoryEnum c : CategoryEnum.values()) {
+            if (c.getId().equalsIgnoreCase(categoryId.trim())) {
+                return c.name().replace("_", " ") + " (" + c.getId() + ")";
+            }
+        }
+        return categoryId;
     }
 }
