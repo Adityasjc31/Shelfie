@@ -154,6 +154,39 @@ public class GatewayConfig {
                                                                 "forward:/fallback/users"))
                                                 .uri("lb://user-service"))
 
+                                // ==========================================
+                                // SWAGGER API DOCS ROUTES (for aggregation)
+                                // ==========================================
+                                .route("book-service-api-docs", r -> r
+                                                .path("/v3/api-docs/book-service")
+                                                .filters(f -> f.rewritePath("/v3/api-docs/book-service", "/api-docs"))
+                                                .uri("lb://book-service"))
+
+                                .route("inventory-service-api-docs", r -> r
+                                                .path("/v3/api-docs/inventory-service")
+                                                .filters(f -> f.rewritePath("/v3/api-docs/inventory-service", "/api-docs"))
+                                                .uri("lb://inventory-service"))
+
+                                .route("order-service-api-docs", r -> r
+                                                .path("/v3/api-docs/order-service")
+                                                .filters(f -> f.rewritePath("/v3/api-docs/order-service", "/api-docs"))
+                                                .uri("lb://order-service"))
+
+                                .route("user-service-api-docs", r -> r
+                                                .path("/v3/api-docs/user-service")
+                                                .filters(f -> f.rewritePath("/v3/api-docs/user-service", "/api-docs"))
+                                                .uri("lb://user-service"))
+
+                                .route("review-service-api-docs", r -> r
+                                                .path("/v3/api-docs/review-service")
+                                                .filters(f -> f.rewritePath("/v3/api-docs/review-service", "/api-docs"))
+                                                .uri("lb://review-service"))
+
+                                .route("authentication-service-api-docs", r -> r
+                                                .path("/v3/api-docs/authentication-service")
+                                                .filters(f -> f.rewritePath("/v3/api-docs/authentication-service", "/v3/api-docs"))
+                                                .uri("lb://authentication-service"))
+
                                 .build();
         }
 }

@@ -58,6 +58,9 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             "/auth/refresh",
             "/actuator",
             "/swagger-ui",
+            "/swagger-ui.html",
+            "/v3/api-docs",
+            "/webjars",
             "/api-docs");
 
     public AuthenticationFilter(WebClient.Builder webClientBuilder, 
