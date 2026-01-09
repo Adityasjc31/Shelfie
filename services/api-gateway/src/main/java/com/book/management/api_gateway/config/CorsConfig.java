@@ -58,7 +58,6 @@ public class CorsConfig {
                 "Authorization",
                 "Content-Type",
                 "Accept",
-                "X-Requested-With",
                 "X-Request-ID",
                 "X-User-Id",
                 "X-User-Email",
