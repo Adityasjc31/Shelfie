@@ -52,7 +52,7 @@ public class MicroserviceConfig {
         return new OpenAPI()
                 .servers(List.of(
                         new Server().url("http://localhost:9080").description("API Gateway"),
-                        new Server().url("http://localhost:9082").description("Direct Access (Dev Only)")
+                        new Server().url("http://localhost:9084").description("Direct Access (Dev Only)")
                 ))
                 .info(new Info()
                         .title("Book Service API")
@@ -61,11 +61,20 @@ public class MicroserviceConfig {
                                 REST API for Book Management in Digital Bookstore.
                                 
                                 Features:
-                                - Book CRUD operations
-                                - Book search and filtering
-                                - Category management
-                                - Book inventory integration
-                                - Review integration
+                                - Book CRUD operations (Create, Read, Update, Delete)
+                                - Advanced book search and filtering by title, author, ISBN
+                                - Category and genre management
+                                - Book inventory integration with real-time stock checks
+                                - Review and rating integration
+                                - Pagination support for large result sets
+                                
+                                Supported Operations:
+                                - GET /api/books - List all books with pagination
+                                - GET /api/books/{id} - Get book by ID
+                                - POST /api/books - Create new book (Admin only)
+                                - PUT /api/books/{id} - Update book details (Admin only)
+                                - DELETE /api/books/{id} - Delete book (Admin only)
+                                - GET /api/books/search - Search books by various criteria
                                 
                                 Authentication: All requests must be authenticated via API Gateway.
                                 """)
