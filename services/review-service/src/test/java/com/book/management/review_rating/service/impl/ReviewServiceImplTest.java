@@ -24,7 +24,6 @@ import com.book.management.review_rating.model.Review;
 import com.book.management.review_rating.model.Review.ReviewStatus;
 import com.book.management.review_rating.repository.ReviewRepository;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -85,8 +84,8 @@ class ReviewServiceImplTest {
         testBook = BookResponseDTO.builder()
                 .bookId(101L)
                 .bookTitle("Test Book")
-                .bookPrice(BigDecimal.valueOf(29.99))
-                .stockQuantity(10)
+                .bookPrice(29.99)
+                .bookStockQuantity(10)
                 .build();
     }
 
