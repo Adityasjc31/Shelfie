@@ -439,5 +439,5 @@ For questions or issues, please refer to the learning guides available in each s
 ---
 
 <p align="center">
-  Made By Shelfie Team 😎 
+  Made By Shelfie Team 😎👾 
 </p>
