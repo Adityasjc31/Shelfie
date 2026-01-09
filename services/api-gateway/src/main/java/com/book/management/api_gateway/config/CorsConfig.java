@@ -48,13 +48,6 @@ public class CorsConfig {
         // Development: Allow all
         corsConfig.setAllowedOriginPatterns(List.of("*"));
         
-        // Production: Specify exact origins
-        // corsConfig.setAllowedOrigins(Arrays.asList(
-        //     "https://digitalbookstore.com",
-        //     "https://admin.digitalbookstore.com",
-        //     "https://mobile.digitalbookstore.com"
-        // ));
-        
         // Allowed HTTP methods
         corsConfig.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"
@@ -65,7 +58,6 @@ public class CorsConfig {
                 "Authorization",
                 "Content-Type",
                 "Accept",
-                "X-Requested-With",
                 "X-Request-ID",
                 "X-User-Id",
                 "X-User-Email",
@@ -78,11 +70,7 @@ public class CorsConfig {
         // Exposed headers (headers that client can read)
         corsConfig.setExposedHeaders(Arrays.asList(
                 "Authorization",
-                "X-Request-ID",
-                "X-Total-Count",
-                "X-Page-Number",
-                "X-Page-Size",
-                "Content-Disposition"
+                "X-Request-ID"
         ));
         
         // Max age for preflight requests (1 hour)

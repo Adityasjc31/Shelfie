@@ -5,9 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 /**
  * DTO for Book information received from Book Microservice.
  * 
@@ -29,22 +26,10 @@ import java.time.LocalDateTime;
 @Builder
 public class BookResponseDTO {
     
-    private Long bookId;
+    private long bookId;
     private String bookTitle;
-    private Long bookAuthorId;
-    private String authorName;
-    private Long categoryId;
-    private String categoryName;
-    private BigDecimal bookPrice;
-    private Integer stockQuantity;
-    private String isbn;
-    private String description;
-    private String publisher;
-    private Integer publicationYear;
-    private String language;
-    private Integer pages;
-    private Double averageRating;
-    private Long totalReviews;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private String bookAuthorId;
+    private String bookCategoryId;
+    private double bookPrice;
+    private long bookStockQuantity;
 }

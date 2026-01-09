@@ -140,7 +140,7 @@ public class GatewayConfig {
                                 // REVIEW SERVICE ROUTES
                                 // ==========================================
                                 .route("review-service", r -> r
-                                                .path("/api/v1/review/**")
+                                                .path("/api/v1/reviews/**")
                                                 .filters(f -> applyStandardFilters(f, "reviewCircuitBreaker",
                                                                 "forward:/fallback/reviews"))
                                                 .uri("lb://review-service"))
