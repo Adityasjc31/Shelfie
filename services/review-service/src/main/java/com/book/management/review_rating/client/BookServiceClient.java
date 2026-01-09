@@ -62,7 +62,7 @@ public interface BookServiceClient {
     default boolean checkBookExists(Long bookId) {
         try {
             BookResponseDTO book = getBookById(bookId);
-            return book != null && book.getBookId() != null;
+            return book != null && book.getBookId() > 0;
         } catch (Exception e) {
             return false;
         }
