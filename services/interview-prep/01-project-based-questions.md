@@ -540,57 +540,90 @@ We use **synchronous REST-based communication** via **OpenFeign** declarative cl
 
 ### Step 1: Define Feign Client Interface
 ```java
-@FeignClient(name = "inventory-service", path = "/api/v1/inventory")
-public interface InventoryClient {
-    
-    @GetMapping("/book/{bookId}/availability")
-    Boolean checkAvailability(@PathVariable Long bookId, 
-                              @RequestParam Integer quantity);
-    
-    @PatchMapping("/bulk/reduce")
-    void reduceBulkInventory(@RequestBody BulkStockReduceDTO request);
-    
-    @GetMapping("/book/{bookId}")
-    InventoryResponseDTO getInventoryByBookId(@PathVariable Long bookId);
+// Actual implementation: InventoryServiceClient.java
+@FeignClient(name = "inventory-service", 
+             path = "/api/v1/inventory", 
+             fallbackFactory = InventoryClientFallbackFactory.class)
+public interface InventoryServiceClient {
+
+    @PatchMapping(value = "/bulk/reduce", consumes = MediaType.APPLICATION_JSON_VALUE)
+    void reduceStock(@RequestBody ReduceInventoryStockRequestDTO request);
+}
+
+// Request DTO for reducing inventory
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ReduceInventoryStockRequestDTO {
+    private Map<Long, Integer> bookQuantities;  // bookId -> quantity to reduce
 }
 ```
 
 ### Step 2: Use in Service
 ```java
+// Actual implementation: OrderServiceImpl.java
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderServiceImpl implements OrderService {
     
-    private final InventoryClient inventoryClient;
-    
-    public OrderResponseDTO placeOrder(OrderCreateDTO dto) {
-        // Step 1: Check if stock is available
-        boolean isAvailable = inventoryClient.checkAvailability(
-            dto.getBookId(), dto.getQuantity());
-        
-        if (!isAvailable) {
-            throw new InsufficientStockException("Stock not available");
+    private final InventoryServiceClient inventoryServiceClient;
+    private final BookServiceClient bookServiceClient;
+    private final OrderRepository orderRepository;
+
+    @Override
+    @Transactional
+    public OrderResponseDTO placeOrder(PlaceOrderRequestDTO request) {
+        log.info("Initiating order placement for userId: {}", request.getUserId());
+        try {
+            // 1) Fetch prices and validate existence (Book-service)
+            List<Long> bookIdList = new ArrayList<>(request.getBookOrder().keySet());
+            GetBookPriceResponseDTO priceDTO = bookServiceClient.getBookPrices(
+                    new GetBookPriceRequestDTO(bookIdList));
+            Map<Long, Double> priceMap = priceDTO.getBookPrice();
+
+            // 2) Reduce stock (Inventory-service)
+            inventoryServiceClient.reduceStock(
+                    new ReduceInventoryStockRequestDTO(request.getBookOrder()));
+
+            // 3) Compute total amount
+            double totalAmount = request.getBookOrder().entrySet().stream()
+                    .mapToDouble(e -> {
+                        Double unitPrice = priceMap.get(e.getKey());
+                        return unitPrice != null ? unitPrice * e.getValue() : 0.0;
+                    })
+                    .sum();
+
+            // 4) Save order with PENDING status
+            Order order = Order.builder()
+                    .userId(request.getUserId())
+                    .items(request.getBookOrder())
+                    .orderTotalAmount(totalAmount)
+                    .orderDateTime(LocalDateTime.now())
+                    .orderStatus(OrderEnum.PENDING)
+                    .isDeleted(false)
+                    .build();
+
+            Order savedOrder = orderRepository.save(order);
+            log.info("Order placed successfully. orderId: {}", savedOrder.getOrderId());
+
+            return toResponseDTO(savedOrder);
+        } catch (OrderNotPlacedException ex) {
+            // Re-throw from Feign error decoder
+            throw ex;
+        } catch (Exception ex) {
+            throw new OrderNotPlacedException(
+                    "Internal system error: Unable to process order. Cause: " + ex.getMessage());
         }
-        
-        // Step 2: Create order
-        Order order = createOrder(dto);
-        
-        // Step 3: Reduce inventory
-        BulkStockReduceDTO reduceRequest = BulkStockReduceDTO.builder()
-            .bookQuantities(Map.of(dto.getBookId(), dto.getQuantity()))
-            .build();
-        inventoryClient.reduceBulkInventory(reduceRequest);
-        
-        return mapToResponse(orderRepository.save(order));
     }
 }
 ```
 
 ### Key Points:
 - `name = "inventory-service"` matches the service name registered in Eureka
-- `lb://` prefix enables load balancing automatically
-- Spring Cloud LoadBalancer picks one healthy instance
+- `fallbackFactory = InventoryClientFallbackFactory.class` provides graceful degradation
 - Feign handles HTTP client creation, serialization, error handling
+- Two Feign clients used: `BookServiceClient` (prices) + `InventoryServiceClient` (stock)
 
 ---
 
@@ -798,16 +831,32 @@ We use **Global Exception Handling** with `@RestControllerAdvice` for consistent
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Custom Exception Classes:
+### Custom Exception Classes (Order Service):
 ```java
-public class InventoryNotFoundException extends RuntimeException {
-    public InventoryNotFoundException(String message) {
+// Thrown when downstream services fail (Inventory/Book service issues)
+public class OrderNotPlacedException extends RuntimeException {
+    public OrderNotPlacedException(String message) {
         super(message);
     }
 }
 
-public class InsufficientStockException extends RuntimeException {
-    public InsufficientStockException(String message) {
+// Thrown when order status transition violates business rules
+public class OrderInvalidStatusTransitionException extends RuntimeException {
+    public OrderInvalidStatusTransitionException(String message) {
+        super(message);
+    }
+}
+
+// Thrown when cancellation is not allowed due to current state
+public class OrderCancellationNotAllowedException extends RuntimeException {
+    public OrderCancellationNotAllowedException(String message) {
+        super(message);
+    }
+}
+
+// Thrown when order is not found
+public class OrderNotFoundException extends RuntimeException {
+    public OrderNotFoundException(String message) {
         super(message);
     }
 }
@@ -815,82 +864,85 @@ public class InsufficientStockException extends RuntimeException {
 
 ### Error Response DTO:
 ```java
+// Actual implementation: ErrorResponseDTO.java (Order Service)
 @Data
 @Builder
-public class ErrorResponse {
-    private int status;
-    private String error;
-    private String message;
+@NoArgsConstructor
+@AllArgsConstructor
+public class ErrorResponseDTO {
     private LocalDateTime timestamp;
-    private String path;
+    private int status;
+    private String error;      // Error code like "ORDER_NOT_FOUND"
+    private String message;    // Detailed message
+    private String path;       // Request URI
 }
-```
 
 ### Global Exception Handler:
 ```java
+// Actual implementation: GlobalOrderExceptionHandler.java
 @RestControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalOrderExceptionHandler {
 
-    @ExceptionHandler(InventoryNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleInventoryNotFound(
-            InventoryNotFoundException ex, WebRequest request) {
-        
-        ErrorResponse error = ErrorResponse.builder()
-                .status(HttpStatus.NOT_FOUND.value())
-                .error("Not Found")
-                .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
-                .path(request.getDescription(false))
-                .build();
-                
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    /**
+     * Handles business logic failures during order placement.
+     */
+    @ExceptionHandler(OrderNotPlacedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleOrderNotPlaced(
+            OrderNotPlacedException ex, HttpServletRequest request) {
+
+        log.error("Order Placement Blocked: {} | Path: {}", ex.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.BAD_REQUEST, "ORDER_PLACEMENT_FAILED", ex.getMessage(), request);
     }
 
-    @ExceptionHandler(InsufficientStockException.class)
-    public ResponseEntity<ErrorResponse> handleInsufficientStock(
-            InsufficientStockException ex) {
-        
-        ErrorResponse error = ErrorResponse.builder()
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Insufficient Stock")
-                .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
-                .build();
-                
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    /**
+     * Handles invalid order status transitions.
+     * Uses 422 UNPROCESSABLE_CONTENT for semantic business rule violations.
+     */
+    @ExceptionHandler(OrderInvalidStatusTransitionException.class)
+    public ResponseEntity<ErrorResponseDTO> handleInvalidTransition(
+            OrderInvalidStatusTransitionException ex, HttpServletRequest request) {
+
+        log.error("Transition Unprocessable: {} | Path: {}", ex.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_ORDER_STATUS_TRANSITION", 
+                ex.getMessage(), request);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationErrors(
-            MethodArgumentNotValidException ex) {
-        
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-        
-        ErrorResponse error = ErrorResponse.builder()
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Failed")
+    /**
+     * Handles order cancellation failures.
+     * Uses 409 CONFLICT for state conflicts.
+     */
+    @ExceptionHandler(OrderCancellationNotAllowedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleCancellationDenied(
+            OrderCancellationNotAllowedException ex, HttpServletRequest request) {
+
+        log.error("Cancellation Conflict: {} | Path: {}", ex.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.CONFLICT, "ORDER_CANCELLATION_DENIED", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponseDTO> handleOrderNotFound(
+            OrderNotFoundException ex, HttpServletRequest request) {
+
+        log.error("Resource Missing: {} | Path: {}", ex.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", ex.getMessage(), request);
+    }
+
+    /**
+     * Standardized builder for ErrorResponseDTO.
+     */
+    private ResponseEntity<ErrorResponseDTO> buildResponse(
+            HttpStatus status, String errorCode, String message, HttpServletRequest request) {
+
+        ErrorResponseDTO errorBody = ErrorResponseDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(status.value())
+                .error(errorCode)  // Specific error codes, not generic labels
                 .message(message)
-                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
                 .build();
-                
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-        log.error("Unexpected error: ", ex);
-        
-        ErrorResponse error = ErrorResponse.builder()
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message("An unexpected error occurred")
-                .timestamp(LocalDateTime.now())
-                .build();
-                
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        return new ResponseEntity<>(errorBody, status);
     }
 }
 ```
@@ -1259,27 +1311,65 @@ service-name/
 ### Types of DTOs in Our Project:
 
 ```java
-// FOR CREATING - only fields needed for creation
-public record InventoryCreateDTO(
-    @NotNull Long bookId,
-    @Min(0) Integer quantity,
-    @Min(1) Integer lowStockThreshold
-) {}
+// FOR CREATING - only fields needed for creation (Lombok class, not record)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class InventoryCreateDTO {
 
-// FOR RESPONSE - what client receives
-public record InventoryResponseDTO(
-    Long id,
-    Long bookId,
-    Integer availableQuantity,
-    Boolean lowStock,
-    LocalDateTime lastUpdated
-) {}
+    @NotNull(message = "Book ID is required")
+    private Long bookId;
 
-// FOR UPDATING - partial update fields
-public record InventoryUpdateDTO(
-    Integer quantity,
-    Integer lowStockThreshold
-) {}
+    @NotNull(message = "Quantity is required")
+    @Min(value = 0, message = "Quantity must be non-negative")
+    private Integer quantity;
+
+    @Min(value = 1, message = "Low stock threshold must be at least 1")
+    private Integer lowStockThreshold;
+}
+
+// FOR RESPONSE - what client receives (includes computed fields)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class InventoryResponseDTO {
+
+    private Long inventoryId;
+    private Long bookId;
+    private Integer quantity;
+    private Integer lowStockThreshold;
+    private boolean isLowStock;      // Computed: quantity < threshold
+    private boolean isOutOfStock;    // Computed: quantity == 0
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+
+// FOR UPDATING - partial update fields (all optional)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class InventoryUpdateDTO {
+
+    @Min(value = 0, message = "Quantity must be non-negative")
+    private Integer quantity;
+
+    @Min(value = 1, message = "Low stock threshold must be at least 1")
+    private Integer lowStockThreshold;
+}
+
+// FOR BULK OPERATIONS - reduce stock for multiple books
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class BulkStockReduceDTO {
+
+    @NotEmpty(message = "At least one book-quantity pair is required")
+    private Map<Long, Integer> bookQuantities;  // bookId -> quantity to reduce
+}
 ```
 
 ### Benefits:
@@ -1300,35 +1390,25 @@ public record InventoryUpdateDTO(
 
 We use **Bean Validation (Jakarta Validation)** with annotations.
 
-### Validation Annotations:
+### Validation Annotations (InventoryCreateDTO):
 
 ```java
-public class BookCreateDTO {
-    
-    @NotBlank(message = "Title is required")
-    @Size(min = 1, max = 255, message = "Title must be 1-255 characters")
-    private String title;
-    
-    @NotBlank(message = "Author is required")
-    private String author;
-    
-    @NotBlank(message = "ISBN is required")
-    @Pattern(regexp = "^\\d{13}$", message = "ISBN must be 13 digits")
-    private String isbn;
-    
-    @NotNull(message = "Price is required")
-    @DecimalMin(value = "0.01", message = "Price must be at least 0.01")
-    @DecimalMax(value = "9999.99", message = "Price cannot exceed 9999.99")
-    private BigDecimal price;
-    
-    @Min(value = 1, message = "Page count must be at least 1")
-    private Integer pageCount;
-    
-    @Email(message = "Invalid email format")
-    private String publisherEmail;
-    
-    @Past(message = "Publication date must be in the past")
-    private LocalDate publicationDate;
+// Actual implementation: InventoryCreateDTO.java
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class InventoryCreateDTO {
+
+    @NotNull(message = "Book ID is required")
+    private Long bookId;
+
+    @NotNull(message = "Quantity is required")
+    @Min(value = 0, message = "Quantity must be non-negative")
+    private Integer quantity;
+
+    @Min(value = 1, message = "Low stock threshold must be at least 1")
+    private Integer lowStockThreshold;
 }
 ```
 
@@ -1336,10 +1416,10 @@ public class BookCreateDTO {
 
 ```java
 @PostMapping
-public ResponseEntity<BookResponseDTO> createBook(
-        @Valid @RequestBody BookCreateDTO dto) {  // @Valid triggers validation
+public ResponseEntity<InventoryResponseDTO> createInventory(
+        @Valid @RequestBody InventoryCreateDTO dto) {  // @Valid triggers validation
     return ResponseEntity.status(HttpStatus.CREATED)
-            .body(bookService.createBook(dto));
+            .body(inventoryService.createInventory(dto));
 }
 ```
 
@@ -1380,35 +1460,57 @@ spring.jpa.properties.hibernate.format_sql=true
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
 ```
 
-### Entity Example:
+### Entity Example (Inventory.java):
 
 ```java
+// Actual implementation with JPA Auditing and Optimistic Locking
 @Entity
-@Table(name = "inventory")
+@Table(name = "inventory", 
+       indexes = {
+           @Index(name = "idx_book_id", columnList = "book_id"),
+           @Index(name = "idx_quantity", columnList = "quantity")
+       })
+@EntityListeners(AuditingEntityListener.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Inventory {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    @Column(nullable = false, unique = true)
+    @Column(name = "inventory_id")
+    private Long inventoryId;  // Note: inventoryId, not just id
+
+    @Column(name = "book_id", nullable = false, unique = true)
     private Long bookId;
-    
-    @Column(nullable = false)
-    private Integer availableQuantity;
-    
-    @Column(nullable = false)
-    private Integer lowStockThreshold;
-    
-    @Column(name = "last_updated")
-    private LocalDateTime lastUpdated;
-    
-    @PreUpdate
-    public void onUpdate() {
-        this.lastUpdated = LocalDateTime.now();
+
+    @Column(name = "quantity", nullable = false)
+    private Integer quantity;  // Note: quantity, not availableQuantity
+
+    @Column(name = "low_stock_threshold", nullable = false)
+    @Builder.Default
+    private Integer lowStockThreshold = 10;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Version  // Optimistic locking
+    @Column(name = "version")
+    private Long version;
+
+    // Helper methods for business logic
+    public boolean isLowStock() {
+        return quantity <= lowStockThreshold;
+    }
+
+    public boolean isOutOfStock() {
+        return quantity == 0;
     }
 }
 ```
@@ -1650,35 +1752,85 @@ Key dependencies per service type:
 
 **Answer:**
 
-When one service calls another, we forward the JWT token:
+When one service calls another internally (via Feign), we use a **Gateway Secret** mechanism to authenticate inter-service requests:
 
+### GatewaySecretRequestInterceptor:
 ```java
-// Feign RequestInterceptor to forward tokens
-@Component
-public class FeignAuthInterceptor implements RequestInterceptor {
-    
+// Actual implementation: GatewaySecretRequestInterceptor.java
+@Slf4j
+public class GatewaySecretRequestInterceptor implements RequestInterceptor {
+
+    private final GatewaySecurityProperties securityProperties;
+
+    public GatewaySecretRequestInterceptor(GatewaySecurityProperties securityProperties) {
+        this.securityProperties = securityProperties;
+    }
+
     @Override
     public void apply(RequestTemplate template) {
-        // Get token from current request context
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        
-        if (requestAttributes instanceof ServletRequestAttributes servletAttributes) {
-            HttpServletRequest request = servletAttributes.getRequest();
-            String authHeader = request.getHeader("Authorization");
+        if (securityProperties.isEnabled() && securityProperties.getExpectedToken() != null) {
+            String token = securityProperties.getExpectedToken();
+            template.header(
+                    securityProperties.getHeaderName(),  // e.g., "X-Gateway-Secret"
+                    token);
             
-            if (authHeader != null) {
-                template.header("Authorization", authHeader);
+            if (log.isDebugEnabled()) {
+                String maskedToken = token.length() > 8 ? token.substring(0, 8) + "..." : token;
+                log.debug("Inter-service call to: {} | Header: {} | Token prefix: {}",
+                        template.feignTarget().name(),
+                        securityProperties.getHeaderName(),
+                        maskedToken);
             }
+        } else if (log.isWarnEnabled()) {
+            log.warn("Gateway security disabled or no token configured - NOT injecting header");
         }
     }
 }
 ```
 
+### Feign Global Configuration:
+```java
+@Configuration
+@RequiredArgsConstructor
+public class FeignGlobalConfig {
+
+    private final GatewaySecurityProperties securityProperties;
+
+    @Bean
+    public RequestInterceptor gatewaySecretRequestInterceptor() {
+        return new GatewaySecretRequestInterceptor(securityProperties);
+    }
+
+    @Bean
+    public ErrorDecoder errorDecoder() {
+        return new CustomFeignErrorDecoder();
+    }
+}
+```
+
+### Configuration Properties:
+```properties
+# In application.properties (via Config Server)
+gateway.security.enabled=true
+gateway.security.header-name=X-Gateway-Secret
+gateway.security.expected-token=${GATEWAY_SECRET_TOKEN}
+```
+
 ### Flow:
 
 ```
-Client → API Gateway (validates JWT) → Order Service → (forwards JWT) → Inventory Service
+Client → API Gateway (validates JWT) → Order Service
+                                            │
+                                            ▼ (injects X-Gateway-Secret header)
+                                       Inventory Service (validates X-Gateway-Secret)
 ```
+
+### Why Gateway Secret?
+| Aspect | Benefit |
+|--------|---------|
+| **Direct Access Prevention** | Services reject requests without the secret header |
+| **Internal Trust** | Services trust requests coming through the gateway |
+| **No JWT Dependency** | Works even for internal-only service calls |
 
 ---
 
@@ -1721,90 +1873,129 @@ public class OrderServiceImpl implements OrderService {
 
 ---
 
-## Q21: How do you implement pagination in your APIs?
+## Q21: How do you implement Feign FallbackFactory for resilience?
 
 **Answer:**
 
-We use Spring Data's `Pageable` interface:
+We use **FallbackFactory** to handle failures gracefully when downstream services are unavailable:
 
+### FallbackFactory Implementation:
 ```java
-// Controller
-@GetMapping
-public ResponseEntity<Page<BookResponseDTO>> getAllBooks(
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size,
-        @RequestParam(defaultValue = "id") String sortBy,
-        @RequestParam(defaultValue = "asc") String direction) {
-    
-    Sort sort = direction.equalsIgnoreCase("desc") 
-        ? Sort.by(sortBy).descending() 
-        : Sort.by(sortBy).ascending();
-    
-    Pageable pageable = PageRequest.of(page, size, sort);
-    return ResponseEntity.ok(bookService.findAll(pageable));
-}
+// Actual implementation: InventoryClientFallbackFactory.java
+@Component
+@Slf4j
+public class InventoryClientFallbackFactory implements FallbackFactory<InventoryServiceClient> {
 
-// Service
-public Page<BookResponseDTO> findAll(Pageable pageable) {
-    return bookRepository.findAll(pageable)
-            .map(this::mapToResponse);
-}
-```
+    @Override
+    public InventoryServiceClient create(Throwable cause) {
+        return new InventoryServiceClient() {
+            @Override
+            public void reduceStock(ReduceInventoryStockRequestDTO request) {
+                log.error("CRITICAL: Inventory Service call failed for items: {} | Cause: {} - {}",
+                        request.getBookQuantities(),
+                        cause.getClass().getSimpleName(),
+                        cause.getMessage());
 
-### Response:
+                // Log full stack trace at debug level
+                log.debug("Full exception details:", cause);
 
-```json
-{
-    "content": [...],
-    "pageable": {
-        "pageNumber": 0,
-        "pageSize": 10
-    },
-    "totalPages": 5,
-    "totalElements": 47,
-    "first": true,
-    "last": false
-}
-```
-
----
-
-## Q22: How do you map between Entity and DTO?
-
-**Answer:**
-
-We use **MapStruct** for compile-time mapping:
-
-```java
-@Mapper(componentModel = "spring")
-public interface InventoryMapper {
-    
-    InventoryResponseDTO toResponseDTO(Inventory entity);
-    
-    Inventory toEntity(InventoryCreateDTO dto);
-    
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateEntityFromDTO(InventoryUpdateDTO dto, @MappingTarget Inventory entity);
-    
-    List<InventoryResponseDTO> toResponseDTOList(List<Inventory> entities);
-}
-```
-
-### Usage in Service:
-
-```java
-@Service
-@RequiredArgsConstructor
-public class InventoryServiceImpl implements InventoryService {
-    
-    private final InventoryMapper mapper;
-    
-    public InventoryResponseDTO create(InventoryCreateDTO dto) {
-        Inventory entity = mapper.toEntity(dto);
-        return mapper.toResponseDTO(inventoryRepository.save(entity));
+                // Throw business exception instead of generic failure
+                throw new OrderNotPlacedException(
+                        "Inventory Service unavailable: " + cause.getMessage());
+            }
+        };
     }
 }
 ```
+
+### Usage in Feign Client:
+```java
+@FeignClient(
+    name = "inventory-service", 
+    path = "/api/v1/inventory",
+    fallbackFactory = InventoryClientFallbackFactory.class  // ← Key attribute
+)
+public interface InventoryServiceClient {
+    @PostMapping("/reduce")
+    void reduceStock(@RequestBody ReduceInventoryStockRequestDTO request);
+}
+```
+
+### Why FallbackFactory over Fallback?
+
+| Aspect | `fallback` | `fallbackFactory` |
+|--------|-----------|-------------------|
+| **Error Info** | No access to exception | Full access to `Throwable cause` |
+| **Debugging** | Cannot log actual error | Can log error details |
+| **Use Case** | Simple static fallbacks | Error-aware dynamic fallbacks |
+
+---
+
+## Q22: How do you implement Role-Based Access Control (RBAC) in the API Gateway?
+
+**Answer:**
+
+We use **RoleAuthorizationService** with configurable YAML rules for endpoint-level authorization:
+
+### RoleAuthorizationService Implementation:
+```java
+// Actual implementation: RoleAuthorizationService.java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class RoleAuthorizationService {
+
+    private final RoleAuthorizationConfig rbacConfig;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    public boolean isAuthorized(String path, HttpMethod method, List<String> userRoles) {
+        // If RBAC is disabled, allow all
+        if (!rbacConfig.isEnabled()) {
+            return true;
+        }
+
+        // Find matching rule for this path and method
+        AuthorizationRule matchingRule = findMatchingRule(path, method);
+
+        // If no matching rule, allow authenticated users
+        if (matchingRule == null) {
+            return true;
+        }
+
+        // Check if user has required roles
+        return checkRoles(userRoles, matchingRule);
+    }
+
+    private boolean checkRoles(List<String> userRoles, AuthorizationRule rule) {
+        if (rule.isRequireAll()) {
+            return userRoles.containsAll(rule.getRoles());  // AND logic
+        } else {
+            return rule.getRoles().stream().anyMatch(userRoles::contains);  // OR logic
+        }
+    }
+}
+```
+
+### YAML Configuration:
+```yaml
+rbac:
+  enabled: true
+  rules:
+    - path: /api/v1/inventory/**
+      methods: [POST, PUT, DELETE]
+      roles: [ADMIN]
+    - path: /api/v1/users/**
+      methods: [DELETE]
+      roles: [ADMIN]
+      requireAll: false  # Any of ADMIN roles can access
+```
+
+### Key Features:
+| Feature | Implementation |
+|---------|----------------|
+| **Ant-style path matching** | `/api/v1/inventory/**` matches all sub-paths |
+| **Method filtering** | Restrict by HTTP method (GET, POST, etc.) |
+| **Role logic** | `requireAll: true` = AND, `requireAll: false` = OR |
 
 ---
 
@@ -1890,89 +2081,150 @@ class InventoryControllerIntegrationTest {
 
 ---
 
-## Q24: How do you handle database migrations?
+## Q24: How do you implement order status state machine?
 
 **Answer:**
 
-We use **Flyway** for version-controlled database migrations:
+We use a **state machine pattern** with explicit transition rules to manage order lifecycle:
 
+### State Transition Rules:
 ```
-src/main/resources/db/migration/
-├── V1__Create_inventory_table.sql
-├── V2__Add_low_stock_threshold.sql
-└── V3__Add_last_updated_column.sql
-```
-
-### Migration Script Example:
-
-```sql
--- V1__Create_inventory_table.sql
-CREATE TABLE inventory (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    book_id BIGINT NOT NULL UNIQUE,
-    available_quantity INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- V2__Add_low_stock_threshold.sql
-ALTER TABLE inventory 
-ADD COLUMN low_stock_threshold INT NOT NULL DEFAULT 10;
+PENDING ──→ SHIPPED ──→ DELIVERED
+    │
+    └──→ CANCELLED (via /cancelOrder only)
 ```
 
-### Configuration:
-
-```properties
-spring.flyway.enabled=true
-spring.flyway.locations=classpath:db/migration
-spring.flyway.baseline-on-migrate=true
-```
-
----
-
-## Q25: How do you implement logging across services?
-
-**Answer:**
-
-We use **SLF4J with Logback** and include **correlation IDs** for distributed tracing:
-
+### OrderEnum:
 ```java
-// Adding correlation ID to all requests
-@Component
-public class CorrelationIdFilter extends OncePerRequestFilter {
-    
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, 
-            HttpServletResponse response, FilterChain chain) {
-        
-        String correlationId = request.getHeader("X-Correlation-ID");
-        if (correlationId == null) {
-            correlationId = UUID.randomUUID().toString();
-        }
-        
-        MDC.put("correlationId", correlationId);
-        response.setHeader("X-Correlation-ID", correlationId);
-        
-        try {
-            chain.doFilter(request, response);
-        } finally {
-            MDC.clear();
-        }
+// Actual implementation: OrderEnum.java
+@AllArgsConstructor
+@Getter
+public enum OrderEnum {
+    PENDING(1, "Order is being processed"),
+    SHIPPED(2, "Order has been shipped"),
+    DELIVERED(3, "Order delivered successfully"),
+    CANCELLED(4, "Order has been cancelled");
+
+    private final int statusCode;
+    private final String statusDetail;
+}
+```
+
+### State Machine Validation:
+```java
+// Actual implementation: OrderServiceImpl.java
+public OrderResponseDTO updateOrderStatus(long orderId, UpdateOrderStatusRequestDTO request) {
+    Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+    // Cannot modify delivered orders
+    if (order.getOrderStatus() == OrderEnum.DELIVERED) {
+        throw new OrderInvalidStatusTransitionException(
+                "Cannot update status of delivered order");
+    }
+
+    OrderEnum current = order.getOrderStatus();
+    OrderEnum target = request.getOrderStatus();
+
+    // Validate transition using state machine
+    if (!isValidTransition(current, target)) {
+        throw new OrderInvalidStatusTransitionException(
+                "Invalid transition: " + current + " → " + target);
+    }
+
+    order.setOrderStatus(target);
+    return buildOrderResponse(orderRepository.save(order));
+}
+
+// State machine rules
+private boolean isValidTransition(OrderEnum from, OrderEnum to) {
+    switch (from) {
+        case PENDING:
+            return to == OrderEnum.SHIPPED;
+        case SHIPPED:
+            return to == OrderEnum.DELIVERED;
+        case DELIVERED, CANCELLED:
+        default:
+            return false;
     }
 }
 ```
 
-### Logback Configuration:
+### Key Design Decisions:
+| Rule | Implementation |
+|------|----------------|
+| **Cancellation** | Only allowed via dedicated `/cancelOrder` endpoint |
+| **No skipping** | PENDING → DELIVERED is invalid (must go through SHIPPED) |
+| **Terminal states** | DELIVERED and CANCELLED cannot transition further |
 
-```xml
-<pattern>%d{yyyy-MM-dd HH:mm:ss} [%X{correlationId}] %-5level %logger{36} - %msg%n</pattern>
+---
+
+## Q25: How do you implement request logging in the API Gateway?
+
+**Answer:**
+
+We use a custom **LoggingFilter** that extends `AbstractGatewayFilterFactory`:
+
+### LoggingFilter Implementation:
+```java
+// Actual implementation: LoggingFilter.java
+@Component
+@Slf4j
+public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Config> {
+
+    @Override
+    public GatewayFilter apply(Config config) {
+        return (exchange, chain) -> {
+            ServerHttpRequest request = exchange.getRequest();
+            Instant startTime = Instant.now();
+            
+            // Generate unique request ID
+            String requestId = UUID.randomUUID().toString();
+            
+            // Log incoming request
+            log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            log.info("→ INCOMING REQUEST");
+            log.info("→ Request ID: {}", requestId);
+            log.info("→ Method: {}", request.getMethod());
+            log.info("→ Path: {}", request.getPath());
+            
+            // Add request ID to headers
+            ServerHttpRequest modifiedRequest = request.mutate()
+                    .header("X-Request-ID", requestId)
+                    .build();
+            
+            // Continue filter chain and log response
+            return chain.filter(exchange.mutate().request(modifiedRequest).build())
+                    .doOnSuccess(aVoid -> {
+                        long executionTime = Duration.between(startTime, Instant.now()).toMillis();
+                        log.info("← Status: {}", exchange.getResponse().getStatusCode());
+                        log.info("← Execution Time: {} ms", executionTime);
+                        
+                        // Warn for slow requests
+                        if (executionTime > 3000) {
+                            log.warn("⚠ SLOW REQUEST: {} took {} ms", request.getPath(), executionTime);
+                        }
+                    })
+                    .doOnError(error -> {
+                        log.error("✗ REQUEST FAILED: {}", error.getMessage());
+                    });
+        };
+    }
+
+    @Data
+    public static class Config {
+        private boolean logHeaders = true;
+    }
+}
 ```
 
-### Log Output:
-
-```
-2024-01-10 15:30:45 [abc-123-xyz] INFO  OrderService - Creating order for user 5
-2024-01-10 15:30:45 [abc-123-xyz] INFO  InventoryClient - Checking inventory for book 10
-```
+### Key Features:
+| Feature | Implementation |
+|---------|----------------|
+| **X-Request-ID** | UUID generated for each request |
+| **Execution Time** | Tracks ms from start to completion |
+| **Slow Request Warning** | Logs warning if > 3000ms |
+| **Error Tracking** | Logs on failure with `doOnError` |
 
 ---
 
@@ -2187,262 +2439,288 @@ public BulkOperationResultDTO reduceBulkStock(BulkStockReduceDTO request) {
 
 ---
 
-## Q31: How would you implement distributed transactions across services?
+## Q31: How do you implement soft delete in your entities?
 
 **Answer:**
 
-Since each service has its own database, we use the **Saga Pattern** for distributed transactions:
+We use **Hibernate annotations** `@SQLDelete` and `@SQLRestriction` for soft delete:
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    SAGA PATTERN - CHOREOGRAPHY                           │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│   ORDER CREATION SAGA:                                                   │
-│                                                                          │
-│   Step 1: Create Order (PENDING)                                        │
-│       ↓                                                                  │
-│   Step 2: Reserve Inventory                                             │
-│       ↓ (success)                                                        │
-│   Step 3: Process Payment                                               │
-│       ↓ (success)                                                        │
-│   Step 4: Confirm Order (CONFIRMED)                                     │
-│                                                                          │
-│   COMPENSATING TRANSACTIONS (on failure):                               │
-│                                                                          │
-│   If Step 3 Fails:                                                      │
-│       → Release Inventory (undo Step 2)                                 │
-│       → Cancel Order (undo Step 1)                                      │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Implementation Example:
-
+### Order Entity with Soft Delete:
 ```java
-@Service
-public class OrderSagaOrchestrator {
-    
-    public OrderResponseDTO createOrder(OrderCreateDTO dto) {
-        Order order = null;
-        boolean inventoryReserved = false;
-        
-        try {
-            // Step 1: Create order in PENDING state
-            order = orderService.createPendingOrder(dto);
-            
-            // Step 2: Reserve inventory
-            inventoryClient.reserveStock(dto.getBookId(), dto.getQuantity());
-            inventoryReserved = true;
-            
-            // Step 3: Process payment (if applicable)
-            // paymentClient.processPayment(...);
-            
-            // Step 4: Confirm order
-            order = orderService.confirmOrder(order.getId());
-            
-            return mapToResponse(order);
-            
-        } catch (Exception e) {
-            // COMPENSATING TRANSACTIONS
-            if (inventoryReserved) {
-                inventoryClient.releaseStock(dto.getBookId(), dto.getQuantity());
-            }
-            if (order != null) {
-                orderService.cancelOrder(order.getId());
-            }
-            throw new OrderCreationFailedException("Order saga failed: " + e.getMessage());
-        }
-    }
+// Actual implementation: Order.java
+@Entity
+@Table(name = "orders")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@SQLDelete(sql = "UPDATE orders SET is_deleted = true WHERE order_id = ?")
+@SQLRestriction("is_deleted = false")  // Excludes deleted records from queries
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long orderId;
+
+    @Column(nullable = false)
+    private Long userId;
+
+    @ElementCollection
+    @CollectionTable(name = "order_items", joinColumns = @JoinColumn(name = "order_id"))
+    @MapKeyColumn(name = "book_id")
+    @Column(name = "quantity")
+    private Map<Long, Integer> items;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderEnum orderStatus;
+
+    @Column(nullable = false)
+    private boolean isDeleted = false;  // Soft delete flag
 }
+```
+
+### How It Works:
+| Annotation | Purpose |
+|------------|---------|
+| `@SQLDelete` | Overrides `DELETE` to `UPDATE isDeleted=true` |
+| `@SQLRestriction` | Adds `WHERE is_deleted = false` to all queries |
+
+### Usage:
+```java
+// This executes: UPDATE orders SET is_deleted = true WHERE order_id = ?
+orderRepository.deleteById(orderId);
+
+// This automatically filters: SELECT * FROM orders WHERE is_deleted = false
+orderRepository.findAll();
 ```
 
 ---
 
-## Q32: How would you implement eventual consistency between services?
+## Q32: How do you handle downstream service errors with Feign?
 
 **Answer:**
 
-For order placement, we implement eventual consistency using the **Outbox Pattern**:
+We implement a **CustomFeignErrorDecoder** to parse and transform error responses:
 
+### CustomFeignErrorDecoder Implementation:
+```java
+// Actual implementation: CustomFeignErrorDecoder.java
+@Slf4j
+public class CustomFeignErrorDecoder implements ErrorDecoder {
+
+    private final ObjectMapper objectMapper;
+
+    public CustomFeignErrorDecoder() {
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+    }
+
+    @Override
+    public Exception decode(String methodKey, Response response) {
+        String downstreamMessage = "Service communication failure";
+
+        try (InputStream inputStream = response.body() != null 
+                ? response.body().asInputStream() : null) {
+            if (inputStream != null) {
+                Map<String, Object> body = objectMapper.readValue(inputStream, Map.class);
+                downstreamMessage = body.getOrDefault("message", downstreamMessage).toString();
+            }
+        } catch (IOException e) {
+            log.warn("Could not parse error body from downstream service for {}", methodKey);
+        }
+
+        log.error("Downstream Error [Status {}] at {}: {}", 
+                response.status(), methodKey, downstreamMessage);
+
+        return switch (response.status()) {
+            case 400 -> new OrderNotPlacedException("Inventory Issue: " + downstreamMessage);
+            case 404 -> new OrderNotPlacedException("BookItem Issue: " + downstreamMessage);
+            default -> new OrderNotPlacedException("Order process failed: " + downstreamMessage);
+        };
+    }
+}
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       OUTBOX PATTERN                                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│   ORDER SERVICE                                                          │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                                                                  │   │
-│   │   1. @Transactional                                              │   │
-│   │      - Save Order to orders table                                │   │
-│   │      - Save Event to outbox table (same transaction)            │   │
-│   │                                                                  │   │
-│   │   ┌───────────────┐      ┌───────────────┐                      │   │
-│   │   │    orders     │      │    outbox     │                      │   │
-│   │   │   (table)     │      │   (table)     │                      │   │
-│   │   └───────────────┘      └───────┬───────┘                      │   │
-│   │                                   │                              │   │
-│   └───────────────────────────────────┼──────────────────────────────┘   │
-│                                       │                                  │
-│   2. Outbox Poller (scheduled job)    │                                  │
-│      - Reads unpublished events       ▼                                  │
-│      - Publishes to message broker ────────▶  Kafka/RabbitMQ            │
-│      - Marks event as published                    │                     │
-│                                                    │                     │
-│   3. Inventory Service consumes event              ▼                     │
-│                                       ┌─────────────────────────┐       │
-│                                       │   INVENTORY SERVICE     │       │
-│                                       │  Reduces stock based    │       │
-│                                       │  on order event         │       │
-│                                       └─────────────────────────┘       │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+
+### Registration in FeignGlobalConfig:
+```java
+@Configuration
+public class FeignGlobalConfig {
+    @Bean
+    public ErrorDecoder errorDecoder() {
+        return new CustomFeignErrorDecoder();
+    }
+}
 ```
 
-### Outbox Table:
+### Key Benefits:
+| Benefit | Description |
+|---------|-------------|
+| **Error Translation** | Converts HTTP errors to business exceptions |
+| **Message Extraction** | Parses downstream error response body |
+| **Centralized** | Single point for all Feign error handling |
 
+---
+
+## Q33: How do you configure CORS in your microservices?
+
+**Answer:**
+
+We implement a **CorsFilter** bean for Cross-Origin Resource Sharing configuration:
+
+### CorsConfig Implementation:
+```java
+// Actual implementation: CorsConfig.java
+@Configuration
+public class CorsConfig {
+
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        
+        // Allow credentials (cookies, authorization headers)
+        config.setAllowCredentials(true);
+        
+        // Development: Allow all origins
+        config.setAllowedOriginPatterns(List.of("*"));
+        
+        // Allowed HTTP methods
+        config.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+        
+        // Allowed headers
+        config.setAllowedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "Accept", 
+                "X-Requested-With", "X-Request-ID"
+        ));
+        
+        // Exposed headers (client can read)
+        config.setExposedHeaders(Arrays.asList(
+                "Authorization", "X-Request-ID", "X-Total-Count"
+        ));
+        
+        // Max age for preflight requests (1 hour)
+        config.setMaxAge(3600L);
+        
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
+}
+```
+
+### Key Configuration Options:
+| Setting | Description |
+|---------|-------------|
+| `setAllowCredentials(true)` | Allows cookies and auth headers |
+| `setAllowedOriginPatterns` | Origins allowed to make requests |
+| `setExposedHeaders` | Headers client JavaScript can read |
+| `setMaxAge(3600L)` | Cache preflight response for 1 hour |
+
+---
+
+## Q34: How do you implement password encryption in the authentication service?
+
+**Answer:**
+
+We use **BCryptPasswordEncoder** for secure password hashing:
+
+### SecurityConfig:
+```java
+// Actual implementation: SecurityConfig.java
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(10);  // Cost factor of 10
+    }
+}
+```
+
+### Usage in Authentication Service:
+```java
+@Service
+@RequiredArgsConstructor
+public class AuthenticationService {
+    
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+    
+    public void registerUser(RegisterRequest request) {
+        User user = User.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))  // Hashed
+                .build();
+        userRepository.save(user);
+    }
+    
+    public boolean validatePassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
+}
+```
+
+### Why BCrypt?
+| Feature | Description |
+|---------|-------------|
+| **Salting** | Automatically adds random salt to each hash |
+| **Cost Factor** | `10` = 2^10 iterations, making brute-force slow |
+| **Adaptive** | Can increase cost factor as hardware improves |
+| **One-Way** | Cannot decrypt, only compare via `matches()` |
+
+---
+
+## Q35: How do you store order items as a Map in JPA?
+
+**Answer:**
+
+We use **@ElementCollection** to store a `Map<Long, Integer>` (bookId → quantity):
+
+### Order Entity with ElementCollection:
+```java
+// Actual implementation: Order.java
+@Entity
+@Table(name = "orders")
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long orderId;
+
+    @ElementCollection
+    @CollectionTable(name = "order_items", joinColumns = @JoinColumn(name = "order_id"))
+    @MapKeyColumn(name = "book_id")
+    @Column(name = "quantity")
+    private Map<Long, Integer> items;  // bookId → quantity
+}
+```
+
+### Generated Table Structure:
 ```sql
-CREATE TABLE outbox (
-    id BIGINT PRIMARY KEY,
-    aggregate_type VARCHAR(255),  -- 'Order'
-    aggregate_id BIGINT,          -- Order ID
-    event_type VARCHAR(255),      -- 'OrderCreated'
-    payload JSON,                  -- Event data
-    created_at TIMESTAMP,
-    published BOOLEAN DEFAULT FALSE
+-- Main table
+CREATE TABLE orders (
+    order_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    order_status VARCHAR(50)
+);
+
+-- Collection table (auto-generated)
+CREATE TABLE order_items (
+    order_id BIGINT REFERENCES orders(order_id),
+    book_id BIGINT,
+    quantity INT
 );
 ```
 
----
-
-## Q33: How do you handle service discovery in Kubernetes (vs Eureka)?
-
-**Answer:**
-
-In Kubernetes, you can use **Kubernetes native service discovery** instead of Eureka:
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    K8S vs EUREKA DISCOVERY                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│   WITH EUREKA:                                                           │
-│   App registers with Eureka → Clients query Eureka → Client-side LB    │
-│                                                                          │
-│   WITH KUBERNETES:                                                       │
-│   App deployed as Service → DNS resolves service name → K8s handles LB │
-│                                                                          │
-│   K8S Service YAML:                                                      │
-│   apiVersion: v1                                                         │
-│   kind: Service                                                          │
-│   metadata:                                                              │
-│     name: inventory-service                                              │
-│   spec:                                                                  │
-│     selector:                                                            │
-│       app: inventory                                                     │
-│     ports:                                                               │
-│       - port: 9083                                                       │
-│                                                                          │
-│   FEIGN CLIENT CHANGE:                                                   │
-│   @FeignClient(name = "inventory-service",                              │
-│                url = "http://inventory-service:9083")                   │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Q34: How would you implement rate limiting per user?
-
-**Answer:**
-
-Using Redis for distributed rate limiting:
-
-```java
-@Component
-@RequiredArgsConstructor
-public class UserRateLimiter {
-    
-    private final RedisTemplate<String, String> redisTemplate;
-    
-    public boolean isAllowed(String userId, int maxRequests, int windowSeconds) {
-        String key = "rate_limit:" + userId;
-        Long currentCount = redisTemplate.opsForValue().increment(key);
-        
-        if (currentCount == 1) {
-            redisTemplate.expire(key, windowSeconds, TimeUnit.SECONDS);
-        }
-        
-        return currentCount <= maxRequests;
-    }
-}
-
-// In Filter
-@Component
-public class RateLimitFilter extends OncePerRequestFilter {
-    
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, 
-            HttpServletResponse response, FilterChain chain) {
-        
-        String userId = extractUserId(request);
-        
-        if (!rateLimiter.isAllowed(userId, 100, 60)) {  // 100 req/min
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            return;
-        }
-        
-        chain.doFilter(request, response);
-    }
-}
-```
-
----
-
-## Q35: How do you implement caching in your services?
-
-**Answer:**
-
-We use **Spring Cache** with **Redis**:
-
-```java
-@Service
-@CacheConfig(cacheNames = "books")
-public class BookServiceImpl implements BookService {
-    
-    @Cacheable(key = "#id")
-    public BookResponseDTO findById(Long id) {
-        return mapper.toResponseDTO(
-            bookRepository.findById(id)
-                .orElseThrow(() -> new BookNotFoundException(id)));
-    }
-    
-    @CachePut(key = "#result.id")
-    public BookResponseDTO create(BookCreateDTO dto) {
-        return mapper.toResponseDTO(bookRepository.save(mapper.toEntity(dto)));
-    }
-    
-    @CacheEvict(key = "#id")
-    public void delete(Long id) {
-        bookRepository.deleteById(id);
-    }
-    
-    @CacheEvict(allEntries = true)
-    @Scheduled(fixedRate = 3600000)  // Clear cache every hour
-    public void clearCache() {
-        log.info("Clearing book cache");
-    }
-}
-```
-
-### Configuration:
-
-```properties
-spring.cache.type=redis
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-spring.cache.redis.time-to-live=3600000  # 1 hour
-```
+### Key Annotations:
+| Annotation | Purpose |
+|------------|---------|
+| `@ElementCollection` | Marks field as a basic collection (not entity) |
+| `@CollectionTable` | Specifies separate table name and FK |
+| `@MapKeyColumn` | Column for Map keys (book_id) |
+| `@Column` | Column for Map values (quantity) |
 
 ---
 
@@ -2489,104 +2767,136 @@ spring.cloud.gateway.routes[1].uri=lb://book-service-v2
 
 ---
 
-## Q37: How do you handle data consistency when a service is temporarily down?
+## Q37: How do you implement JPA auditing in your entities?
 
 **Answer:**
 
-We implement **retry with exponential backoff** and **dead letter queues**:
+We use **@EnableJpaAuditing** to automatically track creation and modification timestamps:
 
+### JpaAuditingConfig:
 ```java
-@RetryableTopic(
-    attempts = "4",
-    backoff = @Backoff(delay = 1000, multiplier = 2.0, maxDelay = 10000),
-    dltStrategy = DltStrategy.FAIL_ON_ERROR
-)
-@KafkaListener(topics = "order-events")
-public void processOrderEvent(OrderEvent event) {
-    try {
-        inventoryService.reduceStock(event.getBookId(), event.getQuantity());
-    } catch (Exception e) {
-        throw e;  // Will retry, eventually go to DLT
+// Actual implementation: JpaAuditingConfig.java
+@Configuration
+@EnableJpaAuditing
+public class JpaAuditingConfig {
+    // Separated from main class to allow exclusion in unit tests
+}
+```
+
+### Entity with Auditing Fields:
+```java
+@Entity
+@EntityListeners(AuditingEntityListener.class)
+public class Inventory {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @CreatedDate
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+}
+```
+
+### Key Annotations:
+| Annotation | Purpose |
+|------------|---------|
+| `@EnableJpaAuditing` | Enables auditing infrastructure |
+| `@EntityListeners` | Attaches AuditingEntityListener to entity |
+| `@CreatedDate` | Auto-sets on first persist |
+| `@LastModifiedDate` | Auto-updates on every save |
+
+---
+
+## Q38: How do you configure OpenAPI/Swagger documentation for your services?
+
+**Answer:**
+
+We configure **OpenAPI 3.0** using the **springdoc-openapi** library:
+
+### OpenApiConfig Implementation:
+```java
+// Actual implementation: OpenApiConfig.java
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .servers(List.of(
+                        new Server().url("http://localhost:9080").description("API Gateway"),
+                        new Server().url("http://localhost:9085").description("Direct Access")
+                ))
+                .info(new Info()
+                        .title("Order Service API")
+                        .version("1.0")
+                        .description("REST API for Order Management in Digital Bookstore")
+                        .contact(new Contact()
+                                .name("Rehan Ashraf")
+                                .email("support@digitalbookstore.com"))
+                        .license(new License()
+                                .name("Apache 2.0")
+                                .url("https://www.apache.org/licenses/LICENSE-2.0.html")));
     }
 }
-
-// Dead Letter Topic handler
-@KafkaListener(topics = "order-events-dlt")
-public void handleFailedEvents(OrderEvent event) {
-    log.error("Failed to process order event: {}", event);
-    alertService.notifyOperations(event);
-    // Store for manual review
-    failedEventRepository.save(event);
-}
 ```
+
+### Key Features:
+| Configuration | Purpose |
+|---------------|---------|
+| `servers` | Define multiple server URLs (gateway vs direct) |
+| `info.title` | API name displayed in Swagger UI |
+| `info.description` | Detailed API documentation |
+| `contact` | Support contact information |
 
 ---
 
-## Q38: How would you implement request tracing across services?
+## Q39: How do you externalize configuration in your microservices?
 
 **Answer:**
 
-Using **Micrometer Tracing** (formerly Spring Cloud Sleuth):
+We use **Spring Cloud Config Server** for centralized configuration management:
 
-```xml
-<dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-tracing-bridge-brave</artifactId>
-</dependency>
-<dependency>
-    <groupId>io.zipkin.reporter2</groupId>
-    <artifactId>zipkin-reporter-brave</artifactId>
-</dependency>
-```
-
-### Configuration:
-
-```properties
-management.tracing.sampling.probability=1.0
-management.zipkin.tracing.endpoint=http://localhost:9411/api/v2/spans
-```
-
-### Log Output with Trace:
-
-```
-2024-01-10 15:30:45 [traceId=abc123, spanId=def456] order-service - Creating order
-2024-01-10 15:30:45 [traceId=abc123, spanId=ghi789] inventory-service - Checking stock
-```
-
----
-
-## Q39: How do you handle secret management in production?
-
-**Answer:**
-
-Using **HashiCorp Vault** or **AWS Secrets Manager**:
-
+### Config Server Application:
 ```java
-// With Spring Cloud Vault
-@Configuration
-@EnableVaultRepositories
-public class VaultConfig {
-    // Secrets auto-loaded from Vault
+// Actual implementation: ConfigServerApplication.java
+@SpringBootApplication
+@EnableConfigServer
+public class ConfigServerApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ConfigServerApplication.class, args);
+    }
 }
 ```
 
-### Configuration:
-
+### Client Service Configuration:
 ```properties
-spring.cloud.vault.uri=https://vault.company.com
-spring.cloud.vault.token=${VAULT_TOKEN}
-spring.cloud.vault.kv.backend=secret
-spring.cloud.vault.kv.application-name=inventory-service
+# bootstrap.properties
+spring.application.name=order-service
+spring.cloud.config.uri=http://localhost:8888
+spring.profiles.active=dev
 ```
 
-### Secrets stored in Vault:
+### Config Repository Structure:
+```
+config-repo/
+├── application.properties      # Shared by all services
+├── order-service.properties    # Order-service specific
+├── inventory-service.properties
+└── book-service.properties
+```
 
-```
-secret/inventory-service
-├── spring.datasource.username=dbuser
-├── spring.datasource.password=securepass123
-└── jwt.secret=my-super-secret-key
-```
+### Key Benefits:
+| Feature | Description |
+|---------|-------------|
+| **Centralized** | Single location for all service configs |
+| **Environment-specific** | Profile-based configs (dev, prod) |
+| **Dynamic refresh** | @RefreshScope for runtime updates |
+| **Git-backed** | Version control for config changes |
 
 ---
 
